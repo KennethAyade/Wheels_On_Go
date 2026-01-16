@@ -1,0 +1,16 @@
+{
+  "name": "wheels-on-go",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "build:api": "npm --prefix apps/api run build",
+    "start:api": "npm --prefix apps/api run start:prod",
+    "prisma:generate": "npm --prefix apps/api run prisma:generate",
+    "prisma:migrate": "npm --prefix apps/api run prisma:migrate",
+    "prisma:studio": "npm --prefix apps/api run prisma:studio"
+  }
+}

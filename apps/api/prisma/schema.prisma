@@ -1,0 +1,19 @@
+// Prisma schema placeholder. Replace with real models once requirements are finalized.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Example model for smoke testing Prisma. Replace with real domain models.
+model Example {
+  id        Int     @id @default(autoincrement())
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+// TODO: Add User and other domain models once requirements are defined.
