@@ -1,5 +1,3 @@
-// Prisma schema placeholder. Replace with real models once requirements are finalized.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,11 +7,117 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Example model for smoke testing Prisma. Replace with real domain models.
-model Example {
-  id        Int     @id @default(autoincrement())
-  note      String?
-  createdAt DateTime @default(now())
+enum UserRole {
+  RIDER
+  DRIVER
+  ADMIN
 }
 
-// TODO: Add User and other domain models once requirements are defined.
+enum OtpPurpose {
+  LOGIN
+  REGISTER
+}
+
+enum DriverStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DriverDocumentType {
+  LICENSE
+  ORCR
+  GOVERNMENT_ID
+  PROFILE_PHOTO
+}
+
+enum DocumentStatus {
+  PENDING_UPLOAD
+  UPLOADED
+  REJECTED
+}
+
+model User {
+  id           String      @id @default(uuid())
+  phoneNumber  String      @unique
+  countryCode  String?
+  role         UserRole
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  lastLoginAt  DateTime?
+  driverProfile DriverProfile?
+  otpCodes     OtpCode[]
+  auditLogs    AuditLog[]
+}
+
+model OtpCode {
+  id            String     @id @default(uuid())
+  phoneNumber   String
+  role          UserRole
+  codeHash      String
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  failedAttempts Int       @default(0)
+  purpose       OtpPurpose
+  createdAt     DateTime   @default(now())
+  userId        String?
+  user          User?      @relation(fields: [userId], references: [id])
+
+  @@index([phoneNumber])
+  @@index([expiresAt])
+}
+
+model DriverProfile {
+  id                      String    @id @default(uuid())
+  userId                  String    @unique
+  user                    User      @relation(fields: [userId], references: [id])
+  status                  DriverStatus @default(PENDING)
+  rejectionReason         String?
+  profilePhotoKey         String?
+  profilePhotoUploadedAt  DateTime?
+  biometricVerifiedAt     DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  documents               DriverDocument[]
+  biometricVerifications  BiometricVerification[]
+}
+
+model DriverDocument {
+  id              String             @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile      @relation(fields: [driverProfileId], references: [id])
+  type            DriverDocumentType
+  storageKey      String
+  fileName        String
+  mimeType        String
+  status          DocumentStatus     @default(PENDING_UPLOAD)
+  size            Int?
+  uploadedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([driverProfileId, type])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([targetType, targetId])
+}
+
+model BiometricVerification {
+  id              String        @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id])
+  success         Boolean
+  reason          String?
+  confidence      Float?
+  createdAt       DateTime      @default(now())
+}

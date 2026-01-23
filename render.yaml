@@ -15,5 +15,37 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: BIOMETRIC_TOKEN_TTL
+        value: 5m
+      - key: OTP_CODE_TTL_SECONDS
+        value: 300
+      - key: OTP_REQUESTS_PER_HOUR
+        value: 5
+      - key: SMS_PROVIDER
+        value: console
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_FORCE_PATH_STYLE
+        value: "false"
+      - key: BIOMETRIC_MODE
+        value: mock
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
       - key: PORT
         value: 3000

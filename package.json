@@ -11,6 +11,7 @@
     "start:api": "npm --prefix apps/api run start:prod",
     "prisma:generate": "npm --prefix apps/api run prisma:generate",
     "prisma:migrate": "npm --prefix apps/api run prisma:migrate",
-    "prisma:studio": "npm --prefix apps/api run prisma:studio"
+    "prisma:studio": "npm --prefix apps/api run prisma:studio",
+    "test:api": "npm --prefix apps/api test"
   }
 }

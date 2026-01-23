@@ -1,53 +1,61 @@
-# Wheels On Go Platform
+# Wheels On Go / Valet&Go (Backend, Phase 1)
 
-Monorepo scaffold for an Android app and a NestJS REST API. This repo is intentionally high level and ready for the team to fill in detailed requirements later.
+NestJS + Prisma API for the mobile app authentication/KYC flow (OTP login for riders/drivers, driver KYC uploads with S3 presigned URLs, biometric face check for drivers, and lightweight admin approvals).
 
-## Prerequisites
-- Node.js 18+
-- npm 9+
-- Android Studio (Kotlin + Jetpack Compose)
-- A managed PostgreSQL connection string
+## Stack
+- Node.js 18+, NestJS 10
+- Prisma + PostgreSQL
+- JWT auth (OTP-first)
+- S3-compatible object storage for uploads
+- Optional AWS Rekognition for biometric comparison (mock mode supported)
 
-## Structure
-- /apps/api        NestJS REST API (Node.js 18+, Prisma, JWT skeleton)
-- /apps/mobile     Android app (Kotlin + Jetpack Compose)
-- /packages/shared Shared contracts placeholders
-- /scripts         Developer convenience scripts
+## Repo structure
+- `apps/api` – NestJS REST API (this phase)
+- `apps/mobile` – Android app scaffold
+- `packages/shared` – Contracts notes
+- `assets/brand` – Logo/icon placeholders
 
-## Backend (NestJS API)
-### Setup
-1) Create an env file:
-   - Copy `apps/api/.env.example` to `apps/api/.env` and fill in values.
-2) Install dependencies:
-   - `npm install`
-3) Generate Prisma client:
-   - `npm run prisma:generate`
+## Quickstart (local)
+1) Copy env file: `cp apps/api/.env.example apps/api/.env` and fill values (see below).
+2) Install deps: `npm install`
+3) Generate Prisma client: `npm run prisma:generate`
+4) Apply migration: `cd apps/api && npx prisma migrate dev --name init` (requires `DATABASE_URL`).
+5) Run the API: `npm run dev:api` (default port 3000)
+6) Tests: `npm run test:api`
 
-### Run (no Docker)
-- `npm run dev:api`
+## Environment variables (apps/api/.env)
+- Core: `DATABASE_URL`, `PORT` (default 3000), `NODE_ENV`, `JWT_SECRET`, `ACCESS_TOKEN_TTL` (default 15m), `BIOMETRIC_TOKEN_TTL` (default 5m)
+- OTP/SMS: `OTP_CODE_TTL_SECONDS` (default 300), `OTP_REQUESTS_PER_HOUR` (default 5), `SMS_PROVIDER` (`twilio`|`console`), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
+- Storage: `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ENDPOINT` (optional for S3-compatible), `STORAGE_FORCE_PATH_STYLE`
+- AWS/Biometric: `BIOMETRIC_MODE` (`mock`|`rekognition`), `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BIOMETRIC_MIN_CONFIDENCE` (default 90)
 
-### Build and start
-- `npm run build:api`
-- `npm run start:api`
+## Database & migrations
+- Prisma schema: `apps/api/prisma/schema.prisma`
+- First migration: `apps/api/prisma/migrations/0001_init/migration.sql`
+- Apply in prod: `npm run prisma:migrate` (runs `prisma migrate deploy`)
+- Dev diff-only: `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`
 
-### Migrations
-- `npm run prisma:migrate`
+## API highlights (Phase 1)
+- `POST /auth/request-otp` → send OTP (rate-limited)
+- `POST /auth/verify-otp` → issue rider token or driver biometric challenge token
+- `POST /auth/biometric/verify` → driver selfie check, issues access token
+- `GET /auth/me` → current user
+- Driver KYC: `POST /drivers/kyc/presign`, `POST /drivers/kyc/confirm`, `GET /drivers/kyc`
+- Admin review: `GET /admin/drivers/pending`, `POST /admin/drivers/:id/approve`, `POST /admin/drivers/:id/reject`
+- Health: `GET /health`
 
-## Android app
-Open `apps/mobile` in Android Studio and let it sync the Gradle project. The base API URL placeholder is in `apps/mobile/app/src/main/java/com/wheelsongo/app/AppConfig.kt`. If you plan to use the CLI, make sure the Gradle wrapper jar is present (Android Studio sync will fetch it).
+## Biometric notes
+- Default `BIOMETRIC_MODE=mock` for local/dev (always matches, logs verification).
+- Production: set `BIOMETRIC_MODE=rekognition` with AWS credentials; compares live selfie bytes vs stored profile photo bytes and logs confidence.
+- Drivers without an enrolled profile photo receive an onboarding token after OTP; biometric is enforced once a profile photo is uploaded.
 
-## Environment variables
-Backend environment variables live in `apps/api/.env`.
-- `DATABASE_URL`  Required. Managed Postgres connection string.
-- `JWT_SECRET`    Required. Placeholder for future JWT config.
-- `PORT`          Optional. Defaults to 3000.
-- `NODE_ENV`      Optional. Defaults to development.
+## Storage/KYC
+- Presigned PUT URLs via S3-compatible storage (`StorageService`). Keys follow `drivers/{driverId}/{documentType}/...`.
+- Confirm uploads to persist metadata and, for profile photos, link to the driver profile for biometric checks.
 
-## Deployment
-- Render: `render.yaml` at repo root. Uses `DATABASE_URL` from the hosting provider.
+## Deployment (Railway/Render)
+- Render config: `render.yaml`. Set `DATABASE_URL`, `JWT_SECRET`, storage keys, SMS provider keys, and AWS creds (if using Rekognition). `NODE_VERSION` pinned to 18.
+- Railway: create a Node service, set the same env vars, and use `npm install && npm run prisma:generate && npm run build:api` as build, `npm run start:api` as start. Service is stateless; Postgres is managed.
 
-## Pending low-level inputs
-- Database schema details and migrations
-- Auth logic (hashing, JWT strategy/guards)
-- Business entities and API contracts
-- Mobile app flows and UI requirements
+## Brand assets
+- Place logo/icon files in `assets/brand/logo` and `assets/brand/icons`. See `assets/brand/README.md` for naming conventions.
