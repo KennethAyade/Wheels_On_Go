@@ -14,7 +14,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('request-otp')
-  @Throttle(3, 60)
+  @Throttle({ limit: 3, ttl: 60 })
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);
   }
