@@ -28,6 +28,7 @@ NestJS + Prisma API for the mobile app authentication/KYC flow (OTP login for ri
 - OTP/SMS: `OTP_CODE_TTL_SECONDS` (default 300), `OTP_REQUESTS_PER_HOUR` (default 5), `SMS_PROVIDER` (`twilio`|`console`), `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 - Storage: `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ENDPOINT` (optional for S3-compatible), `STORAGE_FORCE_PATH_STYLE`
 - AWS/Biometric: `BIOMETRIC_MODE` (`mock`|`rekognition`), `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BIOMETRIC_MIN_CONFIDENCE` (default 90)
+- Note: Driver KYC upload endpoints are temporarily disabled until storage credentials are configured.
 
 ## Database & migrations
 - Prisma schema: `apps/api/prisma/schema.prisma`

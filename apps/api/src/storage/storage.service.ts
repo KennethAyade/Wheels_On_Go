@@ -16,15 +16,21 @@ export class StorageService {
   constructor(private readonly configService: ConfigService) {
     this.bucket = this.configService.get<string>('STORAGE_BUCKET') ?? '';
 
+    const region = this.configService.get<string>('STORAGE_REGION') || 'us-east-1';
     const config: S3ClientConfig = {
-      region: this.configService.get<string>('STORAGE_REGION'),
+      region,
       endpoint: this.configService.get<string>('STORAGE_ENDPOINT') || undefined,
       forcePathStyle: this.configService.get<string>('STORAGE_FORCE_PATH_STYLE') === 'true',
-      credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID') ?? '',
-        secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY') ?? '',
-      },
     };
+
+    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+    if (accessKeyId && secretAccessKey) {
+      config.credentials = {
+        accessKeyId,
+        secretAccessKey,
+      };
+    }
 
     this.client = new S3Client(config);
   }
