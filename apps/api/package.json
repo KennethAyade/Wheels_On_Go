@@ -4,10 +4,10 @@
   "private": true,
   "description": "NestJS REST API scaffold",
   "scripts": {
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
-    "start:prod": "node dist/main.js",
+    "start:prod": "node dist/src/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
