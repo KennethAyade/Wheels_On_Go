@@ -3,14 +3,16 @@ services:
     name: wheels-on-go-api
     env: node
     plan: starter
-    buildCommand: npm install --production=false && npm run prisma:generate && npm run build
-    startCommand: npm run build && npm run start:prod
+    buildCommand: npm install --production=false && npm run prisma:generate && npm run build:prod
+    startCommand: npm run start:prod
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: 20
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=1536
       - key: NPM_CONFIG_PRODUCTION
         value: "false"
       - key: DATABASE_URL

@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "dev:api": "npm --prefix apps/api run start:dev",
+    "build": "npm --prefix apps/api run build",
     "build:api": "npm --prefix apps/api run build",
+    "build:prod": "npm --prefix apps/api run build:prod",
     "start:api": "npm --prefix apps/api run start:prod",
     "prisma:generate": "npm --prefix apps/api run prisma:generate",
     "prisma:migrate": "npm --prefix apps/api run prisma:migrate",
