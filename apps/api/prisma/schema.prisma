@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// ENUMS - Grouped by Domain
+// ============================================
+
+// Auth & User Management
 enum UserRole {
   RIDER
   DRIVER
@@ -18,10 +23,12 @@ enum OtpPurpose {
   REGISTER
 }
 
+// Driver Management
 enum DriverStatus {
   PENDING
   APPROVED
   REJECTED
+  SUSPENDED
 }
 
 enum DriverDocumentType {
@@ -37,49 +44,264 @@ enum DocumentStatus {
   REJECTED
 }
 
+// Ride & Booking
+enum RideType {
+  INSTANT
+  SCHEDULED
+}
+
+enum RideStatus {
+  PENDING
+  ACCEPTED
+  DRIVER_ARRIVED
+  STARTED
+  COMPLETED
+  CANCELLED_BY_RIDER
+  CANCELLED_BY_DRIVER
+  CANCELLED_BY_SYSTEM
+  EXPIRED
+}
+
+// Payment & Financial
+enum PaymentMethod {
+  CASH
+  GCASH
+  CREDIT_CARD
+  DEBIT_CARD
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum TransactionType {
+  RIDE_PAYMENT
+  DRIVER_EARNING
+  DRIVER_PAYOUT
+  REFUND
+  COMMISSION
+  SUBSCRIPTION_FEE
+  PROMO_CREDIT
+  WALLET_TOPUP
+}
+
+enum ReportPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+// Safety & Intelligence
+enum FatigueLevel {
+  NORMAL
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum SosIncidentType {
+  EMERGENCY
+  ACCIDENT
+  HARASSMENT
+  VEHICLE_BREAKDOWN
+  OTHER
+}
+
+enum SosIncidentStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESPONDING
+  RESOLVED
+  FALSE_ALARM
+}
+
+// Real-Time Tracking
+enum GeofenceEventType {
+  DRIVER_APPROACHING_PICKUP
+  DRIVER_ARRIVED_PICKUP
+  DRIVER_LEFT_PICKUP
+  DRIVER_APPROACHING_DROPOFF
+  DRIVER_ARRIVED_DROPOFF
+}
+
+// Communication
+enum MessageType {
+  TEXT
+  SYSTEM
+  AUTOMATED
+}
+
+enum NotificationType {
+  DRIVER_FOUND
+  DRIVER_ARRIVED
+  RIDE_STARTED
+  RIDE_COMPLETED
+  PAYMENT_RECEIVED
+  RATING_REQUEST
+  PROMO_AVAILABLE
+  SUBSCRIPTION_EXPIRING
+  SOS_ALERT
+  SYSTEM_ANNOUNCEMENT
+}
+
+// Admin & Support
+enum TicketCategory {
+  RIDE_ISSUE
+  PAYMENT_ISSUE
+  DRIVER_BEHAVIOR
+  APP_BUG
+  ACCOUNT_ISSUE
+  SAFETY_CONCERN
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+}
+
+enum ConfigValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+// Vehicle
+enum VehicleType {
+  SEDAN
+  SUV
+  HATCHBACK
+  VAN
+  MOTORCYCLE
+}
+
+// ============================================
+// CORE MODELS - User & Authentication
+// ============================================
+
 model User {
-  id           String      @id @default(uuid())
-  phoneNumber  String      @unique
-  countryCode  String?
-  role         UserRole
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  lastLoginAt  DateTime?
-  driverProfile DriverProfile?
-  otpCodes     OtpCode[]
-  auditLogs    AuditLog[]
+  id          String   @id @default(uuid())
+  phoneNumber String   @unique
+  countryCode String?
+  role        UserRole
+
+  firstName        String?
+  lastName         String?
+  email            String?   @unique
+  profilePhotoUrl  String?
+  isActive         Boolean   @default(true)
+  isSuspended      Boolean   @default(false)
+  suspendedAt      DateTime?
+  suspensionReason String?
+  averageRating    Float?    @default(0)
+  totalRatings     Int       @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  driverProfile    DriverProfile?
+  riderProfile     RiderProfile?
+  otpCodes         OtpCode[]
+  auditLogs        AuditLog[]
+  ridesAsRider     Ride[]          @relation("RiderRides")
+  ridesAsDriver    Ride[]          @relation("DriverRides")
+  ratingsGiven     Rating[]        @relation("RatingsGiven")
+  ratingsReceived  Rating[]        @relation("RatingsReceived")
+  sosIncidents     SosIncident[]
+  supportTickets   SupportTicket[]
+  transactions     Transaction[]
+  notifications    Notification[]
+  messagesSent     Message[]       @relation("MessagesSent")
+  messagesReceived Message[]       @relation("MessagesReceived")
+
+  @@index([email])
+  @@index([isActive, isSuspended])
 }
 
 model OtpCode {
-  id            String     @id @default(uuid())
-  phoneNumber   String
-  role          UserRole
-  codeHash      String
-  expiresAt     DateTime
-  consumedAt    DateTime?
-  failedAttempts Int       @default(0)
-  purpose       OtpPurpose
-  createdAt     DateTime   @default(now())
-  userId        String?
-  user          User?      @relation(fields: [userId], references: [id])
+  id             String     @id @default(uuid())
+  phoneNumber    String
+  role           UserRole
+  codeHash       String
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  failedAttempts Int        @default(0)
+  purpose        OtpPurpose
+  createdAt      DateTime   @default(now())
+  userId         String?
+  user           User?      @relation(fields: [userId], references: [id])
 
   @@index([phoneNumber])
   @@index([expiresAt])
 }
 
+// ============================================
+// DRIVER DOMAIN
+// ============================================
+
 model DriverProfile {
-  id                      String    @id @default(uuid())
-  userId                  String    @unique
-  user                    User      @relation(fields: [userId], references: [id])
-  status                  DriverStatus @default(PENDING)
-  rejectionReason         String?
-  profilePhotoKey         String?
-  profilePhotoUploadedAt  DateTime?
-  biometricVerifiedAt     DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  documents               DriverDocument[]
-  biometricVerifications  BiometricVerification[]
+  id                     String       @id @default(uuid())
+  userId                 String       @unique
+  user                   User         @relation(fields: [userId], references: [id])
+  status                 DriverStatus @default(PENDING)
+  rejectionReason        String?
+  profilePhotoKey        String?
+  profilePhotoUploadedAt DateTime?
+  biometricVerifiedAt    DateTime?
+
+  licenseNumber            String?   @unique
+  licenseExpiryDate        DateTime?
+  isOnline                 Boolean   @default(false)
+  lastOnlineAt             DateTime?
+  currentLatitude          Float?
+  currentLongitude         Float?
+  currentLocationUpdatedAt DateTime?
+  acceptanceRate           Float?    @default(0)
+  completionRate           Float?    @default(0)
+  cancellationRate         Float?    @default(0)
+  totalRides               Int       @default(0)
+  totalEarnings            Decimal   @default(0) @db.Decimal(10, 2)
+  walletBalance            Decimal   @default(0) @db.Decimal(10, 2)
+  commissionRate           Float     @default(0.20)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents              DriverDocument[]
+  biometricVerifications BiometricVerification[]
+  vehicle                Vehicle?
+  rides                  Ride[]
+  fatigueDetectionLogs   FatigueDetectionLog[]
+  blowbagetsChecklists   BlowbagetsChecklist[]
+  locationHistory        DriverLocationHistory[]
+  transactions           Transaction[]
+  driverWallet           DriverWallet?
+
+  @@index([status, isOnline])
+  @@index([currentLatitude, currentLongitude])
+  @@index([licenseNumber])
 }
 
 model DriverDocument {
@@ -99,6 +321,698 @@ model DriverDocument {
   @@unique([driverProfileId, type])
 }
 
+model BiometricVerification {
+  id              String        @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id])
+  success         Boolean
+  reason          String?
+  confidence      Float?
+  createdAt       DateTime      @default(now())
+}
+
+model Vehicle {
+  id              String        @id @default(uuid())
+  driverProfileId String        @unique
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id])
+
+  make        String
+  model       String
+  year        Int
+  color       String
+  plateNumber String @unique
+
+  registrationNumber String   @unique
+  registrationExpiry DateTime
+
+  insuranceProvider     String?
+  insurancePolicyNumber String?
+  insuranceExpiry       DateTime?
+
+  seatingCapacity Int         @default(4)
+  vehicleType     VehicleType @default(SEDAN)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rides Ride[]
+
+  @@index([plateNumber])
+  @@index([driverProfileId, isActive])
+}
+
+// ============================================
+// RIDER DOMAIN
+// ============================================
+
+model RiderProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  subscriptionPlanId    String?
+  subscriptionPlan      SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id])
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+
+  defaultPaymentMethod PaymentMethod @default(CASH)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentMethods    RiderPaymentMethod[]
+  emergencyContacts EmergencyContact[]
+  savedLocations    SavedLocation[]
+  preferences       RiderPreference?
+}
+
+model EmergencyContact {
+  id             String       @id @default(uuid())
+  riderProfileId String
+  riderProfile   RiderProfile @relation(fields: [riderProfileId], references: [id], onDelete: Cascade)
+
+  name         String
+  relationship String
+  phoneNumber  String
+  countryCode  String @default("+63")
+
+  isPrimary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riderProfileId, isPrimary])
+}
+
+model SavedLocation {
+  id             String       @id @default(uuid())
+  riderProfileId String
+  riderProfile   RiderProfile @relation(fields: [riderProfileId], references: [id], onDelete: Cascade)
+
+  label     String
+  address   String
+  latitude  Float
+  longitude Float
+  placeId   String?
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riderProfileId, isDefault])
+}
+
+model RiderPreference {
+  id             String       @id @default(uuid())
+  riderProfileId String       @unique
+  riderProfile   RiderProfile @relation(fields: [riderProfileId], references: [id], onDelete: Cascade)
+
+  pushNotificationsEnabled  Boolean @default(true)
+  smsNotificationsEnabled   Boolean @default(true)
+  emailNotificationsEnabled Boolean @default(true)
+
+  allowSharedRides      Boolean  @default(false)
+  preferredVehicleTypes String[]
+
+  shareLocationWithDriver Boolean @default(true)
+  allowDriverContact      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// BOOKING & RIDE DOMAIN
+// ============================================
+
+model Ride {
+  id              String         @id @default(uuid())
+  riderId         String
+  rider           User           @relation("RiderRides", fields: [riderId], references: [id])
+  driverId        String?
+  driver          User?          @relation("DriverRides", fields: [driverId], references: [id])
+  driverProfileId String?
+  driverProfile   DriverProfile? @relation(fields: [driverProfileId], references: [id])
+
+  rideType RideType
+  status   RideStatus @default(PENDING)
+
+  pickupLatitude  Float
+  pickupLongitude Float
+  pickupAddress   String
+  pickupPlaceId   String?
+
+  dropoffLatitude  Float
+  dropoffLongitude Float
+  dropoffAddress   String
+  dropoffPlaceId   String?
+
+  scheduledPickupTime DateTime?
+  requestedAt         DateTime  @default(now())
+  acceptedAt          DateTime?
+  driverArrivedAt     DateTime?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+
+  estimatedDistance Float?
+  estimatedDuration Int?
+  estimatedFare     Decimal? @db.Decimal(10, 2)
+  actualDistance    Float?
+  actualDuration    Int?
+  baseFare          Decimal  @db.Decimal(10, 2)
+  costPerKm         Decimal  @db.Decimal(10, 2)
+  costPerMin        Decimal  @db.Decimal(10, 2)
+  surgePricing      Decimal? @db.Decimal(10, 2)
+  promoDiscount     Decimal? @db.Decimal(10, 2)
+  totalFare         Decimal  @db.Decimal(10, 2)
+
+  paymentMethod    PaymentMethod
+  paymentStatus    PaymentStatus @default(PENDING)
+  paymentReference String?
+
+  promoCodeId String?
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id])
+
+  vehicleId               String?
+  vehicle                 Vehicle? @relation(fields: [vehicleId], references: [id])
+  driverSearchRadius      Float    @default(5.0)
+  maxDriverSearchAttempts Int      @default(10)
+  driverSearchAttempts    Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dispatchAttempts DispatchAttempt[]
+  route            RideRoute?
+  rating           Rating?
+  transaction      Transaction?
+  sosIncident      SosIncident?
+
+  @@index([riderId, status, createdAt])
+  @@index([driverId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([scheduledPickupTime])
+  @@index([pickupLatitude, pickupLongitude])
+  @@index([rideType, status])
+}
+
+model DispatchAttempt {
+  id              String @id @default(uuid())
+  rideId          String
+  ride            Ride   @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  driverProfileId String
+
+  sentAt           DateTime  @default(now())
+  respondedAt      DateTime?
+  accepted         Boolean   @default(false)
+  declineReason    String?
+  driverLatitude   Float
+  driverLongitude  Float
+  distanceToPickup Float
+
+  @@index([rideId, sentAt])
+  @@index([driverProfileId, sentAt])
+}
+
+model RideRoute {
+  id     String @id @default(uuid())
+  rideId String @unique
+  ride   Ride   @relation(fields: [rideId], references: [id], onDelete: Cascade)
+
+  encodedPolyline String @db.Text
+  distanceMeters  Int
+  durationSeconds Int
+
+  currentEta   Int?
+  etaUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PromoCode {
+  id            String       @id @default(uuid())
+  code          String       @unique
+  description   String?
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  minRideFare   Decimal?     @db.Decimal(10, 2)
+  maxDiscount   Decimal?     @db.Decimal(10, 2)
+
+  validFrom         DateTime
+  validUntil        DateTime
+  maxUsageCount     Int?
+  maxUsagePerUser   Int      @default(1)
+  currentUsageCount Int      @default(0)
+
+  isActive              Boolean  @default(true)
+  applicableToRideTypes String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rides          Ride[]
+  userPromoUsage UserPromoUsage[]
+
+  @@index([code, isActive])
+  @@index([validFrom, validUntil])
+}
+
+model UserPromoUsage {
+  id          String    @id @default(uuid())
+  userId      String
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  usageCount  Int       @default(0)
+  lastUsedAt  DateTime?
+
+  @@unique([userId, promoCodeId])
+  @@index([userId])
+}
+
+model SurgePricingLog {
+  id                   String   @id @default(uuid())
+  latitude             Float
+  longitude            Float
+  radius               Float
+  surgeMultiplier      Float
+  activeRideCount      Int
+  availableDriverCount Int
+  calculatedAt         DateTime @default(now())
+
+  @@index([latitude, longitude, calculatedAt])
+}
+
+// ============================================
+// REAL-TIME TRACKING DOMAIN
+// ============================================
+
+model DriverLocationHistory {
+  id              String        @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  speed     Float?
+  heading   Float?
+  altitude  Float?
+
+  recordedAt DateTime @default(now())
+
+  @@index([driverProfileId, recordedAt])
+  @@index([latitude, longitude, recordedAt])
+}
+
+model GeofenceEvent {
+  id        String            @id @default(uuid())
+  rideId    String
+  eventType GeofenceEventType
+
+  latitude     Float
+  longitude    Float
+  radiusMeters Float @default(50)
+
+  triggeredAt DateTime @default(now())
+
+  @@index([rideId, triggeredAt])
+}
+
+// ============================================
+// SAFETY & INTELLIGENCE DOMAIN
+// ============================================
+
+model FatigueDetectionLog {
+  id              String        @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+
+  leftEyeProbability  Float
+  rightEyeProbability Float
+  avgEyeProbability   Float
+
+  isFatigued   Boolean      @default(false)
+  fatigueLevel FatigueLevel
+
+  isOnRide      Boolean @default(false)
+  currentRideId String?
+
+  detectedAt DateTime @default(now())
+
+  @@index([driverProfileId, detectedAt])
+  @@index([isFatigued, detectedAt])
+}
+
+model SosIncident {
+  id     String  @id @default(uuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+  rideId String? @unique
+  ride   Ride?   @relation(fields: [rideId], references: [id])
+
+  latitude  Float
+  longitude Float
+  address   String?
+
+  incidentType SosIncidentType
+  description  String?
+  status       SosIncidentStatus @default(ACTIVE)
+
+  emergencyContactsNotified String[]
+  notifiedAt                DateTime?
+
+  respondedAt     DateTime?
+  responderUserId String?
+  resolutionNotes String?
+  resolvedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([rideId])
+}
+
+model BlowbagetsChecklist {
+  id              String        @id @default(uuid())
+  driverProfileId String
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+
+  brakes  Boolean @default(false)
+  lights  Boolean @default(false)
+  oil     Boolean @default(false)
+  water   Boolean @default(false)
+  battery Boolean @default(false)
+  air     Boolean @default(false)
+  gas     Boolean @default(false)
+  engine  Boolean @default(false)
+  tools   Boolean @default(false)
+  self    Boolean @default(false)
+
+  allItemsChecked Boolean  @default(false)
+  completedAt     DateTime @default(now())
+  expiresAt       DateTime
+
+  @@index([driverProfileId, completedAt])
+  @@index([expiresAt])
+}
+
+// ============================================
+// FINANCIAL DOMAIN
+// ============================================
+
+model SubscriptionPlan {
+  id                 String  @id @default(uuid())
+  name               String  @unique
+  description        String?
+  monthlyFee         Decimal @db.Decimal(10, 2)
+  discountPercentage Float
+
+  maxRidesPerMonth Int?
+  priorityDispatch Boolean @default(false)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  riders RiderProfile[]
+}
+
+model RiderPaymentMethod {
+  id             String       @id @default(uuid())
+  riderProfileId String
+  riderProfile   RiderProfile @relation(fields: [riderProfileId], references: [id], onDelete: Cascade)
+
+  type PaymentMethod
+
+  cardLast4       String?
+  cardBrand       String?
+  cardToken       String?
+  cardExpiryMonth Int?
+  cardExpiryYear  Int?
+
+  walletProvider  String?
+  walletAccountId String?
+
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([riderProfileId, isDefault])
+}
+
+model DriverWallet {
+  id              String        @id @default(uuid())
+  driverProfileId String        @unique
+  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id])
+
+  balance        Decimal @default(0) @db.Decimal(10, 2)
+  pendingBalance Decimal @default(0) @db.Decimal(10, 2)
+
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+
+  lastPayoutAt     DateTime?
+  lastPayoutAmount Decimal?  @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  driverProfileId String?
+  driverProfile   DriverProfile? @relation(fields: [driverProfileId], references: [id])
+  rideId          String?        @unique
+  ride            Ride?          @relation(fields: [rideId], references: [id])
+
+  type   TransactionType
+  amount Decimal         @db.Decimal(10, 2)
+  status PaymentStatus   @default(PENDING)
+
+  paymentMethod    PaymentMethod
+  paymentReference String?
+  paymentGateway   String?
+
+  grossAmount      Decimal? @db.Decimal(10, 2)
+  commissionAmount Decimal? @db.Decimal(10, 2)
+  commissionRate   Float?
+  netAmount        Decimal? @db.Decimal(10, 2)
+
+  description String?
+  metadata    Json?
+
+  processedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([driverProfileId, createdAt])
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+}
+
+model EarningsReport {
+  id              String @id @default(uuid())
+  driverProfileId String
+
+  reportType  ReportPeriod
+  periodStart DateTime
+  periodEnd   DateTime
+
+  totalRides      Int
+  totalEarnings   Decimal @db.Decimal(10, 2)
+  totalCommission Decimal @db.Decimal(10, 2)
+  netEarnings     Decimal @db.Decimal(10, 2)
+
+  averageRideFare Decimal @db.Decimal(10, 2)
+  onlineHours     Float
+
+  generatedAt DateTime @default(now())
+
+  @@unique([driverProfileId, reportType, periodStart])
+  @@index([driverProfileId, periodStart])
+}
+
+// ============================================
+// COMMUNICATION DOMAIN
+// ============================================
+
+model MaskedCall {
+  id     String @id @default(uuid())
+  rideId String
+
+  callerId   String
+  receiverId String
+
+  maskedNumber String
+  callProvider String
+  callSid      String?
+
+  duration     Int?
+  recordingUrl String?
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([rideId, startedAt])
+  @@index([callerId, startedAt])
+}
+
+model Message {
+  id     String  @id @default(uuid())
+  rideId String?
+
+  senderId   String
+  sender     User   @relation("MessagesSent", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User   @relation("MessagesReceived", fields: [receiverId], references: [id])
+
+  content     String      @db.Text
+  messageType MessageType @default(TEXT)
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  sentAt DateTime @default(now())
+
+  @@index([senderId, receiverId, sentAt])
+  @@index([rideId, sentAt])
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type  NotificationType
+  title String
+  body  String           @db.Text
+
+  rideId   String?
+  metadata Json?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+  sentAt DateTime  @default(now())
+
+  pushSent   Boolean   @default(false)
+  pushSentAt DateTime?
+  pushToken  String?
+
+  @@index([userId, isRead, sentAt])
+  @@index([type, sentAt])
+}
+
+// ============================================
+// ADMIN & SUPPORT DOMAIN
+// ============================================
+
+model SupportTicket {
+  id     String  @id @default(uuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+  rideId String?
+
+  category    TicketCategory
+  subject     String
+  description String         @db.Text
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus   @default(OPEN)
+
+  assignedToUserId String?
+  assignedAt       DateTime?
+
+  resolutionNotes String?   @db.Text
+  resolvedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  replies TicketReply[]
+
+  @@index([userId, status, createdAt])
+  @@index([status, priority, createdAt])
+}
+
+model TicketReply {
+  id       String        @id @default(uuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  authorUserId String
+  isStaff      Boolean @default(false)
+
+  content        String   @db.Text
+  attachmentUrls String[]
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model Rating {
+  id     String @id @default(uuid())
+  rideId String @unique
+  ride   Ride   @relation(fields: [rideId], references: [id])
+
+  reviewerId String
+  reviewer   User   @relation("RatingsGiven", fields: [reviewerId], references: [id])
+  revieweeId String
+  reviewee   User   @relation("RatingsReceived", fields: [revieweeId], references: [id])
+
+  rating Int
+  review String? @db.Text
+
+  punctualityRating   Int?
+  safetyRating        Int?
+  cleanlinessRating   Int?
+  communicationRating Int?
+
+  isRiderToDriver Boolean
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewerId, createdAt])
+  @@index([revieweeId, createdAt])
+  @@index([rideId])
+}
+
+model SystemConfiguration {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  value       String          @db.Text
+  valueType   ConfigValueType @default(STRING)
+  description String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key, isActive])
+}
+
+// ============================================
+// AUDIT & OBSERVABILITY
+// ============================================
+
 model AuditLog {
   id          String   @id @default(uuid())
   actorUserId String?
@@ -110,14 +1024,4 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   @@index([targetType, targetId])
-}
-
-model BiometricVerification {
-  id              String        @id @default(uuid())
-  driverProfileId String
-  driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id])
-  success         Boolean
-  reason          String?
-  confidence      Float?
-  createdAt       DateTime      @default(now())
 }

@@ -18,6 +18,15 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-01-28 14:00 PHT
+Summary: Complete database schema implementation for full ride-sharing platform (40+ models, 25+ enums).
+Changes:
+- apps/api/prisma/schema.prisma: Extended User and DriverProfile models, added 34 new models across 8 domains
+- apps/api/prisma/backfill.sql: Created backfill script for existing data defaults
+- apps/api/migration_preview.sql: Generated 37KB migration SQL preview
+- docs/database-schema.md: Updated with comprehensive Phase 2-7 schema documentation
+Details: `changes/2026-01-28-1400-pht.md`
+
 ## 2026-01-19 04:00 PHT
 Summary: Initial monorepo scaffold created for Android app + NestJS API with Prisma and JWT skeletons.
 Changes:
