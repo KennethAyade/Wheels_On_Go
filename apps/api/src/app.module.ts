@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { DriverModule } from './driver/driver.module';
 import { StorageModule } from './storage/storage.module';
 import { BiometricModule } from './biometric/biometric.module';
+import { EncryptionModule } from './encryption/encryption.module';
 import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
@@ -22,6 +23,7 @@ import { RolesGuard } from './common/guards/roles.guard';
       },
     ]),
     PrismaModule,
+    EncryptionModule,
     HealthModule,
     AuthModule,
     DriverModule,

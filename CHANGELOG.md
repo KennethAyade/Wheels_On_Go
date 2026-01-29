@@ -18,6 +18,22 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-01-29 00:30 PHT
+Summary: Implement comprehensive data privacy setup with PII encryption, audit logging, and security headers (Week 2 Backlog).
+Changes:
+- apps/api/src/encryption/*: AES-256-GCM encryption service with HMAC-SHA256 searchable hashing
+- apps/api/src/prisma/prisma.service.ts: Transparent encryption middleware for 5 PII fields (User.phoneNumber, User.email, EmergencyContact.phoneNumber, DriverWallet.accountNumber, RiderPaymentMethod.cardToken)
+- apps/api/src/audit/audit.service.ts: Enhanced with 51 audit actions and 7 convenience methods for GDPR compliance
+- apps/api/src/main.ts: Helmet security headers (CSP, HSTS) + enhanced CORS configuration
+- apps/api/prisma/schema.prisma: Added phoneNumberHash and emailHash columns for searchable encryption
+- apps/api/prisma/migrations/20260128162228_*: Migration for hash columns
+- apps/api/scripts/backfill-encrypt-pii.ts: Backfill script for encrypting existing unencrypted PII data
+- apps/api/.env.example: Added ENCRYPTION_KEY and CORS_ORIGINS configuration
+- docs/data-privacy-policy.md: Comprehensive 13-section GDPR/CCPA compliance documentation
+- docs/database-schema.md: Updated with encryption implementation details and PII field mapping
+- apps/api/src/encryption/__tests__/encryption.service.spec.ts: 22 unit tests for encryption service
+Details: `changes/2026-01-29-0030-pht.md`
+
 ## 2026-01-28 14:00 PHT
 Summary: Complete database schema implementation for full ride-sharing platform (40+ models, 25+ enums).
 Changes:

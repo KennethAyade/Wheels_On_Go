@@ -9,6 +9,70 @@ This document tracks the database design across phases. The complete schema now 
 
 ---
 
+## Data Privacy & Encryption
+
+**Status**: Implemented (Week 2 Backlog)
+
+### Encrypted Fields (AES-256-GCM at Rest)
+
+All Personally Identifiable Information (PII) is automatically encrypted at rest using AES-256-GCM encryption with authenticated encryption mode. Encryption/decryption is handled transparently via Prisma middleware.
+
+| Model | Field | Encrypted | Searchable Hash Column |
+|-------|-------|-----------|------------------------|
+| `User` | `phoneNumber` | ✅ Yes | `phoneNumberHash` (HMAC-SHA256) |
+| `User` | `email` | ✅ Yes | `emailHash` (HMAC-SHA256) |
+| `EmergencyContact` | `phoneNumber` | ✅ Yes | ❌ No |
+| `DriverWallet` | `accountNumber` | ✅ Yes | ❌ No |
+| `RiderPaymentMethod` | `cardToken` | ✅ Yes | ❌ No |
+
+**Encryption Details:**
+- **Algorithm**: AES-256-GCM (256-bit key, 12-byte IV, 16-byte auth tag)
+- **Format**: `iv:authTag:ciphertext` (all Base64-encoded)
+- **Key Management**: Environment variable `ENCRYPTION_KEY` (64 hex characters)
+- **Service**: `apps/api/src/encryption/encryption.service.ts`
+- **Middleware**: `apps/api/src/prisma/prisma.service.ts`
+
+**Searchable Hash Columns:**
+For fields that need to be searchable (e.g., login by phone/email), a deterministic HMAC-SHA256 hash is stored in a separate column:
+- `User.phoneNumberHash` - enables lookup without decrypting all phone numbers
+- `User.emailHash` - enables lookup without decrypting all emails
+- Values are normalized (lowercased and trimmed) before hashing
+
+**Implementation:**
+```typescript
+// Automatic encryption on write
+await prisma.user.create({
+  data: {
+    phoneNumber: '+639171234567', // Automatically encrypted
+    email: 'user@example.com',     // Automatically encrypted
+  },
+});
+
+// Automatic decryption on read
+const user = await prisma.user.findUnique({
+  where: { phoneNumber: '+639171234567' }, // Automatically uses hash for lookup
+});
+// user.phoneNumber is automatically decrypted to '+639171234567'
+```
+
+### Audit Logging
+
+Comprehensive audit logging tracks all critical data operations:
+
+**Critical Audit Actions** (see `apps/api/src/audit/audit.constants.ts`):
+- Authentication: LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT
+- PII Access: PII_ACCESS (whenever encrypted data is accessed)
+- Data Privacy: DATA_EXPORT_REQUESTED, DATA_DELETION_REQUESTED
+- Payments: PAYMENT_INITIATED, PAYMENT_PROCESSED, PAYOUT_COMPLETED
+- Safety: SOS_TRIGGERED, SOS_RESOLVED
+- Driver Management: DRIVER_SUSPENDED, DRIVER_REACTIVATED
+
+**Audit Log Retention**: 7 years (encrypted at rest)
+
+For complete data privacy policy, see: [docs/data-privacy-policy.md](./data-privacy-policy.md)
+
+---
+
 ## Complete Schema Summary
 
 ### Models by Domain (40+ Total)

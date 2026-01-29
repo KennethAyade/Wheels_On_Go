@@ -203,12 +203,14 @@ enum VehicleType {
 model User {
   id          String   @id @default(uuid())
   phoneNumber String   @unique
+  phoneNumberHash String?  @unique // HMAC-SHA256 hash for encrypted phoneNumber lookup
   countryCode String?
   role        UserRole
 
   firstName        String?
   lastName         String?
   email            String?   @unique
+  emailHash        String?  @unique // HMAC-SHA256 hash for encrypted email lookup
   profilePhotoUrl  String?
   isActive         Boolean   @default(true)
   isSuspended      Boolean   @default(false)

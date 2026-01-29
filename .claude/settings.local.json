@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(openssl rand:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 10 npm start:*)"
     ]
   }
 }
