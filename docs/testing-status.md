@@ -1,21 +1,33 @@
-# Testing Status - Week 2 Data Privacy Setup
+# Testing Status - Weeks 2-3 Implementation
 
-**Last Updated:** 2026-01-29 00:30 PHT
-**Status:** Foundation Complete, Integration Tests Pending
+**Last Updated:** 2026-01-31 17:50 PHT
+**Status:** Foundation Complete, Mobile Integration Manually Verified, Automated Tests Pending
 
 ---
 
 ## Executive Summary
 
-The Week 2 Data Privacy Setup has been **fully implemented** with comprehensive unit test coverage. Foundation testing (unit tests, environment setup, application startup, database migration) is **100% complete**. Integration and E2E testing suites are **planned but not yet implemented**.
+**Week 2 (Data Privacy):** Fully implemented with comprehensive unit test coverage (22/22 passing). Foundation testing is 100% complete. Integration and E2E tests are planned but not yet implemented.
+
+**Week 3 (Mobile-Backend Integration):** Authentication flow manually tested and verified. Critical bugs fixed (response structure mismatch, URL encoding, OTP UX). Automated mobile tests and integration tests are pending.
 
 ### Quick Status
+
+**Week 2 (Data Privacy):**
 - ✅ **Unit Tests:** 22/22 passing (100% coverage for EncryptionService)
 - ✅ **Application Startup:** Verified, no errors
 - ✅ **Database Migration:** Applied successfully
 - ⚠️ **Integration Tests:** Not yet implemented (estimated 7-8 hours)
 - ⚠️ **E2E Tests:** Not yet implemented (included in integration estimate)
 - ⚠️ **Performance Tests:** Not yet implemented
+
+**Week 3 (Mobile Integration):**
+- ✅ **Auth Flow (Manual):** OTP request/verify working end-to-end
+- ✅ **Critical Bugs:** 3 blocking issues fixed (response format, URL encoding, OTP UX)
+- ✅ **Token Persistence:** DataStore working correctly
+- ⚠️ **Mobile Unit Tests:** Not yet implemented (estimated 4-6 hours)
+- ⚠️ **API Contract Tests:** Not yet implemented (HIGH priority)
+- ⚠️ **Automated Integration Tests:** Not yet implemented
 
 ---
 
@@ -210,6 +222,80 @@ Time:        3.143 s
 ✅ DATABASE_URL=<configured>
 ✅ All other environment variables present
 ```
+
+---
+
+## 1.5 Week 3 Mobile-Backend Integration Testing
+
+**Last Updated:** 2026-01-31 17:50 PHT
+**Status:** Manual Testing Complete, Automated Tests Pending
+
+### 1.5.1 Authentication Flow - Verified ✅
+
+| Test Case | Status | Notes |
+|-----------|--------|-------|
+| OTP Request (RIDER) | ✅ Pass | Phone number properly encoded, rate limit works |
+| OTP Request (DRIVER) | ✅ Pass | Same as RIDER |
+| OTP Verification (RIDER) | ✅ Pass | Receives JWT token, navigates to home |
+| OTP Verification (DRIVER) | ✅ Pass | Handles biometric flow correctly |
+| Token Persistence | ✅ Pass | App restarts maintain logged-in state |
+| Auth Header Injection | ✅ Pass | JWT automatically added to protected requests |
+| Logout | ⚠️ Not Tested | Not yet implemented |
+
+### 1.5.2 Critical Bugs Fixed (2026-01-31)
+
+**Bug #1: Response Structure Mismatch**
+- **Symptom:** JSON parsing error on mobile after OTP verification
+- **Root Cause:** Backend returned `{userId, role, accessToken}` but mobile expected `{accessToken, user: {...}}`
+- **Fix:** Updated `apps/api/src/auth/auth.service.ts` lines 55-77
+- **Test:** ✅ Verified - mobile now parses response correctly
+
+**Bug #2: URL Encoding - Phone Number**
+- **Symptom:** Backend rejected OTP verification with "phoneNumber must be in E.164 format"
+- **Logcat:** `{"phoneNumber":" 639617800476"...}` - space instead of `+`
+- **Root Cause:** Navigation URL converted `+` to space (URL special character)
+- **Fix:** URL-encode phone number in `apps/mobile/.../ui/navigation/Routes.kt`
+- **Test:** ✅ Verified - backend now receives `+639617800476` correctly
+
+**Bug #3: OTP Cleared on Error**
+- **Symptom:** User couldn't backspace to fix OTP typo after error
+- **Root Cause:** Error handler cleared `otpValue = ""` in `OtpVerificationViewModel.kt`
+- **Fix:** Preserve OTP value on error (line 131)
+- **Test:** ✅ Verified - backspace now works after errors
+
+### 1.5.3 Mobile Unit Tests - Not Implemented ⚠️
+
+| Test File | Status | Priority |
+|-----------|--------|----------|
+| `TokenManagerTest.kt` | ⚠️ Not Created | HIGH |
+| `AuthRepositoryTest.kt` | ⚠️ Not Created | HIGH |
+| `PhoneInputViewModelTest.kt` | ⚠️ Not Created | MEDIUM |
+| `OtpVerificationViewModelTest.kt` | ⚠️ Not Created | MEDIUM |
+
+**Estimated Effort:** 4-6 hours for complete mobile test suite
+
+### 1.5.4 Integration Test Scenarios - Not Automated ⚠️
+
+| Scenario | Manual Test | Automated Test |
+|----------|-------------|----------------|
+| OTP request → receive code | ✅ Pass | ⚠️ Not Created |
+| OTP verify → receive token | ✅ Pass | ⚠️ Not Created |
+| Token refresh flow | ⚠️ Not Tested | ⚠️ Not Created |
+| Expired OTP error handling | ⚠️ Not Tested | ⚠️ Not Created |
+| Invalid OTP error handling | ✅ Pass | ⚠️ Not Created |
+| Network error handling | ⚠️ Not Tested | ⚠️ Not Created |
+| Biometric driver flow | ⚠️ Partially Tested | ⚠️ Not Created |
+
+### 1.5.5 API Contract Testing - Missing ⚠️
+
+**Recommendation:** Add contract tests to prevent future API breaking changes
+
+**Tools to Consider:**
+- Pact (consumer-driven contracts)
+- OpenAPI/Swagger spec validation
+- TypeScript/Kotlin shared type definitions
+
+**Priority:** HIGH - Would have caught the response structure mismatch bug
 
 ---
 
@@ -519,6 +605,41 @@ describe('Encryption E2E Tests', () => {
    WHERE "phoneNumber" NOT LIKE '%:%:%';
    -- Should return 0
    ```
+
+---
+
+## 2.5 Google Maps Migration Smoke Tests — Not Automated ⚠️
+
+**Added:** 2026-02-04
+**Status:** ⚠️ Manual smoke tests pending after deployment
+**Priority:** HIGH — must pass before considering maps feature complete
+
+### Backend Smoke Tests
+
+| # | Endpoint | Request | Expected |
+|---|----------|---------|----------|
+| 1 | `POST /location/geocode` | `{ "address": "SM Mall of Asia, Manila" }` | Valid `latitude`, `longitude`, `placeId` |
+| 2 | `POST /location/reverse-geocode` | `{ "latitude": 14.5995, "longitude": 120.9842 }` | Valid `address`, `formattedAddress` |
+| 3 | `GET /location/autocomplete?input=Rockwell` | — | `predictions[]` with `placeId`; no `latitude`/`longitude` keys |
+| 4 | `GET /location/place/:placeId` | placeId from test 3 | Has `latitude` + `longitude` |
+| 5 | `POST /location/distance` | Two Manila coordinate pairs | `distanceMeters`, `durationSeconds`, `durationText` populated |
+| 6 | `POST /location/distance` (invalid coords) | Coords with no road route | Falls back to Haversine; `distanceText` ends with `(estimated)` |
+
+### Mobile Smoke Tests
+
+| # | Action | Expected |
+|---|--------|----------|
+| 7 | Launch app on emulator (Google Play image) | Google map tiles render, centered on Metro Manila |
+| 8 | Tap anywhere on the map | Pin emoji (`📍`) appears at tapped coordinate |
+| 9 | Tap "My Location" FAB | Map animates to device GPS position |
+| 10 | From → PlaceSearch → type "Rockwell" → select result | Green pickup marker appears on map |
+| 11 | To → PlaceSearch → type "Bonifacio" → select result | Red dropoff marker appears on map |
+
+### Automated test gap
+No unit or integration tests exist for the Google Maps service methods. Recommended additions:
+- Mock `HttpService.axiosRef.get` and verify correct Google API URLs and param construction for each method
+- Verify `ZERO_RESULTS` autocomplete returns empty predictions without throwing
+- Verify Distance Matrix element-level error statuses trigger Haversine fallback
 
 ---
 

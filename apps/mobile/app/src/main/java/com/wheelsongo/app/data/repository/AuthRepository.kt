@@ -1,0 +1,179 @@
+package com.wheelsongo.app.data.repository
+
+import com.wheelsongo.app.data.auth.TokenManager
+import com.wheelsongo.app.data.models.auth.ApiErrorResponse
+import com.wheelsongo.app.data.models.auth.CurrentUserResponse
+import com.wheelsongo.app.data.models.auth.RequestOtpRequest
+import com.wheelsongo.app.data.models.auth.RequestOtpResponse
+import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
+import com.wheelsongo.app.data.models.auth.VerifyOtpResponse
+import com.wheelsongo.app.data.network.ApiClient
+import com.wheelsongo.app.data.network.AuthApi
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.flow.Flow
+import retrofit2.Response
+
+/**
+ * Repository for authentication-related operations
+ *
+ * Handles OTP request/verification, token management, and user session
+ */
+class AuthRepository(
+    private val authApi: AuthApi = ApiClient.authApi,
+    private val tokenManager: TokenManager = ApiClient.getTokenManager()
+) {
+
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    /**
+     * Request OTP to be sent to phone number
+     *
+     * @param phoneNumber Phone in E.164 format (e.g., +639XXXXXXXXX)
+     * @param role User role (RIDER or DRIVER)
+     * @return Result with success message or error
+     */
+    suspend fun requestOtp(phoneNumber: String, role: String): Result<RequestOtpResponse> {
+        return try {
+            val response = authApi.requestOtp(
+                RequestOtpRequest(phoneNumber = phoneNumber, role = role)
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val error = parseError(response)
+                Result.failure(Exception(error.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
+        }
+    }
+
+    /**
+     * Verify OTP code and receive JWT tokens
+     *
+     * On success, tokens are automatically saved to TokenManager
+     *
+     * @param phoneNumber Phone in E.164 format
+     * @param code 6-digit OTP code
+     * @param role User role (RIDER or DRIVER)
+     * @return Result with user info and tokens on success
+     */
+    suspend fun verifyOtp(
+        phoneNumber: String,
+        code: String,
+        role: String
+    ): Result<VerifyOtpResponse> {
+        return try {
+            val response = authApi.verifyOtp(
+                VerifyOtpRequest(
+                    phoneNumber = phoneNumber,
+                    code = code,
+                    role = role
+                )
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                // Save tokens to secure storage (only if accessToken is present)
+                // Drivers requiring biometric auth will have null accessToken
+                if (body.accessToken != null) {
+                    tokenManager.saveTokens(body)
+                }
+                Result.success(body)
+            } else {
+                val error = parseError(response)
+                Result.failure(Exception(error.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
+        }
+    }
+
+    /**
+     * Get current authenticated user's info
+     *
+     * @return Result with user info or error
+     */
+    suspend fun getCurrentUser(): Result<CurrentUserResponse> {
+        return try {
+            val response = authApi.getCurrentUser()
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val error = parseError(response)
+                Result.failure(Exception(error.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
+        }
+    }
+
+    /**
+     * Check if user is currently logged in
+     */
+    val isLoggedIn: Flow<Boolean> = tokenManager.isLoggedIn
+
+    /**
+     * Get current user's role
+     */
+    val userRole: Flow<String?> = tokenManager.userRole
+
+    /**
+     * Get current user's ID
+     */
+    val userId: Flow<String?> = tokenManager.userId
+
+    /**
+     * Logout - clear all stored tokens and session data
+     */
+    suspend fun logout() {
+        tokenManager.clearTokens()
+    }
+
+    /**
+     * Parse error response from API
+     */
+    private fun parseError(response: Response<*>): ApiErrorResponse {
+        return try {
+            val errorBody = response.errorBody()?.string()
+            if (errorBody != null) {
+                val adapter = moshi.adapter(ApiErrorResponse::class.java)
+                adapter.fromJson(errorBody) ?: ApiErrorResponse(
+                    statusCode = response.code(),
+                    message = "An error occurred"
+                )
+            } else {
+                ApiErrorResponse(
+                    statusCode = response.code(),
+                    message = getDefaultErrorMessage(response.code())
+                )
+            }
+        } catch (e: Exception) {
+            ApiErrorResponse(
+                statusCode = response.code(),
+                message = getDefaultErrorMessage(response.code())
+            )
+        }
+    }
+
+    /**
+     * Get default error message for HTTP status codes
+     */
+    private fun getDefaultErrorMessage(statusCode: Int): String {
+        return when (statusCode) {
+            400 -> "Invalid request. Please check your input."
+            401 -> "Session expired. Please login again."
+            403 -> "You don't have permission to perform this action."
+            404 -> "Resource not found."
+            429 -> "Too many requests. Please try again later."
+            500 -> "Server error. Please try again later."
+            503 -> "Service temporarily unavailable."
+            else -> "An unexpected error occurred."
+        }
+    }
+}

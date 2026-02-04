@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="180dp"
+    android:viewportWidth="180"
+    android:viewportHeight="180">
+
+    <!-- Shadow ellipse -->
+    <path
+        android:fillColor="#00000020"
+        android:pathData="M90,160m-35,0a35,8 0,1 1,70 0a35,8 0,1 1,-70 0" />
+
+    <!-- Pin body -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M90,25 C60,25 35,50 35,80 C35,115 90,155 90,155 C90,155 145,115 145,80 C145,50 120,25 90,25 Z" />
+
+    <!-- Pin highlight -->
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M90,30 C65,30 45,52 45,78 C45,90 55,105 70,118 C60,100 55,88 55,78 C55,58 70,40 90,38 C95,37 100,38 105,40 C100,33 95,30 90,30 Z" />
+
+    <!-- Inner circle (white) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,80m-25,0a25,25 0,1 1,50 0a25,25 0,1 1,-50 0" />
+
+    <!-- Check mark inside circle -->
+    <path
+        android:fillColor="#10B981"
+        android:strokeWidth="0"
+        android:pathData="M80,80 L87,87 L102,72"
+        android:strokeColor="#10B981"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Decorative circles around the pin -->
+    <path
+        android:fillColor="#10B98140"
+        android:pathData="M30,50m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+
+    <path
+        android:fillColor="#10B98130"
+        android:pathData="M150,45m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+
+    <path
+        android:fillColor="#10B98130"
+        android:pathData="M25,100m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+
+    <path
+        android:fillColor="#10B98140"
+        android:pathData="M160,90m-7,0a7,7 0,1 1,14 0a7,7 0,1 1,-14 0" />
+
+</vector>

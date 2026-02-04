@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -11,6 +11,8 @@ import { JwtUser } from '../common/types/jwt-user.type';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(private readonly authService: AuthService) {}
 
   @Post('request-otp')
@@ -21,6 +23,7 @@ export class AuthController {
 
   @Post('verify-otp')
   verifyOtp(@Body() dto: VerifyOtpDto) {
+    this.logger.log(`Verify OTP request: ${JSON.stringify({ phoneNumber: dto.phoneNumber, role: dto.role, codeLength: dto.code?.length })}`);
     return this.authService.verifyOtp(dto);
   }
 

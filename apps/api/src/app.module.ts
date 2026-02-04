@@ -10,6 +10,12 @@ import { StorageModule } from './storage/storage.module';
 import { BiometricModule } from './biometric/biometric.module';
 import { EncryptionModule } from './encryption/encryption.module';
 import { RolesGuard } from './common/guards/roles.guard';
+// Google Maps Integration Modules
+import { LocationModule } from './location/location.module';
+import { RideModule } from './ride/ride.module';
+import { DispatchModule } from './dispatch/dispatch.module';
+import { TrackingModule } from './tracking/tracking.module';
+import { GeofenceModule } from './geofence/geofence.module';
 
 @Module({
   imports: [
@@ -29,6 +35,12 @@ import { RolesGuard } from './common/guards/roles.guard';
     DriverModule,
     StorageModule,
     BiometricModule,
+    // Google Maps Integration
+    LocationModule,
+    RideModule,
+    DispatchModule,
+    TrackingModule,
+    GeofenceModule,
   ],
   providers: [
     {

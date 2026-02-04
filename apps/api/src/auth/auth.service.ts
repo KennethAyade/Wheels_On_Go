@@ -53,21 +53,33 @@ export class AuthService {
         : null;
 
       return {
-        userId: user.id,
-        role: user.role,
+        accessToken: hasProfilePhoto ? null : await this.buildAccessToken(user),
+        refreshToken: null,
+        user: {
+          id: user.id,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          isActive: user.isActive,
+          createdAt: user.createdAt?.toISOString(),
+        },
+        // Driver-specific fields
         biometricRequired: hasProfilePhoto,
-        biometricToken,
-        accessToken: hasProfilePhoto ? undefined : await this.buildAccessToken(user),
+        biometricToken: hasProfilePhoto ? biometricToken : null,
         biometricEnrolled: hasProfilePhoto,
         driverStatus: driverProfile.status,
       };
     }
 
     return {
-      userId: user.id,
-      role: user.role,
-      biometricRequired: false,
       accessToken: await this.buildAccessToken(user),
+      refreshToken: null,
+      user: {
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt?.toISOString(),
+      },
     };
   }
 
