@@ -18,6 +18,51 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-07 23:00 PHT
+Summary: Add comprehensive test coverage for Week 3 Phase 1 features — 146 tests total (86 backend + 60 mobile).
+Changes:
+- apps/api/test/otp.service.spec.ts: NEW — 12 tests for OTP generation, hashing, rate limiting, verification
+- apps/api/test/auth.service.spec.ts: EXPANDED — 12 tests (+10 new) for OTP/biometric flows, user creation
+- apps/api/test/biometric.service.spec.ts: NEW — 7 tests for mock + rekognition modes
+- apps/api/test/jwt.strategy.spec.ts: NEW — 4 tests for token type validation
+- apps/api/test/biometric.guard.spec.ts: NEW — 5 tests for biometric token guard
+- apps/api/test/storage.service.spec.ts: NEW — 5 tests for S3 presigned URLs
+- apps/api/test/driver.service.spec.ts: EXPANDED — 14 tests (+8 new) for KYC presign/confirm
+- apps/api/test/sms.service.spec.ts: NEW — 4 tests for SMS console + Twilio modes
+- apps/mobile/app/build.gradle.kts: Added test deps (mockk, coroutines-test, turbine, robolectric)
+- apps/mobile/.../PhoneInputViewModelTest.kt: NEW — 8 tests
+- apps/mobile/.../OtpVerificationViewModelTest.kt: NEW — 12 tests
+- apps/mobile/.../BiometricVerificationViewModelTest.kt: NEW — 6 tests
+- apps/mobile/.../DocumentUploadViewModelTest.kt: NEW — 8 tests
+- apps/mobile/.../AuthRepositoryTest.kt: NEW — 10 tests
+- apps/mobile/.../TokenManagerTest.kt: NEW — 9 tests
+- apps/mobile/.../AuthInterceptorTest.kt: NEW — 7 tests
+- docs/testing-status.md: Updated with comprehensive test results
+
+## 2026-02-06 10:00 PHT
+Summary: Complete FR-1.2 Driver KYC (Cloudflare R2 storage + mobile file picker) and FR-1.3 Biometric Verification Screen.
+Changes:
+- apps/api/.env: Configured Cloudflare R2 storage credentials (STORAGE_BUCKET, STORAGE_ENDPOINT, AWS keys)
+- apps/api/.env.example: Updated storage section with R2 configuration template
+- apps/api/src/driver/driver.controller.ts: Enabled KYC presign/confirm endpoints (removed 503 ServiceUnavailableException blocks)
+- apps/mobile/.../data/models/driver/DriverModels.kt: Fixed DTO field name mismatches (documentType→type, contentType→mimeType, s3Key→key, added size field)
+- apps/mobile/.../data/models/auth/AuthModels.kt: Fixed biometric DTOs (imageBase64→liveImageBase64, verified→match, added userId/accessToken to response)
+- apps/mobile/.../data/network/ApiClient.kt: Added verifyBiometric() to AuthApi interface
+- apps/mobile/.../data/network/DriverApi.kt: Removed disabled endpoint comments
+- apps/mobile/.../data/auth/TokenManager.kt: Added biometric token save/get/clear methods
+- apps/mobile/.../data/network/AuthInterceptor.kt: Route biometric token for /auth/biometric/verify endpoint
+- apps/mobile/.../data/repository/AuthRepository.kt: Added verifyBiometric() method, save biometric token on OTP
+- apps/mobile/.../ui/screens/driver/DocumentUploadViewModel.kt: Full rewrite — AndroidViewModel with real presign→R2 upload→confirm flow
+- apps/mobile/.../ui/screens/driver/DocumentUploadScreen.kt: Added ActivityResultContracts.GetContent() file picker
+- apps/mobile/.../ui/screens/auth/OtpVerificationViewModel.kt: Added biometricRequired state tracking
+- apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt: Added onBiometricRequired callback
+- apps/mobile/.../ui/screens/auth/BiometricVerificationViewModel.kt: NEW — Camera capture, Base64 encode, API verification
+- apps/mobile/.../ui/screens/auth/BiometricVerificationScreen.kt: NEW — Face verification UI with camera intent
+- apps/mobile/.../ui/navigation/Routes.kt: Added BiometricVerification route
+- apps/mobile/app/src/main/java/com/wheelsongo/app/AppNav.kt: Wired biometric screen into navigation graph
+- apps/mobile/app/src/main/AndroidManifest.xml: Added CAMERA permission and uses-feature
+Details: `changes/2026-02-06-1000-pht.md`
+
 ## 2026-02-04 12:00 PHT
 Summary: Google Maps Platform migration — replace OSMDroid + Nominatim + Photon + OSRM with Google APIs.
 Changes:

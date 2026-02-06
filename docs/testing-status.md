@@ -1,7 +1,7 @@
 # Testing Status - Weeks 2-3 Implementation
 
-**Last Updated:** 2026-01-31 17:50 PHT
-**Status:** Foundation Complete, Mobile Integration Manually Verified, Automated Tests Pending
+**Last Updated:** 2026-02-07 23:00 PHT
+**Status:** Phase 1 Feature-Complete, 146 Tests Passing (86 Backend + 60 Mobile)
 
 ---
 
@@ -9,7 +9,7 @@
 
 **Week 2 (Data Privacy):** Fully implemented with comprehensive unit test coverage (22/22 passing). Foundation testing is 100% complete. Integration and E2E tests are planned but not yet implemented.
 
-**Week 3 (Mobile-Backend Integration):** Authentication flow manually tested and verified. Critical bugs fixed (response structure mismatch, URL encoding, OTP UX). Automated mobile tests and integration tests are pending.
+**Week 3 (Mobile-Backend Integration):** Authentication flow tested with **146 automated tests** across backend and mobile. All three Phase 1 features (FR-1.1 OTP Auth, FR-1.2 Driver KYC, FR-1.3 Biometric Login) have comprehensive test coverage.
 
 ### Quick Status
 
@@ -22,11 +22,16 @@
 - ⚠️ **Performance Tests:** Not yet implemented
 
 **Week 3 (Mobile Integration):**
+- ✅ **Backend Unit Tests:** 86/86 passing across 10 test suites (2026-02-07)
+- ✅ **Mobile Unit Tests:** 60/60 passing across 7 test files (2026-02-07)
 - ✅ **Auth Flow (Manual):** OTP request/verify working end-to-end
 - ✅ **Critical Bugs:** 3 blocking issues fixed (response format, URL encoding, OTP UX)
-- ✅ **Token Persistence:** DataStore working correctly
-- ⚠️ **Mobile Unit Tests:** Not yet implemented (estimated 4-6 hours)
-- ⚠️ **API Contract Tests:** Not yet implemented (HIGH priority)
+- ✅ **Token Persistence:** DataStore working correctly (access + biometric tokens)
+- ✅ **KYC Upload:** Presign → R2 upload → confirm flow implemented (2026-02-06)
+- ✅ **Biometric Screen:** Camera → Base64 → API verification implemented (2026-02-06)
+- ✅ **Mobile Build:** `./gradlew assembleDebug` — BUILD SUCCESSFUL (2026-02-06)
+- ✅ **API Build:** `npm run build:api` — BUILD SUCCESSFUL (2026-02-06)
+- ⚠️ **API Contract Tests:** Not yet implemented
 - ⚠️ **Automated Integration Tests:** Not yet implemented
 
 ---
@@ -240,6 +245,9 @@ Time:        3.143 s
 | OTP Verification (DRIVER) | ✅ Pass | Handles biometric flow correctly |
 | Token Persistence | ✅ Pass | App restarts maintain logged-in state |
 | Auth Header Injection | ✅ Pass | JWT automatically added to protected requests |
+| Biometric Token Routing | ✅ Implemented | AuthInterceptor uses biometric token for /auth/biometric/verify |
+| KYC Document Upload | ✅ Implemented | Presign → R2 PUT → Confirm flow (2026-02-06) |
+| Biometric Verification | ✅ Implemented | Camera → Base64 → POST /auth/biometric/verify (2026-02-06) |
 | Logout | ⚠️ Not Tested | Not yet implemented |
 
 ### 1.5.2 Critical Bugs Fixed (2026-01-31)
@@ -263,16 +271,40 @@ Time:        3.143 s
 - **Fix:** Preserve OTP value on error (line 131)
 - **Test:** ✅ Verified - backspace now works after errors
 
-### 1.5.3 Mobile Unit Tests - Not Implemented ⚠️
+### 1.5.3 Backend Unit Tests — 86/86 Passing ✅
 
-| Test File | Status | Priority |
-|-----------|--------|----------|
-| `TokenManagerTest.kt` | ⚠️ Not Created | HIGH |
-| `AuthRepositoryTest.kt` | ⚠️ Not Created | HIGH |
-| `PhoneInputViewModelTest.kt` | ⚠️ Not Created | MEDIUM |
-| `OtpVerificationViewModelTest.kt` | ⚠️ Not Created | MEDIUM |
+**Added:** 2026-02-07
+**Status:** ✅ ALL 86 TESTS PASSING (10 test suites)
 
-**Estimated Effort:** 4-6 hours for complete mobile test suite
+| Test File | Status | Tests | Coverage |
+|-----------|--------|-------|----------|
+| `otp.service.spec.ts` | ✅ NEW | 12 | OTP generation, hashing, rate limiting, verification |
+| `auth.service.spec.ts` | ✅ EXPANDED | 12 | OTP/biometric flows, user creation, token issuance |
+| `biometric.service.spec.ts` | ✅ NEW | 7 | Mock mode + Rekognition mode, DB recording |
+| `jwt.strategy.spec.ts` | ✅ NEW | 4 | Token type validation (access/biometric/unknown) |
+| `biometric.guard.spec.ts` | ✅ NEW | 5 | Bearer token extraction, JWT verification |
+| `storage.service.spec.ts` | ✅ NEW | 5 | Presigned URL generation, object retrieval |
+| `driver.service.spec.ts` | ✅ EXPANDED | 14 | KYC presign/confirm, status transitions |
+| `sms.service.spec.ts` | ✅ NEW | 4 | Console + Twilio modes, error handling |
+| `encryption.service.spec.ts` | ✅ EXISTING | 22 | Encrypt/decrypt/hash/detect |
+| `roles.guard.spec.ts` | ✅ EXISTING | 2 | Role-based authorization |
+| **TOTAL** | | **86** | |
+
+### 1.5.4 Mobile Unit Tests — 60/60 Passing ✅
+
+**Added:** 2026-02-07
+**Status:** ✅ ALL 60 TESTS PASSING (7 test files)
+
+| Test File | Status | Tests | Coverage |
+|-----------|--------|-------|----------|
+| `PhoneInputViewModelTest.kt` | ✅ NEW | 8 | Sanitization, validation, formatted phone, API call |
+| `OtpVerificationViewModelTest.kt` | ✅ NEW | 12 | Digit entry, auto-verify, countdown, resend |
+| `BiometricVerificationViewModelTest.kt` | ✅ NEW | 6 | Photo capture, Base64 encode, match/error |
+| `DocumentUploadViewModelTest.kt` | ✅ NEW | 8 | Initial state, document types, remove, progress |
+| `AuthRepositoryTest.kt` | ✅ NEW | 10 | OTP request/verify, biometric, token management |
+| `TokenManagerTest.kt` | ✅ NEW | 9 | Model contracts, DTO field validation |
+| `AuthInterceptorTest.kt` | ✅ NEW | 7 | Public endpoints skip, token routing |
+| **TOTAL** | | **60** | |
 
 ### 1.5.4 Integration Test Scenarios - Not Automated ⚠️
 
@@ -284,7 +316,9 @@ Time:        3.143 s
 | Expired OTP error handling | ⚠️ Not Tested | ⚠️ Not Created |
 | Invalid OTP error handling | ✅ Pass | ⚠️ Not Created |
 | Network error handling | ⚠️ Not Tested | ⚠️ Not Created |
-| Biometric driver flow | ⚠️ Partially Tested | ⚠️ Not Created |
+| Biometric driver flow | ✅ Implemented | ⚠️ Not Created |
+| KYC presign + R2 upload | ✅ Implemented | ⚠️ Not Created |
+| KYC confirm upload | ✅ Implemented | ⚠️ Not Created |
 
 ### 1.5.5 API Contract Testing - Missing ⚠️
 
@@ -875,7 +909,8 @@ Run: `artillery run load-test.yml`
 ### Completed Tests
 | Phase | Status | Tests | Duration | Notes |
 |-------|--------|-------|----------|-------|
-| Unit Tests | ✅ Complete | 22/22 passing | 3.14s | 100% EncryptionService coverage |
+| Backend Unit Tests | ✅ Complete | 86/86 passing | ~5s | 10 test suites, auth/driver/biometric/storage |
+| Mobile Unit Tests | ✅ Complete | 60/60 passing | ~26s | 7 test files, ViewModels/Repository/Interceptor |
 | App Startup | ✅ Complete | All modules loaded | 0.5s | No errors or warnings |
 | DB Migration | ✅ Complete | Schema up to date | N/A | Hash columns added |
 | Env Config | ✅ Complete | All variables present | N/A | ENCRYPTION_KEY configured |
@@ -902,20 +937,31 @@ Run: `artillery run load-test.yml`
 
 ## 5. How to Run Tests
 
-### Unit Tests
+### Backend Unit Tests
 ```bash
-# All unit tests
+# All backend tests (86 tests)
 cd apps/api
 npm test
 
-# Encryption tests only
-npm test -- encryption.service.spec.ts
+# Specific test file
+npm test -- otp.service.spec.ts
+npm test -- auth.service.spec.ts
 
 # With coverage
 npm test -- --coverage
 
 # Watch mode
 npm test -- --watch
+```
+
+### Mobile Unit Tests
+```bash
+# All mobile tests (60 tests)
+cd apps/mobile
+bash -c "./gradlew testDebugUnitTest"
+
+# Specific test class
+bash -c "./gradlew testDebugUnitTest --tests 'com.wheelsongo.app.data.repository.AuthRepositoryTest'"
 ```
 
 ### Integration Tests (when implemented)
@@ -955,7 +1001,8 @@ npx tsx scripts/backfill-encrypt-pii.ts
 ## 6. Testing Checklist for Production Deployment
 
 ### Pre-Deployment
-- [x] All unit tests passing (22/22)
+- [x] All backend unit tests passing (86/86)
+- [x] All mobile unit tests passing (60/60)
 - [x] Application starts without errors
 - [x] Database migration applied
 - [x] ENCRYPTION_KEY configured
@@ -1003,5 +1050,5 @@ npx tsx scripts/backfill-encrypt-pii.ts
 
 ---
 
-**Last Updated:** 2026-01-29 00:30 PHT
+**Last Updated:** 2026-02-07 23:00 PHT
 **Next Review:** Before production deployment

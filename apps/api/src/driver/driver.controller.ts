@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  UseGuards,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { DriverService } from './driver.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -29,16 +22,12 @@ export class DriverController {
 
   @Post('kyc/presign')
   requestUpload(@CurrentUser() user: JwtUser, @Body() dto: RequestKycUploadDto) {
-    throw new ServiceUnavailableException(
-      'KYC uploads are temporarily disabled until storage is configured',
-    );
+    return this.driverService.requestKycUpload(user.sub, dto);
   }
 
   @Post('kyc/confirm')
   confirmUpload(@CurrentUser() user: JwtUser, @Body() dto: ConfirmKycUploadDto) {
-    throw new ServiceUnavailableException(
-      'KYC uploads are temporarily disabled until storage is configured',
-    );
+    return this.driverService.confirmKycUpload(user.sub, dto);
   }
 
   @Get('kyc')

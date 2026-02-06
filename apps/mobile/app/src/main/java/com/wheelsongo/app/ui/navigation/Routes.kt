@@ -70,6 +70,11 @@ sealed class Route(val value: String) {
     // ==========================================
 
     /**
+     * Biometric (face) verification screen for driver login
+     */
+    data object BiometricVerification : Route("biometric_verification")
+
+    /**
      * Driver document upload screen (KYC)
      * For uploading license, ORCR, ID, and profile photo
      */

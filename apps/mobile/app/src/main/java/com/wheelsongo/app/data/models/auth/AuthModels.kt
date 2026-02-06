@@ -101,20 +101,23 @@ data class CurrentUserResponse(
 /**
  * Request for biometric (face) verification
  * POST /auth/biometric/verify
+ * Backend expects: { liveImageBase64: string }
  */
 @JsonClass(generateAdapter = true)
 data class BiometricVerifyRequest(
-    @Json(name = "imageBase64") val imageBase64: String
+    @Json(name = "liveImageBase64") val liveImageBase64: String
 )
 
 /**
  * Response from biometric verification
+ * Backend returns: { userId, accessToken, confidence, match }
  */
 @JsonClass(generateAdapter = true)
 data class BiometricVerifyResponse(
-    @Json(name = "verified") val verified: Boolean,
+    @Json(name = "userId") val userId: String,
+    @Json(name = "accessToken") val accessToken: String,
     @Json(name = "confidence") val confidence: Float? = null,
-    @Json(name = "message") val message: String? = null
+    @Json(name = "match") val match: Boolean = false
 )
 
 // ==========================================

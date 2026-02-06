@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.wheelsongo.app.ui.navigation.Route
 import com.wheelsongo.app.ui.navigation.UserRole
 import com.wheelsongo.app.data.models.location.LocationData
+import com.wheelsongo.app.ui.screens.auth.BiometricVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.OtpVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.PhoneInputScreen
 import com.wheelsongo.app.ui.screens.driver.DocumentUploadScreen
@@ -28,7 +29,8 @@ import java.nio.charset.StandardCharsets
  *
  * Navigation Flow:
  * - Rider: Welcome → PhoneInput → OTP → LocationConfirm → Home
- * - Driver: Welcome → PhoneInput → OTP → LocationConfirm → DocumentUpload → Home
+ * - Driver (new): Welcome → PhoneInput → OTP → LocationConfirm → DocumentUpload → Home
+ * - Driver (returning, biometric): Welcome → PhoneInput → OTP → BiometricVerification → LocationConfirm → Home
  */
 @Composable
 fun AppNav(navController: NavHostController = rememberNavController()) {
@@ -99,6 +101,27 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 onVerified = {
                     // Navigate to location confirmation
                     // Clear back stack so user can't go back to OTP screen
+                    navController.navigate(Route.LocationConfirm.value) {
+                        popUpTo(Route.Welcome.value) { inclusive = false }
+                    }
+                },
+                onBiometricRequired = {
+                    // Driver needs face verification before proceeding
+                    navController.navigate(Route.BiometricVerification.value) {
+                        popUpTo(Route.Welcome.value) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Biometric Verification Screen (Driver Face Auth)
+        // ==========================================
+        composable(Route.BiometricVerification.value) {
+            BiometricVerificationScreen(
+                onBack = { navController.popBackStack() },
+                onVerified = {
+                    // After biometric verified, continue to location confirmation
                     navController.navigate(Route.LocationConfirm.value) {
                         popUpTo(Route.Welcome.value) { inclusive = false }
                     }

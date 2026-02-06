@@ -35,8 +35,12 @@ class AuthInterceptor(
             return chain.proceed(originalRequest)
         }
 
-        // Get the access token
-        val token = tokenManager.getAccessToken()
+        // Biometric verify endpoint uses biometric token instead of access token
+        val token = if (requestPath.contains("auth/biometric/verify", ignoreCase = true)) {
+            tokenManager.getBiometricToken()
+        } else {
+            tokenManager.getAccessToken()
+        }
 
         // If no token available, proceed without auth header
         if (token.isNullOrBlank()) {

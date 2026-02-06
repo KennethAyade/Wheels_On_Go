@@ -90,41 +90,51 @@ data class DriverDocumentDto(
 /**
  * Request for presigned upload URL
  * POST /drivers/kyc/presign
+ * Fields must match backend RequestKycUploadDto: type, fileName, mimeType, size
  */
 @JsonClass(generateAdapter = true)
 data class KycPresignRequest(
-    @Json(name = "documentType") val documentType: String,
-    @Json(name = "contentType") val contentType: String,
-    @Json(name = "fileExtension") val fileExtension: String
+    @Json(name = "type") val type: String,
+    @Json(name = "fileName") val fileName: String,
+    @Json(name = "mimeType") val mimeType: String,
+    @Json(name = "size") val size: Long? = null
 )
 
 /**
  * Response with presigned upload URL
+ * Backend returns: { uploadUrl, key, expiresIn }
  */
 @JsonClass(generateAdapter = true)
 data class KycPresignResponse(
     @Json(name = "uploadUrl") val uploadUrl: String,
-    @Json(name = "s3Key") val s3Key: String,
+    @Json(name = "key") val key: String,
     @Json(name = "expiresIn") val expiresIn: Int // seconds
 )
 
 /**
- * Confirm document upload after successful S3 upload
+ * Confirm document upload after successful R2 upload
  * POST /drivers/kyc/confirm
+ * Fields must match backend ConfirmKycUploadDto: type, key, size
  */
 @JsonClass(generateAdapter = true)
 data class KycConfirmRequest(
-    @Json(name = "documentType") val documentType: String,
-    @Json(name = "s3Key") val s3Key: String
+    @Json(name = "type") val type: String,
+    @Json(name = "key") val key: String,
+    @Json(name = "size") val size: Long? = null
 )
 
 /**
  * Response from document confirmation
+ * Backend returns the updated DriverDocument directly
  */
 @JsonClass(generateAdapter = true)
 data class KycConfirmResponse(
-    @Json(name = "document") val document: DriverDocumentDto,
-    @Json(name = "message") val message: String
+    @Json(name = "id") val id: String,
+    @Json(name = "type") val type: String,
+    @Json(name = "status") val status: String,
+    @Json(name = "storageKey") val storageKey: String? = null,
+    @Json(name = "fileName") val fileName: String? = null,
+    @Json(name = "uploadedAt") val uploadedAt: String? = null
 )
 
 // ==========================================
@@ -184,6 +194,6 @@ typealias PresignUrlResponse = KycPresignResponse
 typealias ConfirmUploadRequest = KycConfirmRequest
 
 /**
- * Type alias for confirm upload response
+ * Type alias for confirm upload response (raw DriverDocument from backend)
  */
 typealias ConfirmUploadResponse = KycConfirmResponse

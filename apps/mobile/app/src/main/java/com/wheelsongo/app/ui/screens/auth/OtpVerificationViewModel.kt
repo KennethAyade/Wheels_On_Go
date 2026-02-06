@@ -18,9 +18,10 @@ data class OtpVerificationUiState(
     val otpValue: String = "",
     val isLoading: Boolean = false,
     val isVerified: Boolean = false,
+    val biometricRequired: Boolean = false,
     val errorMessage: String? = null,
     val countdownSeconds: Int = 60,
-    val userRole: String? = null // Set after successful verification
+    val userRole: String? = null
 ) {
     /**
      * Whether user can request a new OTP
@@ -120,7 +121,8 @@ class OtpVerificationViewModel(
                         it.copy(
                             isVerified = true,
                             isLoading = false,
-                            userRole = response.user.role
+                            userRole = response.user.role,
+                            biometricRequired = response.biometricRequired == true
                         )
                     }
                 },

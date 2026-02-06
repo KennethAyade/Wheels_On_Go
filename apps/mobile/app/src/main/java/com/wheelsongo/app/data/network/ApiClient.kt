@@ -3,6 +3,8 @@ package com.wheelsongo.app.data.network
 import android.content.Context
 import com.wheelsongo.app.AppConfig
 import com.wheelsongo.app.data.auth.TokenManager
+import com.wheelsongo.app.data.models.auth.BiometricVerifyRequest
+import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
 import com.wheelsongo.app.data.models.auth.CurrentUserResponse
 import com.wheelsongo.app.data.models.auth.RequestOtpRequest
 import com.wheelsongo.app.data.models.auth.RequestOtpResponse
@@ -137,4 +139,12 @@ interface AuthApi {
      */
     @GET("auth/me")
     suspend fun getCurrentUser(): Response<CurrentUserResponse>
+
+    /**
+     * Verify biometric (face) for driver login
+     * POST /auth/biometric/verify
+     * Requires: Biometric JWT token in Authorization header
+     */
+    @POST("auth/biometric/verify")
+    suspend fun verifyBiometric(@Body request: BiometricVerifyRequest): Response<BiometricVerifyResponse>
 }

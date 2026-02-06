@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `d:\FREELANCE\Wheels-On-Go_Platform\Wheels_On_Go`
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-06
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform backend built with NestJS + Prisma/PostgreSQL. Currently in **Phase 1** with authentication, driver KYC, and biometric verification implemented. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend) and Kotlin + Jetpack Compose (mobile). **Phase 1** is complete: OTP authentication, driver KYC document upload (Cloudflare R2), and biometric face verification are fully implemented end-to-end. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
 
 ---
 
@@ -22,6 +22,7 @@
 | 2026-01-31 | Free maps migration (OSMDroid + Nominatim) | ✅ Replaced |
 | 2026-01-31 | Week 3 mobile-backend integration | ✅ Complete |
 | 2026-02-04 | Google Maps Platform migration | ✅ Complete |
+| 2026-02-06 | FR-1.2 KYC upload (R2) + FR-1.3 Biometric screen | ✅ Complete |
 | Week 4 | Integration testing | ⚠️ In Progress |
 | Week 4-5 | Core ride functionality | 📅 Planned |
 | Week 5-6 | Real-time tracking & safety | 📅 Planned |
@@ -39,7 +40,7 @@
 | **Authentication** | JWT with OTP-first flow |
 | **Encryption** | AES-256-GCM (at rest), TLS 1.3 (in transit) |
 | **Biometrics** | AWS Rekognition (with mock mode) |
-| **Storage** | S3-compatible (AWS S3, MinIO, etc.) |
+| **Storage** | Cloudflare R2 (S3-compatible, free tier: 10GB) |
 | **SMS** | Twilio (with console fallback for dev) |
 | **Maps** | Google Maps SDK (Android), Geocoding, Places, Distance Matrix APIs |
 | **Mobile** | Kotlin + Jetpack Compose, Retrofit, DataStore |
@@ -308,6 +309,22 @@ netAmount = totalFare × (1 - commissionRate)
 
 ## Recent Changes (from CHANGELOG.md)
 
+### 2026-02-06 10:00 PHT - FR-1.2 KYC + FR-1.3 Biometric Complete
+- Configured Cloudflare R2 storage for KYC document uploads
+- Enabled KYC presign/confirm endpoints (removed 503 blocks)
+- Fixed mobile DTO field name mismatches (KYC + biometric)
+- Implemented real file upload pipeline: presign → R2 PUT → confirm
+- Added file picker (ActivityResultContracts.GetContent) to document upload
+- Created BiometricVerificationScreen with camera intent (TakePicturePreview)
+- Updated AuthInterceptor to route biometric token for face verify endpoint
+- Added camera permission to AndroidManifest
+- Full navigation flow: OTP → biometric (if required) → LocationConfirm → Home
+
+### 2026-02-04 12:00 PHT - Google Maps Platform Migration
+- Replaced OSMDroid + Nominatim + Photon + OSRM with Google APIs
+- Rewrote map composable (OSMDroid → maps-compose)
+- Fixed AndroidManifest API key name (geo.API_KEY not gms.maps.API_KEY)
+
 ### 2026-01-29 00:30 PHT - Week 2 Data Privacy Setup
 - AES-256-GCM encryption service
 - Transparent Prisma encryption middleware
@@ -358,6 +375,8 @@ netAmount = totalFare × (1 - commissionRate)
 | Purpose | File Path |
 |---------|-----------|
 | Application class | `apps/mobile/.../WheelsOnGoApplication.kt` |
+| Navigation graph | `apps/mobile/.../AppNav.kt` |
+| Route definitions | `apps/mobile/.../ui/navigation/Routes.kt` |
 | API Client | `apps/mobile/.../data/network/ApiClient.kt` |
 | Token Manager | `apps/mobile/.../data/auth/TokenManager.kt` |
 | Auth Interceptor | `apps/mobile/.../data/network/AuthInterceptor.kt` |
@@ -366,6 +385,7 @@ netAmount = totalFare × (1 - commissionRate)
 | Home Screen | `apps/mobile/.../ui/screens/home/HomeScreen.kt` |
 | Phone Input | `apps/mobile/.../ui/screens/auth/PhoneInputScreen.kt` |
 | OTP Verification | `apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt` |
+| Biometric Verify | `apps/mobile/.../ui/screens/auth/BiometricVerificationScreen.kt` |
 | Document Upload | `apps/mobile/.../ui/screens/driver/DocumentUploadScreen.kt` |
 
 ---
@@ -386,13 +406,15 @@ Mobile App (Kotlin/Compose)
 │   ├── repository/
 │   │   └── AuthRepository.kt        # Auth business logic
 │   └── models/
-│       ├── auth/AuthModels.kt       # Auth DTOs
+│       ├── auth/AuthModels.kt       # Auth DTOs (OTP, biometric)
 │       ├── driver/DriverModels.kt   # Driver/KYC DTOs
 │       └── location/LocationModels.kt
 └── ui/screens/
     ├── auth/PhoneInputViewModel.kt   # OTP request
-    ├── auth/OtpVerificationViewModel.kt  # OTP verify + token storage
-    └── driver/DocumentUploadViewModel.kt # KYC with fallback
+    ├── auth/OtpVerificationViewModel.kt  # OTP verify + biometric routing
+    ├── auth/BiometricVerificationScreen.kt  # Face verification camera UI
+    ├── auth/BiometricVerificationViewModel.kt  # Camera→Base64→API
+    └── driver/DocumentUploadViewModel.kt # KYC presign→R2→confirm
 ```
 
 ### Integration Status
@@ -400,10 +422,11 @@ Mobile App (Kotlin/Compose)
 |---------|---------|--------|-------------|-------|
 | OTP Request | ✅ | ✅ | ✅ Connected | Rate-limited 3/min |
 | OTP Verify | ✅ | ✅ | ✅ Connected | Response structure fixed (2026-01-31) |
-| Token Storage | N/A | ✅ | ✅ DataStore | Handles nullable tokens for biometric drivers |
-| JWT Auth Header | N/A | ✅ | ✅ AuthInterceptor | Auto-injected on all API calls |
+| Token Storage | N/A | ✅ | ✅ DataStore | Handles biometric + access tokens |
+| JWT Auth Header | N/A | ✅ | ✅ AuthInterceptor | Auto-injected; routes biometric token for face verify |
 | Driver Profile | ✅ | ✅ | ✅ Connected | Biometric flow supported |
-| KYC Upload | ⚠️ 503 | ✅ | ⚠️ Graceful Fallback | Pending S3 credentials |
+| KYC Upload | ✅ | ✅ | ✅ Connected | Cloudflare R2 via presigned URL (2026-02-06) |
+| Biometric Verify | ✅ | ✅ | ✅ Connected | Camera selfie → Base64 → backend (2026-02-06) |
 | URL Encoding | N/A | ✅ | ✅ Fixed | Phone number `+` preserved (2026-01-31) |
 
 ### Critical Fixes Applied (2026-01-31)
@@ -441,11 +464,12 @@ Mobile App (Kotlin/Compose)
 
 ## Current Limitations
 
-1. **KYC Upload Endpoints:** Currently disabled (ServiceUnavailableException) pending storage configuration - Mobile handles gracefully with local save
-2. **Integration Tests:** Not yet implemented (significant gap for production)
-3. **Biometric Mode:** Defaults to mock mode
-4. **Key Rotation:** Procedure not yet documented
-5. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented
+1. **Biometric Mode:** Defaults to mock mode (always returns match=true). Switch to `BIOMETRIC_MODE=rekognition` for production with AWS credentials.
+2. **Liveness Detection:** Camera captures static photo via `TakePicturePreview`. No anti-spoofing (could accept photos of photos). Consider ML Kit Face Detection for liveness in production.
+3. **Admin Dashboard UI:** No web frontend for admin driver approval — admin endpoints exist but need a UI.
+4. **Integration Tests:** Not yet implemented (significant gap for production)
+5. **Key Rotation:** Procedure not yet documented
+6. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented
 
 ---
 

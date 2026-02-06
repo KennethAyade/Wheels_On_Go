@@ -2,6 +2,8 @@ package com.wheelsongo.app.data.repository
 
 import com.wheelsongo.app.data.auth.TokenManager
 import com.wheelsongo.app.data.models.auth.ApiErrorResponse
+import com.wheelsongo.app.data.models.auth.BiometricVerifyRequest
+import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
 import com.wheelsongo.app.data.models.auth.CurrentUserResponse
 import com.wheelsongo.app.data.models.auth.RequestOtpRequest
 import com.wheelsongo.app.data.models.auth.RequestOtpResponse
@@ -83,6 +85,10 @@ class AuthRepository(
                 if (body.accessToken != null) {
                     tokenManager.saveTokens(body)
                 }
+                // Save biometric token for drivers requiring face verification
+                if (body.biometricRequired == true && body.biometricToken != null) {
+                    tokenManager.saveBiometricToken(body.biometricToken)
+                }
                 Result.success(body)
             } else {
                 val error = parseError(response)
@@ -127,6 +133,37 @@ class AuthRepository(
      * Get current user's ID
      */
     val userId: Flow<String?> = tokenManager.userId
+
+    /**
+     * Verify biometric (face) for driver login
+     * Uses biometric token from OTP verification step
+     *
+     * On success, saves the returned accessToken to TokenManager
+     *
+     * @param liveImageBase64 Base64-encoded camera image
+     * @return Result with biometric response or error
+     */
+    suspend fun verifyBiometric(liveImageBase64: String): Result<BiometricVerifyResponse> {
+        return try {
+            val response = authApi.verifyBiometric(
+                BiometricVerifyRequest(liveImageBase64 = liveImageBase64)
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                // Save the access token returned from biometric verification
+                tokenManager.updateAccessToken(body.accessToken)
+                // Clear the biometric token as it's no longer needed
+                tokenManager.clearBiometricToken()
+                Result.success(body)
+            } else {
+                val error = parseError(response)
+                Result.failure(Exception(error.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
+        }
+    }
 
     /**
      * Logout - clear all stored tokens and session data

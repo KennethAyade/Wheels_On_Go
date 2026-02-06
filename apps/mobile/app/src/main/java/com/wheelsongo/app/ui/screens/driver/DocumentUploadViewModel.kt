@@ -1,17 +1,26 @@
 package com.wheelsongo.app.ui.screens.driver
 
+import android.app.Application
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheelsongo.app.data.models.driver.KycConfirmRequest
 import com.wheelsongo.app.data.models.driver.KycPresignRequest
 import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DriverApi
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * Document types for driver KYC
@@ -20,7 +29,7 @@ enum class DocumentType(
     val title: String,
     val description: String,
     val isRequired: Boolean = true,
-    val apiName: String // Backend document type name
+    val apiName: String
 ) {
     LICENSE(
         title = "Driver's License",
@@ -58,7 +67,7 @@ data class DocumentState(
     val uploadProgress: Float = 0f,
     val errorMessage: String? = null,
     val fileUri: String? = null,
-    val isPendingSync: Boolean = false // True if saved locally but not synced to server
+    val isPendingSync: Boolean = false
 )
 
 /**
@@ -68,137 +77,161 @@ data class DocumentUploadUiState(
     val documents: List<DocumentState> = DocumentType.entries.map { DocumentState(it) },
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
-    val isServiceUnavailable: Boolean = false, // Backend KYC disabled
+    val isServiceUnavailable: Boolean = false,
     val serviceMessage: String? = null
 ) {
-    /**
-     * Overall upload progress (0.0 to 1.0)
-     */
     val uploadProgress: Float
         get() {
             val uploaded = documents.count { it.isUploaded }
             return uploaded.toFloat() / documents.size
         }
 
-    /**
-     * Whether all required documents are uploaded
-     */
     val allRequiredUploaded: Boolean
         get() = documents
             .filter { it.type.isRequired }
             .all { it.isUploaded }
 
-    /**
-     * Count of uploaded documents
-     */
     val uploadedCount: Int
         get() = documents.count { it.isUploaded }
 
-    /**
-     * Count of documents pending sync
-     */
     val pendingSyncCount: Int
         get() = documents.count { it.isPendingSync }
 }
 
 /**
  * ViewModel for the document upload screen
- * Handles document selection, upload, and submission
- *
- * NOTE: KYC upload endpoints are currently disabled on the backend pending S3 configuration.
- * This ViewModel handles this gracefully by allowing local selection and showing appropriate messages.
+ * Handles document selection, upload to R2 via presigned URL, and submission
  */
 class DocumentUploadViewModel(
+    application: Application,
     private val driverApi: DriverApi = ApiClient.driverApi
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(DocumentUploadUiState())
     val uiState: StateFlow<DocumentUploadUiState> = _uiState.asStateFlow()
 
-    /**
-     * Handle document card click - opens file picker
-     * In real implementation, this would be called after receiving file URI from picker
-     */
-    fun onDocumentClick(documentType: DocumentType) {
-        // Simulate document selection for now
-        // In real implementation, this triggers file picker and then calls onDocumentSelected
-        simulateLocalUpload(documentType)
-    }
+    private val uploadClient = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
 
     /**
      * Called when user selects a document from file picker
-     * @param documentType Type of document being uploaded
-     * @param fileUri URI of the selected file
      */
     fun onDocumentSelected(documentType: DocumentType, fileUri: Uri) {
         viewModelScope.launch {
-            uploadDocument(documentType, fileUri.toString())
+            uploadDocument(documentType, fileUri)
         }
     }
 
     /**
-     * Upload document to server (or save locally if service unavailable)
+     * Full upload flow: presign → upload to R2 → confirm
      */
-    private suspend fun uploadDocument(documentType: DocumentType, fileUri: String) {
-        // Update state to show uploading
+    private suspend fun uploadDocument(documentType: DocumentType, fileUri: Uri) {
         updateDocumentState(documentType) {
             it.copy(isUploading = true, uploadProgress = 0f, errorMessage = null)
         }
 
         try {
+            val context = getApplication<Application>()
+            val contentResolver = context.contentResolver
+
+            // Resolve file metadata
+            val mimeType = contentResolver.getType(fileUri) ?: "image/jpeg"
+            val fileName = getFileName(fileUri) ?: "${documentType.apiName.lowercase()}.jpg"
+            val fileBytes = withContext(Dispatchers.IO) {
+                contentResolver.openInputStream(fileUri)?.use { it.readBytes() }
+            } ?: throw Exception("Could not read file")
+            val fileSize = fileBytes.size.toLong()
+
+            updateDocumentState(documentType) {
+                it.copy(uploadProgress = 0.1f)
+            }
+
             // Step 1: Request presigned URL from backend
             val presignResponse = driverApi.requestPresignedUrl(
                 KycPresignRequest(
-                    documentType = documentType.apiName,
-                    contentType = "image/jpeg",
-                    fileExtension = "jpg"
+                    type = documentType.apiName,
+                    fileName = fileName,
+                    mimeType = mimeType,
+                    size = fileSize
                 )
             )
 
-            if (presignResponse.isSuccessful && presignResponse.body() != null) {
-                @Suppress("UNUSED_VARIABLE")
-                val presignData = presignResponse.body()!!
-
-                // Step 2: Upload to S3 using presigned URL
-                // TODO: Implement actual S3 upload using presignData.uploadUrl
-                for (progress in 1..10) {
-                    delay(100)
-                    updateDocumentState(documentType) {
-                        it.copy(uploadProgress = progress / 10f)
-                    }
-                }
-
-                // Step 3: Confirm upload with backend
-                // TODO: Implement confirm upload using presignData.s3Key
-
-                // Mark as uploaded
-                updateDocumentState(documentType) {
-                    it.copy(
-                        isUploading = false,
-                        isUploaded = true,
-                        uploadProgress = 1f,
-                        fileUri = fileUri,
-                        isPendingSync = false
-                    )
-                }
-            } else {
-                // Handle error responses
+            if (!presignResponse.isSuccessful || presignResponse.body() == null) {
                 val errorCode = presignResponse.code()
                 if (errorCode == 503) {
-                    // Service unavailable - KYC temporarily disabled
-                    handleServiceUnavailable(documentType, fileUri)
-                } else {
-                    updateDocumentState(documentType) {
-                        it.copy(
-                            isUploading = false,
-                            errorMessage = "Failed to upload: ${presignResponse.message()}"
-                        )
-                    }
+                    handleServiceUnavailable(documentType, fileUri.toString())
+                    return
                 }
+                throw Exception("Failed to get upload URL: ${presignResponse.message()}")
+            }
+
+            val presignData = presignResponse.body()!!
+            updateDocumentState(documentType) {
+                it.copy(uploadProgress = 0.3f)
+            }
+
+            // Step 2: Upload file to R2 using presigned URL
+            val uploaded = withContext(Dispatchers.IO) {
+                uploadToR2(presignData.uploadUrl, fileBytes, mimeType)
+            }
+
+            if (!uploaded) {
+                throw Exception("Failed to upload file to storage")
+            }
+
+            updateDocumentState(documentType) {
+                it.copy(uploadProgress = 0.7f)
+            }
+
+            // Step 3: Confirm upload with backend
+            val confirmResponse = driverApi.confirmUpload(
+                KycConfirmRequest(
+                    type = documentType.apiName,
+                    key = presignData.key,
+                    size = fileSize
+                )
+            )
+
+            if (!confirmResponse.isSuccessful) {
+                throw Exception("Failed to confirm upload: ${confirmResponse.message()}")
+            }
+
+            // Upload complete
+            updateDocumentState(documentType) {
+                it.copy(
+                    isUploading = false,
+                    isUploaded = true,
+                    uploadProgress = 1f,
+                    fileUri = fileUri.toString(),
+                    isPendingSync = false
+                )
             }
         } catch (e: Exception) {
-            // Network error - save locally
-            handleServiceUnavailable(documentType, fileUri)
+            updateDocumentState(documentType) {
+                it.copy(
+                    isUploading = false,
+                    errorMessage = e.message ?: "Upload failed"
+                )
+            }
+        }
+    }
+
+    /**
+     * Upload file bytes to R2 using presigned PUT URL
+     */
+    private fun uploadToR2(uploadUrl: String, fileBytes: ByteArray, mimeType: String): Boolean {
+        val requestBody = fileBytes.toRequestBody(mimeType.toMediaType())
+        val request = Request.Builder()
+            .url(uploadUrl)
+            .put(requestBody)
+            .addHeader("Content-Type", mimeType)
+            .build()
+
+        return uploadClient.newCall(request).execute().use { response ->
+            response.isSuccessful
         }
     }
 
@@ -212,7 +245,7 @@ class DocumentUploadViewModel(
                 isUploaded = true,
                 uploadProgress = 1f,
                 fileUri = fileUri,
-                isPendingSync = true // Mark as pending sync
+                isPendingSync = true
             )
         }
 
@@ -221,46 +254,6 @@ class DocumentUploadViewModel(
                 isServiceUnavailable = true,
                 serviceMessage = "Document saved locally. It will be uploaded when the service is available."
             )
-        }
-    }
-
-    /**
-     * Simulate local document selection (for demo purposes)
-     * Replace with actual file picker integration
-     */
-    private fun simulateLocalUpload(documentType: DocumentType) {
-        viewModelScope.launch {
-            // Update state to show uploading
-            updateDocumentState(documentType) {
-                it.copy(isUploading = true, uploadProgress = 0f, errorMessage = null)
-            }
-
-            // Simulate progress
-            for (progress in 1..10) {
-                delay(150)
-                updateDocumentState(documentType) {
-                    it.copy(uploadProgress = progress / 10f)
-                }
-            }
-
-            // Mark as uploaded (pending sync since KYC is disabled)
-            updateDocumentState(documentType) {
-                it.copy(
-                    isUploading = false,
-                    isUploaded = true,
-                    uploadProgress = 1f,
-                    fileUri = "local://document/${documentType.name}",
-                    isPendingSync = true
-                )
-            }
-
-            // Show service message
-            _uiState.update {
-                it.copy(
-                    isServiceUnavailable = true,
-                    serviceMessage = "Documents are being saved locally. They will be uploaded to the server when the KYC service is available."
-                )
-            }
         }
     }
 
@@ -294,19 +287,8 @@ class DocumentUploadViewModel(
             _uiState.update { it.copy(isSubmitting = true, submitError = null) }
 
             try {
-                // Check if we have pending sync documents
-                if (_uiState.value.pendingSyncCount > 0) {
-                    // Documents saved locally - proceed to next step anyway
-                    // Backend will process when service is available
-                    _uiState.update { it.copy(isSubmitting = false) }
-                    onSuccess()
-                    return@launch
-                }
-
-                // All documents synced - proceed normally
                 _uiState.update { it.copy(isSubmitting = false) }
                 onSuccess()
-
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -319,8 +301,19 @@ class DocumentUploadViewModel(
     }
 
     /**
-     * Helper to update a specific document's state
+     * Get file name from content URI
      */
+    private fun getFileName(uri: Uri): String? {
+        val context = getApplication<Application>()
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        return cursor?.use {
+            if (it.moveToFirst()) {
+                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0) it.getString(nameIndex) else null
+            } else null
+        }
+    }
+
     private fun updateDocumentState(
         documentType: DocumentType,
         update: (DocumentState) -> DocumentState
@@ -333,16 +326,10 @@ class DocumentUploadViewModel(
         }
     }
 
-    /**
-     * Clear submit error
-     */
     fun clearError() {
         _uiState.update { it.copy(submitError = null) }
     }
 
-    /**
-     * Dismiss service unavailable message
-     */
     fun dismissServiceMessage() {
         _uiState.update { it.copy(serviceMessage = null) }
     }

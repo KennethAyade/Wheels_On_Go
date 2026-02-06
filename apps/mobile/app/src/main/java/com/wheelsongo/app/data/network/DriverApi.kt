@@ -34,17 +34,13 @@ interface DriverApi {
     /**
      * Request a presigned URL for document upload
      * POST /drivers/kyc/presign
-     *
-     * NOTE: Currently disabled on backend (returns 503) pending S3 configuration
      */
     @POST("drivers/kyc/presign")
     suspend fun requestPresignedUrl(@Body request: PresignUrlRequest): Response<PresignUrlResponse>
 
     /**
-     * Confirm document upload after successful S3 upload
+     * Confirm document upload after successful R2 upload
      * POST /drivers/kyc/confirm
-     *
-     * NOTE: Currently disabled on backend (returns 503) pending S3 configuration
      */
     @POST("drivers/kyc/confirm")
     suspend fun confirmUpload(@Body request: ConfirmUploadRequest): Response<ConfirmUploadResponse>

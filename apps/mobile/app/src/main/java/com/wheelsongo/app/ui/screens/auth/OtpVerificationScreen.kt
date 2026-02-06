@@ -44,6 +44,7 @@ fun OtpVerificationScreen(
     role: String,
     onBack: () -> Unit,
     onVerified: () -> Unit,
+    onBiometricRequired: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: OtpVerificationViewModel = viewModel()
 ) {
@@ -54,10 +55,14 @@ fun OtpVerificationScreen(
         viewModel.startCountdown()
     }
 
-    // Navigate when verified
-    LaunchedEffect(uiState.isVerified) {
+    // Navigate when verified - route to biometric if required
+    LaunchedEffect(uiState.isVerified, uiState.biometricRequired) {
         if (uiState.isVerified) {
-            onVerified()
+            if (uiState.biometricRequired) {
+                onBiometricRequired()
+            } else {
+                onVerified()
+            }
         }
     }
 

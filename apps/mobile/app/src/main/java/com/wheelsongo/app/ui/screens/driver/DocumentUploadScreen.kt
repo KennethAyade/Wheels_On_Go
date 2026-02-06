@@ -1,5 +1,7 @@
 package com.wheelsongo.app.ui.screens.driver
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,19 @@ fun DocumentUploadScreen(
     viewModel: DocumentUploadViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Track which document type is being picked
+    var pendingDocumentType by remember { mutableStateOf<DocumentType?>(null) }
+
+    // File picker launcher - accepts images (JPG, PNG)
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null && pendingDocumentType != null) {
+            viewModel.onDocumentSelected(pendingDocumentType!!, uri)
+        }
+        pendingDocumentType = null
+    }
 
     Scaffold(
         topBar = {
@@ -124,7 +142,10 @@ fun DocumentUploadScreen(
                 items(uiState.documents) { document ->
                     DocumentCard(
                         documentState = document,
-                        onClick = { viewModel.onDocumentClick(document.type) },
+                        onClick = {
+                            pendingDocumentType = document.type
+                            filePickerLauncher.launch("image/*")
+                        },
                         onRemove = { viewModel.onRemoveDocument(document.type) }
                     )
                 }

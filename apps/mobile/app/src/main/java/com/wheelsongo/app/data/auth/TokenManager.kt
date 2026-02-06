@@ -26,6 +26,7 @@ class TokenManager(private val context: Context) {
     companion object {
         private val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
         private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+        private val BIOMETRIC_TOKEN_KEY = stringPreferencesKey("biometric_token")
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val PHONE_NUMBER_KEY = stringPreferencesKey("phone_number")
@@ -123,6 +124,33 @@ class TokenManager(private val context: Context) {
     suspend fun updateAccessToken(newToken: String) {
         context.authDataStore.edit { prefs ->
             prefs[ACCESS_TOKEN_KEY] = newToken
+        }
+    }
+
+    /**
+     * Save biometric token (short-lived, used for /auth/biometric/verify)
+     */
+    suspend fun saveBiometricToken(token: String) {
+        context.authDataStore.edit { prefs ->
+            prefs[BIOMETRIC_TOKEN_KEY] = token
+        }
+    }
+
+    /**
+     * Get biometric token synchronously (for interceptor)
+     */
+    fun getBiometricToken(): String? {
+        return runBlocking {
+            context.authDataStore.data.first()[BIOMETRIC_TOKEN_KEY]
+        }
+    }
+
+    /**
+     * Clear biometric token after successful face verification
+     */
+    suspend fun clearBiometricToken() {
+        context.authDataStore.edit { prefs ->
+            prefs.remove(BIOMETRIC_TOKEN_KEY)
         }
     }
 }
