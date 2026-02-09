@@ -47,6 +47,24 @@ class TokenManager(private val context: Context) {
     }
 
     /**
+     * Save refresh token (for session resumption)
+     */
+    suspend fun saveRefreshToken(token: String) {
+        context.authDataStore.edit { prefs ->
+            prefs[REFRESH_TOKEN_KEY] = token
+        }
+    }
+
+    /**
+     * Get refresh token synchronously
+     */
+    fun getRefreshToken(): String? {
+        return runBlocking {
+            context.authDataStore.data.first()[REFRESH_TOKEN_KEY]
+        }
+    }
+
+    /**
      * Get the current access token (blocking for use in interceptor)
      * @return Access token or null if not logged in
      */

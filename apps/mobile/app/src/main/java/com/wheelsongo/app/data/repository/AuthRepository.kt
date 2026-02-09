@@ -5,6 +5,9 @@ import com.wheelsongo.app.data.models.auth.ApiErrorResponse
 import com.wheelsongo.app.data.models.auth.BiometricVerifyRequest
 import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
 import com.wheelsongo.app.data.models.auth.CurrentUserResponse
+import com.wheelsongo.app.data.models.auth.LogoutRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenResponse
 import com.wheelsongo.app.data.models.auth.RequestOtpRequest
 import com.wheelsongo.app.data.models.auth.RequestOtpResponse
 import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
@@ -122,17 +125,17 @@ class AuthRepository(
     /**
      * Check if user is currently logged in
      */
-    val isLoggedIn: Flow<Boolean> = tokenManager.isLoggedIn
+    val isLoggedIn: Flow<Boolean> get() = tokenManager.isLoggedIn
 
     /**
      * Get current user's role
      */
-    val userRole: Flow<String?> = tokenManager.userRole
+    val userRole: Flow<String?> get() = tokenManager.userRole
 
     /**
      * Get current user's ID
      */
-    val userId: Flow<String?> = tokenManager.userId
+    val userId: Flow<String?> get() = tokenManager.userId
 
     /**
      * Verify biometric (face) for driver login
@@ -153,6 +156,8 @@ class AuthRepository(
                 val body = response.body()!!
                 // Save the access token returned from biometric verification
                 tokenManager.updateAccessToken(body.accessToken)
+                // Save refresh token for session resumption
+                body.refreshToken?.let { tokenManager.saveRefreshToken(it) }
                 // Clear the biometric token as it's no longer needed
                 tokenManager.clearBiometricToken()
                 Result.success(body)
@@ -166,9 +171,60 @@ class AuthRepository(
     }
 
     /**
-     * Logout - clear all stored tokens and session data
+     * Refresh the session using the stored refresh token.
+     * On success, saves new access + refresh tokens.
+     */
+    suspend fun refreshSession(): Result<RefreshTokenResponse> {
+        val refreshToken = tokenManager.getRefreshToken()
+            ?: return Result.failure(Exception("No refresh token"))
+
+        return try {
+            val response = authApi.refreshToken(
+                RefreshTokenRequest(refreshToken = refreshToken)
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                tokenManager.updateAccessToken(body.accessToken)
+                tokenManager.saveRefreshToken(body.refreshToken)
+                Result.success(body)
+            } else {
+                // Refresh failed (expired/revoked) — clear local tokens
+                tokenManager.clearTokens()
+                val error = parseError(response)
+                Result.failure(Exception(error.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
+        }
+    }
+
+    /**
+     * Check if a session exists (refresh token is stored)
+     */
+    fun hasSession(): Boolean {
+        return tokenManager.getRefreshToken() != null
+    }
+
+    /**
+     * Get user role synchronously (for session resume check)
+     */
+    fun getUserRole(): String? {
+        return tokenManager.getUserRole()
+    }
+
+    /**
+     * Logout - revoke refresh token on server, then clear all local tokens
      */
     suspend fun logout() {
+        val refreshToken = tokenManager.getRefreshToken()
+        if (refreshToken != null) {
+            try {
+                authApi.logout(LogoutRequest(refreshToken = refreshToken))
+            } catch (_: Exception) {
+                // Best-effort server-side revocation — still clear local tokens
+            }
+        }
         tokenManager.clearTokens()
     }
 

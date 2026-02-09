@@ -25,7 +25,7 @@ data class BiometricVerificationUiState(
  * ViewModel for the biometric (face) verification screen.
  * Captures a selfie via camera, encodes to Base64, and sends to backend.
  */
-class BiometricVerificationViewModel(
+class BiometricVerificationViewModel @JvmOverloads constructor(
     application: Application,
     private val authRepository: AuthRepository = AuthRepository()
 ) : AndroidViewModel(application) {

@@ -110,6 +110,9 @@ dependencies {
     // Location Services (FREE - uses device GPS hardware)
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
+    // Biometric (device fingerprint/face unlock for session resumption)
+    implementation("androidx.biometric:biometric:1.1.0")
+
     // Accompanist (Permissions, System UI Controller)
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")

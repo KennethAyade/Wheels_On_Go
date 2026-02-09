@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { BiometricGuard } from './guards/biometric.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -31,6 +32,17 @@ export class AuthController {
   @UseGuards(BiometricGuard)
   completeBiometric(@CurrentUser() user: JwtUser, @Body() dto: BiometricVerifyDto) {
     return this.authService.completeBiometric(user, dto);
+  }
+
+  @Post('refresh')
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(dto.refreshToken);
+  }
+
+  @Post('logout')
+  async logout(@Body() dto: RefreshTokenDto) {
+    await this.authService.revokeRefreshToken(dto.refreshToken);
+    return { message: 'Logged out successfully' };
   }
 
   @Get('me')

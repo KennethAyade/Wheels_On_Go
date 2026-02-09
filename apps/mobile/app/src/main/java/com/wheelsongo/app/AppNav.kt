@@ -1,6 +1,11 @@
 package com.wheelsongo.app
 
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -10,9 +15,13 @@ import androidx.navigation.navArgument
 import com.wheelsongo.app.ui.navigation.Route
 import com.wheelsongo.app.ui.navigation.UserRole
 import com.wheelsongo.app.data.models.location.LocationData
+import com.wheelsongo.app.data.network.ApiClient
+import com.wheelsongo.app.data.repository.AuthRepository
+import com.wheelsongo.app.ui.components.AppDrawer
 import com.wheelsongo.app.ui.screens.auth.BiometricVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.OtpVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.PhoneInputScreen
+import com.wheelsongo.app.ui.screens.auth.SessionResumeScreen
 import com.wheelsongo.app.ui.screens.driver.DocumentUploadScreen
 import com.wheelsongo.app.ui.screens.home.HomeScreen
 import com.wheelsongo.app.ui.screens.home.HomeViewModel
@@ -20,6 +29,7 @@ import com.wheelsongo.app.ui.screens.location.LocationConfirmScreen
 import com.wheelsongo.app.ui.screens.search.PlaceSearchScreen
 import com.wheelsongo.app.ui.screens.welcome.WelcomeScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -28,16 +38,37 @@ import java.nio.charset.StandardCharsets
  * Main navigation graph for the Wheels On Go app
  *
  * Navigation Flow:
- * - Rider: Welcome → PhoneInput → OTP → LocationConfirm → Home
- * - Driver (new): Welcome → PhoneInput → OTP → LocationConfirm → DocumentUpload → Home
- * - Driver (returning, biometric): Welcome → PhoneInput → OTP → BiometricVerification → LocationConfirm → Home
+ * - App Launch: SessionResume → (auto-login) → Home  OR  → Welcome
+ * - Rider (first time): Welcome → PhoneInput → OTP → LocationConfirm → Home
+ * - Driver (first time): Welcome → PhoneInput → OTP → LocationConfirm → DocumentUpload → Home
+ * - Driver (returning, OTP): Welcome → PhoneInput → OTP → BiometricVerification → LocationConfirm → Home
+ * - Rider (returning, session): SessionResume → (auto-refresh) → Home
+ * - Driver (returning, session): SessionResume → BiometricPrompt → (auto-refresh) → Home
  */
 @Composable
 fun AppNav(navController: NavHostController = rememberNavController()) {
     NavHost(
         navController = navController,
-        startDestination = Route.Welcome.value
+        startDestination = Route.SessionResume.value
     ) {
+        // ==========================================
+        // Session Resume — checks for existing session
+        // ==========================================
+        composable(Route.SessionResume.value) {
+            SessionResumeScreen(
+                onNavigateToHome = {
+                    navController.navigate(Route.Home.value) {
+                        popUpTo(Route.SessionResume.value) { inclusive = true }
+                    }
+                },
+                onNavigateToWelcome = {
+                    navController.navigate(Route.Welcome.value) {
+                        popUpTo(Route.SessionResume.value) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // ==========================================
         // Welcome Screen - Role Selection
         // ==========================================
@@ -98,10 +129,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 phoneNumber = phoneNumber,
                 role = role,
                 onBack = { navController.popBackStack() },
-                onVerified = {
-                    // Navigate to location confirmation
-                    // Clear back stack so user can't go back to OTP screen
-                    navController.navigate(Route.LocationConfirm.value) {
+                onVerified = { needsKyc ->
+                    navController.navigate(Route.LocationConfirm.createRoute(role, needsKyc)) {
                         popUpTo(Route.Welcome.value) { inclusive = false }
                     }
                 },
@@ -121,8 +150,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             BiometricVerificationScreen(
                 onBack = { navController.popBackStack() },
                 onVerified = {
-                    // After biometric verified, continue to location confirmation
-                    navController.navigate(Route.LocationConfirm.value) {
+                    // Returning driver — KYC already done, no need for document upload
+                    navController.navigate(Route.LocationConfirm.createRoute(UserRole.DRIVER, needsKyc = false)) {
                         popUpTo(Route.Welcome.value) { inclusive = false }
                     }
                 }
@@ -132,19 +161,20 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         // ==========================================
         // Location Confirmation Screen
         // ==========================================
-        composable(Route.LocationConfirm.value) {
-            // Get the role from the previous navigation state
-            // We pass it through the saved state handle
-            val previousBackStackEntry = navController.previousBackStackEntry
-            val role = previousBackStackEntry?.arguments?.getString(Route.OtpVerification.ARG_ROLE)
-                ?: UserRole.RIDER
+        composable(
+            route = Route.LocationConfirm.value,
+            arguments = listOf(
+                navArgument(Route.LocationConfirm.ARG_ROLE) { type = NavType.StringType },
+                navArgument(Route.LocationConfirm.ARG_NEEDS_KYC) { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
+            val role = backStackEntry.arguments?.getString(Route.LocationConfirm.ARG_ROLE) ?: UserRole.RIDER
+            val needsKyc = backStackEntry.arguments?.getBoolean(Route.LocationConfirm.ARG_NEEDS_KYC) ?: false
 
             LocationConfirmScreen(
                 onBack = { navController.popBackStack() },
                 onConfirmMetroManila = {
-                    // If driver, go to document upload first
-                    // If rider, go directly to home
-                    if (role == UserRole.DRIVER) {
+                    if (role == UserRole.DRIVER && needsKyc) {
                         navController.navigate(Route.DriverDocumentUpload.value) {
                             popUpTo(Route.LocationConfirm.value) { inclusive = true }
                         }
@@ -155,9 +185,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     }
                 },
                 onNotInMetroManila = {
-                    // For now, still navigate to home with a note
-                    // In production, might show an error or restrict access
-                    if (role == UserRole.DRIVER) {
+                    if (role == UserRole.DRIVER && needsKyc) {
                         navController.navigate(Route.DriverDocumentUpload.value) {
                             popUpTo(Route.LocationConfirm.value) { inclusive = true }
                         }
@@ -191,11 +219,36 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         composable(Route.Home.value) { backStackEntry ->
             // Share HomeViewModel between Home and PlaceSearch
             val homeViewModel: HomeViewModel = viewModel()
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val scope = rememberCoroutineScope()
+
+            // Read user info for drawer
+            val tokenManager = ApiClient.getTokenManager()
+            val userRole by tokenManager.userRole.collectAsState(initial = null)
+            val phoneNumber by tokenManager.phoneNumber.collectAsState(initial = null)
 
             HomeScreen(
-                onMenuClick = {
-                    // TODO: Open drawer/menu
+                drawerState = drawerState,
+                drawerContent = {
+                    AppDrawer(
+                        userRole = userRole,
+                        phoneNumber = phoneNumber,
+                        onMyDocuments = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Route.DriverDocumentUpload.value)
+                        },
+                        onLogout = {
+                            scope.launch {
+                                drawerState.close()
+                                AuthRepository().logout()
+                                navController.navigate(Route.Welcome.value) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        }
+                    )
                 },
+                onMenuClick = { scope.launch { drawerState.open() } },
                 onFromFieldClick = {
                     navController.navigate(Route.PlaceSearch.createRoute(isPickup = true))
                 },

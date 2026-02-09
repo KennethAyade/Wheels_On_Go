@@ -22,6 +22,8 @@ class AuthInterceptor(
         private val PUBLIC_ENDPOINTS = listOf(
             "auth/request-otp",
             "auth/verify-otp",
+            "auth/refresh",
+            "auth/logout",
             "health"
         )
     }

@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DriverStatus, User, UserRole } from '@prisma/client';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from './otp.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -52,9 +53,15 @@ export class AuthService {
         ? await this.buildBiometricToken(user, driverProfile.id)
         : null;
 
+      // Drivers with profile photo need biometric first — no refresh token yet
+      // Drivers without profile photo get access + refresh tokens immediately
+      const refreshToken = hasProfilePhoto
+        ? null
+        : await this.buildRefreshToken(user);
+
       return {
         accessToken: hasProfilePhoto ? null : await this.buildAccessToken(user),
-        refreshToken: null,
+        refreshToken,
         user: {
           id: user.id,
           phoneNumber: user.phoneNumber,
@@ -70,9 +77,10 @@ export class AuthService {
       };
     }
 
+    // Riders get access + refresh tokens
     return {
       accessToken: await this.buildAccessToken(user),
-      refreshToken: null,
+      refreshToken: await this.buildRefreshToken(user),
       user: {
         id: user.id,
         phoneNumber: user.phoneNumber,
@@ -107,13 +115,79 @@ export class AuthService {
     }
 
     const accessToken = await this.buildAccessToken(account);
+    const refreshToken = await this.buildRefreshToken(account);
 
     return {
       userId: user.sub,
       accessToken,
+      refreshToken,
       confidence: result.confidence,
       match: result.match,
     };
+  }
+
+  async refreshAccessToken(rawRefreshToken: string) {
+    const tokenHash = this.hashToken(rawRefreshToken);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!stored) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Token already revoked — possible reuse attack, revoke entire family
+    if (stored.revokedAt) {
+      await this.revokeTokenFamily(stored.familyId);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    // Token expired
+    if (stored.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // Rotate: revoke old token, issue new pair
+    const newRawToken = randomUUID();
+    const newTokenHash = this.hashToken(newRawToken);
+    const ttl = this.getRefreshTokenTtlMs();
+
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date(), replacedBy: newTokenHash },
+      }),
+      this.prisma.refreshToken.create({
+        data: {
+          userId: stored.userId,
+          tokenHash: newTokenHash,
+          familyId: stored.familyId,
+          expiresAt: new Date(Date.now() + ttl),
+          deviceInfo: stored.deviceInfo,
+        },
+      }),
+    ]);
+
+    const accessToken = await this.buildAccessToken(stored.user);
+
+    return {
+      accessToken,
+      refreshToken: newRawToken,
+    };
+  }
+
+  async revokeRefreshToken(rawRefreshToken: string) {
+    const tokenHash = this.hashToken(rawRefreshToken);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (stored) {
+      await this.revokeTokenFamily(stored.familyId);
+    }
   }
 
   async me(user: JwtUser) {
@@ -223,5 +297,49 @@ export class AuthService {
     });
 
     return token;
+  }
+
+  private async buildRefreshToken(user: User): Promise<string> {
+    const rawToken = randomUUID();
+    const tokenHash = this.hashToken(rawToken);
+    const familyId = randomUUID();
+    const ttl = this.getRefreshTokenTtlMs();
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        familyId,
+        expiresAt: new Date(Date.now() + ttl),
+      },
+    });
+
+    return rawToken;
+  }
+
+  private async revokeTokenFamily(familyId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private getRefreshTokenTtlMs(): number {
+    const ttl = this.configService.get<string>('REFRESH_TOKEN_TTL', '30d');
+    const match = ttl.match(/^(\d+)([dhms])$/);
+    if (!match) return 30 * 24 * 60 * 60 * 1000; // default 30 days
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    switch (unit) {
+      case 'd': return value * 24 * 60 * 60 * 1000;
+      case 'h': return value * 60 * 60 * 1000;
+      case 'm': return value * 60 * 1000;
+      case 's': return value * 1000;
+      default: return 30 * 24 * 60 * 60 * 1000;
+    }
   }
 }

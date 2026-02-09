@@ -25,12 +25,19 @@
 - ✅ **Backend Unit Tests:** 86/86 passing across 10 test suites (2026-02-07)
 - ✅ **Mobile Unit Tests:** 60/60 passing across 7 test files (2026-02-07)
 - ✅ **Auth Flow (Manual):** OTP request/verify working end-to-end
-- ✅ **Critical Bugs:** 3 blocking issues fixed (response format, URL encoding, OTP UX)
+- ✅ **Critical Bugs:** 6 blocking issues fixed (response format, URL encoding, OTP UX, 403 guard, ViewModel crash, KYC persistence)
 - ✅ **Token Persistence:** DataStore working correctly (access + biometric tokens)
 - ✅ **KYC Upload:** Presign → R2 upload → confirm flow implemented (2026-02-06)
+- ✅ **KYC Persistence:** ViewModel fetches existing KYC status on init via GET /drivers/kyc (2026-02-07)
+- ✅ **403 Fix:** Removed global RolesGuard that blocked KYC endpoints (2026-02-07)
+- ✅ **ORCR Removed:** Only 3 doc types remain: LICENSE, GOVERNMENT_ID, PROFILE_PHOTO (2026-02-07)
 - ✅ **Biometric Screen:** Camera → Base64 → API verification implemented (2026-02-06)
-- ✅ **Mobile Build:** `./gradlew assembleDebug` — BUILD SUCCESSFUL (2026-02-06)
-- ✅ **API Build:** `npm run build:api` — BUILD SUCCESSFUL (2026-02-06)
+- ✅ **Biometric Leniency:** Accepts BIOMETRIC_WEAK; OTP-only on unsupported devices (2026-02-07)
+- ✅ **Navigation Fix:** Driver needsKyc routing via route args (2026-02-07)
+- ✅ **Hamburger Menu:** ModalNavigationDrawer with AppDrawer (2026-02-07)
+- ✅ **Session Resume:** Token refresh on app restart (2026-02-07)
+- ✅ **Mobile Build:** `./gradlew assembleDebug` — BUILD SUCCESSFUL (2026-02-07)
+- ✅ **API Build:** `npm run build:api` — BUILD SUCCESSFUL (2026-02-07)
 - ⚠️ **API Contract Tests:** Not yet implemented
 - ⚠️ **Automated Integration Tests:** Not yet implemented
 
@@ -246,9 +253,12 @@ Time:        3.143 s
 | Token Persistence | ✅ Pass | App restarts maintain logged-in state |
 | Auth Header Injection | ✅ Pass | JWT automatically added to protected requests |
 | Biometric Token Routing | ✅ Implemented | AuthInterceptor uses biometric token for /auth/biometric/verify |
-| KYC Document Upload | ✅ Implemented | Presign → R2 PUT → Confirm flow (2026-02-06) |
-| Biometric Verification | ✅ Implemented | Camera → Base64 → POST /auth/biometric/verify (2026-02-06) |
-| Logout | ⚠️ Not Tested | Not yet implemented |
+| KYC Document Upload | ✅ Implemented | Presign → R2 PUT → Confirm flow; persists across sessions (2026-02-07) |
+| KYC Status Fetch | ✅ Implemented | GET /drivers/kyc returns { documents, allUploaded, allVerified } (2026-02-07) |
+| Biometric Verification | ✅ Implemented | Camera → Base64 → POST /auth/biometric/verify; lenient on older phones (2026-02-07) |
+| Session Resume | ✅ Implemented | Auto-refresh tokens on app restart (2026-02-07) |
+| Hamburger Menu/Drawer | ✅ Implemented | ModalNavigationDrawer with logout (2026-02-07) |
+| Logout | ✅ Implemented | Clears tokens, navigates to welcome (2026-02-07) |
 
 ### 1.5.2 Critical Bugs Fixed (2026-01-31)
 
@@ -271,9 +281,29 @@ Time:        3.143 s
 - **Fix:** Preserve OTP value on error (line 131)
 - **Test:** ✅ Verified - backspace now works after errors
 
-### 1.5.3 Backend Unit Tests — 86/86 Passing ✅
+### 1.5.3 Critical Bugs Fixed (2026-02-07)
 
-**Added:** 2026-02-07
+**Bug #4: 403 "Missing user context" on KYC Upload**
+- **Symptom:** POST /drivers/kyc/presign returned 403 Forbidden
+- **Root Cause:** Global `RolesGuard` in `app.module.ts` ran before `JwtAuthGuard`, so `request.user` was undefined
+- **Fix:** Removed global RolesGuard; all controllers already use `@UseGuards(JwtAuthGuard, RolesGuard)` correctly
+- **Test:** ✅ Verified — all 3 documents upload successfully
+
+**Bug #5: DocumentUploadViewModel NoSuchMethodException**
+- **Symptom:** App crashed when navigating to DocumentUpload after LocationConfirm
+- **Root Cause:** Kotlin default params don't generate Java overloaded constructors; `AndroidViewModelFactory` needs `(Application)` constructor
+- **Fix:** Added `@JvmOverloads` annotation to constructor
+- **Test:** ✅ Verified — navigation works without crash
+
+**Bug #6: KYC Uploads Not Persisted**
+- **Symptom:** After uploading all 3 documents, returning to DocumentUpload screen showed 0/3
+- **Root Cause:** (1) ViewModel always initialized with blank state, never fetched existing KYC status. (2) Backend GET /drivers/kyc returned full DriverProfile instead of `{ documents, allUploaded, allVerified }`
+- **Fix:** Added `init` block with `fetchExistingKycStatus()`; backend now returns proper KYC response shape
+- **Test:** ✅ Verified — uploaded documents persist across sessions
+
+### 1.5.4 Backend Unit Tests — 86/86 Passing ✅
+
+**Last Verified:** 2026-02-07
 **Status:** ✅ ALL 86 TESTS PASSING (10 test suites)
 
 | Test File | Status | Tests | Coverage |
@@ -290,9 +320,9 @@ Time:        3.143 s
 | `roles.guard.spec.ts` | ✅ EXISTING | 2 | Role-based authorization |
 | **TOTAL** | | **86** | |
 
-### 1.5.4 Mobile Unit Tests — 60/60 Passing ✅
+### 1.5.5 Mobile Unit Tests — 60/60 Passing ✅
 
-**Added:** 2026-02-07
+**Last Verified:** 2026-02-07
 **Status:** ✅ ALL 60 TESTS PASSING (7 test files)
 
 | Test File | Status | Tests | Coverage |
@@ -306,7 +336,7 @@ Time:        3.143 s
 | `AuthInterceptorTest.kt` | ✅ NEW | 7 | Public endpoints skip, token routing |
 | **TOTAL** | | **60** | |
 
-### 1.5.4 Integration Test Scenarios - Not Automated ⚠️
+### 1.5.6 Integration Test Scenarios - Not Automated ⚠️
 
 | Scenario | Manual Test | Automated Test |
 |----------|-------------|----------------|
@@ -320,7 +350,7 @@ Time:        3.143 s
 | KYC presign + R2 upload | ✅ Implemented | ⚠️ Not Created |
 | KYC confirm upload | ✅ Implemented | ⚠️ Not Created |
 
-### 1.5.5 API Contract Testing - Missing ⚠️
+### 1.5.7 API Contract Testing - Missing ⚠️
 
 **Recommendation:** Add contract tests to prevent future API breaking changes
 

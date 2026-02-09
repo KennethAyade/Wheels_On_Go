@@ -33,7 +33,6 @@ enum DriverStatus {
 
 enum DriverDocumentType {
   LICENSE
-  ORCR
   GOVERNMENT_ID
   PROFILE_PHOTO
 }
@@ -237,6 +236,7 @@ model User {
   notifications    Notification[]
   messagesSent     Message[]       @relation("MessagesSent")
   messagesReceived Message[]       @relation("MessagesReceived")
+  refreshTokens    RefreshToken[]
 
   @@index([email])
   @@index([isActive, isSuspended])
@@ -256,6 +256,23 @@ model OtpCode {
   user           User?      @relation(fields: [userId], references: [id])
 
   @@index([phoneNumber])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  familyId   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  deviceInfo String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
   @@index([expiresAt])
 }
 

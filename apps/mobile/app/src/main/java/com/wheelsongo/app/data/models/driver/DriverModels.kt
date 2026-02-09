@@ -19,7 +19,6 @@ enum class DriverStatus {
  */
 enum class DriverDocumentType {
     @Json(name = "LICENSE") LICENSE,
-    @Json(name = "ORCR") ORCR,
     @Json(name = "GOVERNMENT_ID") GOVERNMENT_ID,
     @Json(name = "PROFILE_PHOTO") PROFILE_PHOTO
 }
@@ -64,9 +63,9 @@ data class DriverProfileResponse(
  */
 @JsonClass(generateAdapter = true)
 data class KycDocumentsResponse(
-    @Json(name = "documents") val documents: List<DriverDocumentDto>,
-    @Json(name = "allUploaded") val allUploaded: Boolean,
-    @Json(name = "allVerified") val allVerified: Boolean
+    @Json(name = "documents") val documents: List<DriverDocumentDto> = emptyList(),
+    @Json(name = "allUploaded") val allUploaded: Boolean = false,
+    @Json(name = "allVerified") val allVerified: Boolean = false
 )
 
 /**

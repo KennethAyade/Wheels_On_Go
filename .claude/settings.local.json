@@ -40,7 +40,8 @@
       "Bash(cmd.exe /c \"gradlew.bat assembleDebug\")",
       "Bash(bash -c:*)",
       "Bash(grep:*)",
-      "Bash(npm run test:api:*)"
+      "Bash(npm run test:api:*)",
+      "Bash(npx jest:*)"
     ]
   }
 }

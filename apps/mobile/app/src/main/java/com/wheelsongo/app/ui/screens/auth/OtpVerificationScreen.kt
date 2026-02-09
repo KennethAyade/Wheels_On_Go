@@ -24,10 +24,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wheelsongo.app.data.auth.BiometricPromptHelper
 import com.wheelsongo.app.ui.components.NumericKeypad
 import com.wheelsongo.app.ui.components.headers.TopBarWithBack
 import com.wheelsongo.app.ui.components.inputs.OtpInputField
@@ -43,12 +45,13 @@ fun OtpVerificationScreen(
     phoneNumber: String,
     role: String,
     onBack: () -> Unit,
-    onVerified: () -> Unit,
+    onVerified: (needsKyc: Boolean) -> Unit,
     onBiometricRequired: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: OtpVerificationViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     // Start countdown on first composition
     LaunchedEffect(Unit) {
@@ -58,10 +61,13 @@ fun OtpVerificationScreen(
     // Navigate when verified - route to biometric if required
     LaunchedEffect(uiState.isVerified, uiState.biometricRequired) {
         if (uiState.isVerified) {
-            if (uiState.biometricRequired) {
+            if (uiState.biometricRequired && BiometricPromptHelper.canAuthenticate(context)) {
+                // Device supports biometrics — proceed with face verification
                 onBiometricRequired()
             } else {
-                onVerified()
+                // No biometric support or not required — OTP is sufficient
+                val needsKyc = uiState.userRole == "DRIVER" && !uiState.biometricEnrolled
+                onVerified(needsKyc)
             }
         }
     }
@@ -221,7 +227,7 @@ private fun OtpVerificationScreenPreview() {
             phoneNumber = "+639761337834",
             role = "RIDER",
             onBack = {},
-            onVerified = {}
+            onVerified = { _ -> }
         )
     }
 }

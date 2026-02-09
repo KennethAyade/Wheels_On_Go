@@ -42,10 +42,10 @@ class DocumentUploadViewModelTest {
     }
 
     @Test
-    fun `initial state has 4 required documents`() {
+    fun `initial state has 3 required documents`() {
         val viewModel = DocumentUploadViewModel(application)
         val state = viewModel.uiState.value
-        assertEquals(4, state.documents.size)
+        assertEquals(3, state.documents.size)
     }
 
     @Test
@@ -72,7 +72,6 @@ class DocumentUploadViewModelTest {
         val viewModel = DocumentUploadViewModel(application)
         val types = viewModel.uiState.value.documents.map { it.type }
         assertTrue(types.contains(DocumentType.LICENSE))
-        assertTrue(types.contains(DocumentType.ORCR))
         assertTrue(types.contains(DocumentType.GOVERNMENT_ID))
         assertTrue(types.contains(DocumentType.PROFILE_PHOTO))
     }

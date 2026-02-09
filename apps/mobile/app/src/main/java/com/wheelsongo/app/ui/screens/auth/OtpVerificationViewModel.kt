@@ -19,6 +19,7 @@ data class OtpVerificationUiState(
     val isLoading: Boolean = false,
     val isVerified: Boolean = false,
     val biometricRequired: Boolean = false,
+    val biometricEnrolled: Boolean = false,
     val errorMessage: String? = null,
     val countdownSeconds: Int = 60,
     val userRole: String? = null
@@ -122,7 +123,8 @@ class OtpVerificationViewModel(
                             isVerified = true,
                             isLoading = false,
                             userRole = response.user.role,
-                            biometricRequired = response.biometricRequired == true
+                            biometricRequired = response.biometricRequired == true,
+                            biometricEnrolled = response.biometricEnrolled == true
                         )
                     }
                 },

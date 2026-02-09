@@ -18,14 +18,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,6 +60,8 @@ import com.wheelsongo.app.ui.theme.WheelsOnGoTheme
 @Composable
 fun HomeScreen(
     onMenuClick: () -> Unit,
+    drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
+    drawerContent: @Composable () -> Unit = {},
     onFromFieldClick: () -> Unit = {},
     onToFieldClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -92,6 +98,10 @@ fun HomeScreen(
         )
     }
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = drawerContent
+    ) {
     Box(modifier = modifier.fillMaxSize()) {
         // Google Maps
         GoogleMapView(
@@ -193,6 +203,7 @@ fun HomeScreen(
             }
         }
     }
+    } // ModalNavigationDrawer
 }
 
 /**

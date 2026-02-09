@@ -6,6 +6,9 @@ import com.wheelsongo.app.data.auth.TokenManager
 import com.wheelsongo.app.data.models.auth.BiometricVerifyRequest
 import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
 import com.wheelsongo.app.data.models.auth.CurrentUserResponse
+import com.wheelsongo.app.data.models.auth.LogoutRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenResponse
 import com.wheelsongo.app.data.models.auth.RequestOtpRequest
 import com.wheelsongo.app.data.models.auth.RequestOtpResponse
 import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
@@ -147,4 +150,18 @@ interface AuthApi {
      */
     @POST("auth/biometric/verify")
     suspend fun verifyBiometric(@Body request: BiometricVerifyRequest): Response<BiometricVerifyResponse>
+
+    /**
+     * Refresh access token using refresh token
+     * POST /auth/refresh
+     */
+    @POST("auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<RefreshTokenResponse>
+
+    /**
+     * Logout — revokes refresh token family on server
+     * POST /auth/logout
+     */
+    @POST("auth/logout")
+    suspend fun logout(@Body request: LogoutRequest): Response<Unit>
 }

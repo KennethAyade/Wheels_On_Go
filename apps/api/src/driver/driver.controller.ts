@@ -32,6 +32,6 @@ export class DriverController {
 
   @Get('kyc')
   getKyc(@CurrentUser() user: JwtUser) {
-    return this.driverService.getMine(user.sub);
+    return this.driverService.getKycStatus(user.sub);
   }
 }

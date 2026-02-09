@@ -116,8 +116,40 @@ data class BiometricVerifyRequest(
 data class BiometricVerifyResponse(
     @Json(name = "userId") val userId: String,
     @Json(name = "accessToken") val accessToken: String,
+    @Json(name = "refreshToken") val refreshToken: String? = null,
     @Json(name = "confidence") val confidence: Float? = null,
     @Json(name = "match") val match: Boolean = false
+)
+
+// ==========================================
+// Refresh Token
+// ==========================================
+
+/**
+ * Request to refresh access token
+ * POST /auth/refresh
+ */
+@JsonClass(generateAdapter = true)
+data class RefreshTokenRequest(
+    @Json(name = "refreshToken") val refreshToken: String
+)
+
+/**
+ * Response from token refresh
+ */
+@JsonClass(generateAdapter = true)
+data class RefreshTokenResponse(
+    @Json(name = "accessToken") val accessToken: String,
+    @Json(name = "refreshToken") val refreshToken: String
+)
+
+/**
+ * Request to logout (revoke refresh token)
+ * POST /auth/logout
+ */
+@JsonClass(generateAdapter = true)
+data class LogoutRequest(
+    @Json(name = "refreshToken") val refreshToken: String
 )
 
 // ==========================================

@@ -12,6 +12,7 @@ const config = new ConfigService({
   JWT_SECRET: 'test-secret',
   ACCESS_TOKEN_TTL: '15m',
   BIOMETRIC_TOKEN_TTL: '5m',
+  REFRESH_TOKEN_TTL: '30d',
 });
 
 const createPrismaMock = () =>
@@ -25,6 +26,13 @@ const createPrismaMock = () =>
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    refreshToken: {
+      create: jest.fn().mockResolvedValue({ id: 'rt-1' }),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    $transaction: jest.fn().mockResolvedValue([]),
   } as unknown as PrismaService);
 
 describe('AuthService', () => {

@@ -24,6 +24,29 @@ export class DriverService {
     private readonly auditService: AuditService,
   ) {}
 
+  async getKycStatus(userId: string) {
+    const profile = await this.ensureProfile(userId);
+    const documents = await this.prisma.driverDocument.findMany({
+      where: { driverProfileId: profile.id },
+    });
+
+    const requiredTypes = [
+      DriverDocumentType.LICENSE,
+      DriverDocumentType.GOVERNMENT_ID,
+      DriverDocumentType.PROFILE_PHOTO,
+    ];
+
+    const allUploaded = requiredTypes.every((type) =>
+      documents.some(
+        (d) => d.type === type && d.status === DocumentStatus.UPLOADED,
+      ),
+    );
+    // No VERIFIED status yet — allVerified is future-proofing
+    const allVerified = false;
+
+    return { documents, allUploaded, allVerified };
+  }
+
   async getMine(userId: string) {
     const profile = await this.prisma.driverProfile.findUnique({
       where: { userId },

@@ -14,8 +14,14 @@ sealed class Route(val value: String) {
     // ==========================================
 
     /**
+     * Session resume screen — checks for existing session on app launch.
+     * Redirects to Home (auto-login) or Welcome (no session).
+     */
+    data object SessionResume : Route("session_resume")
+
+    /**
      * Welcome screen - role selection
-     * Entry point for the app
+     * Shown when no existing session
      */
     data object Welcome : Route("welcome")
 
@@ -52,8 +58,16 @@ sealed class Route(val value: String) {
     /**
      * Location confirmation screen
      * Asks if user is in Metro Manila
+     * @param role User role (RIDER or DRIVER)
+     * @param needsKyc Whether driver needs to upload documents (first time only)
      */
-    data object LocationConfirm : Route("location_confirm")
+    data object LocationConfirm : Route("location_confirm/{role}/{needsKyc}") {
+        const val ARG_ROLE = "role"
+        const val ARG_NEEDS_KYC = "needsKyc"
+
+        fun createRoute(role: String, needsKyc: Boolean = false): String =
+            "location_confirm/$role/$needsKyc"
+    }
 
     // ==========================================
     // Main App

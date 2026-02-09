@@ -37,12 +37,6 @@ enum class DocumentType(
         isRequired = true,
         apiName = "LICENSE"
     ),
-    ORCR(
-        title = "OR/CR",
-        description = "Official Receipt / Certificate of Registration",
-        isRequired = true,
-        apiName = "ORCR"
-    ),
     GOVERNMENT_ID(
         title = "Government ID",
         description = "Valid government-issued ID",
@@ -102,7 +96,7 @@ data class DocumentUploadUiState(
  * ViewModel for the document upload screen
  * Handles document selection, upload to R2 via presigned URL, and submission
  */
-class DocumentUploadViewModel(
+class DocumentUploadViewModel @JvmOverloads constructor(
     application: Application,
     private val driverApi: DriverApi = ApiClient.driverApi
 ) : AndroidViewModel(application) {
@@ -115,6 +109,31 @@ class DocumentUploadViewModel(
         .writeTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
+
+    init {
+        fetchExistingKycStatus()
+    }
+
+    private fun fetchExistingKycStatus() {
+        viewModelScope.launch {
+            try {
+                val response = driverApi.getKycStatus()
+                if (response.isSuccessful) {
+                    val kycData = response.body() ?: return@launch
+                    for (doc in kycData.documents) {
+                        val docType = DocumentType.entries.find { it.apiName == doc.type }
+                        if (docType != null && doc.status == "UPLOADED") {
+                            updateDocumentState(docType) {
+                                it.copy(isUploaded = true, uploadProgress = 1f)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Silently fail — user can still upload fresh
+            }
+        }
+    }
 
     /**
      * Called when user selects a document from file picker

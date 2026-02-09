@@ -9,7 +9,6 @@ import { DriverModule } from './driver/driver.module';
 import { StorageModule } from './storage/storage.module';
 import { BiometricModule } from './biometric/biometric.module';
 import { EncryptionModule } from './encryption/encryption.module';
-import { RolesGuard } from './common/guards/roles.guard';
 // Google Maps Integration Modules
 import { LocationModule } from './location/location.module';
 import { RideModule } from './ride/ride.module';
@@ -46,10 +45,6 @@ import { GeofenceModule } from './geofence/geofence.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
     },
   ],
 })

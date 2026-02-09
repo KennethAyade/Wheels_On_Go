@@ -18,6 +18,37 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-07 20:00 PHT
+Summary: Fix KYC upload persistence — DocumentUploadViewModel now fetches existing KYC status on init; backend GET /drivers/kyc returns proper { documents, allUploaded, allVerified } response.
+Changes:
+- apps/api/src/driver/driver.service.ts: Added getKycStatus() method returning { documents, allUploaded, allVerified }
+- apps/api/src/driver/driver.controller.ts: GET /drivers/kyc now calls getKycStatus() instead of getMine()
+- apps/mobile/.../ui/screens/driver/DocumentUploadViewModel.kt: Added init block with fetchExistingKycStatus() to load already-uploaded documents
+- apps/mobile/.../data/models/driver/DriverModels.kt: Added default values to KycDocumentsResponse fields
+
+## 2026-02-07 19:00 PHT
+Summary: Fix 403 "Missing user context" on KYC upload + remove ORCR document type. Only 3 document types remain: LICENSE, GOVERNMENT_ID, PROFILE_PHOTO.
+Changes:
+- apps/api/src/app.module.ts: Removed global RolesGuard APP_GUARD (was running before JwtAuthGuard, causing 403)
+- apps/api/prisma/schema.prisma: Removed ORCR from DriverDocumentType enum
+- apps/mobile/.../ui/screens/driver/DocumentUploadViewModel.kt: Removed ORCR from DocumentType enum
+- apps/mobile/.../data/models/driver/DriverModels.kt: Removed ORCR from DriverDocumentType enum
+- apps/mobile/.../DocumentUploadViewModelTest.kt: Updated doc count 4→3, removed ORCR assertion
+
+## 2026-02-07 18:00 PHT
+Summary: Multiple UX and crash fixes — biometric leniency, DocumentUploadViewModel crash, driver navigation fix, hamburger menu drawer.
+Changes:
+- apps/mobile/.../data/auth/BiometricPromptHelper.kt: Accept BIOMETRIC_WEAK as fallback for older phones
+- apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt: Check BiometricPromptHelper.canAuthenticate() before requiring biometric; pass needsKyc to onVerified
+- apps/mobile/.../ui/screens/auth/OtpVerificationViewModel.kt: Added biometricEnrolled field to UI state
+- apps/mobile/.../ui/screens/driver/DocumentUploadViewModel.kt: Added @JvmOverloads to fix NoSuchMethodException crash
+- apps/mobile/.../ui/screens/auth/BiometricVerificationViewModel.kt: Added @JvmOverloads
+- apps/mobile/.../ui/screens/auth/SessionResumeViewModel.kt: Added @JvmOverloads
+- apps/mobile/.../ui/navigation/Routes.kt: LocationConfirm route now includes {role}/{needsKyc} args
+- apps/mobile/.../AppNav.kt: Wired needsKyc routing for drivers; DocumentUpload only shown when needsKyc=true
+- apps/mobile/.../ui/components/AppDrawer.kt: NEW — ModalDrawerSheet with phone, role chip, "My Documents" (driver), logout
+- apps/mobile/.../ui/screens/home/HomeScreen.kt: Added ModalNavigationDrawer with AppDrawer
+
 ## 2026-02-07 23:00 PHT
 Summary: Add comprehensive test coverage for Week 3 Phase 1 features — 146 tests total (86 backend + 60 mobile).
 Changes:

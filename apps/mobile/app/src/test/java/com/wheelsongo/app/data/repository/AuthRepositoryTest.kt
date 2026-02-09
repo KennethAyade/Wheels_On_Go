@@ -10,7 +10,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -28,13 +27,7 @@ class AuthRepositoryTest {
     @Before
     fun setup() {
         authApi = mockk()
-        // Use relaxUnitFun=true instead of relaxed=true to avoid wrong types for Flow properties
         tokenManager = mockk(relaxUnitFun = true)
-
-        // Stub Flow val properties that AuthRepository accesses in its constructor
-        every { tokenManager.isLoggedIn } returns flowOf(false)
-        every { tokenManager.userRole } returns flowOf(null)
-        every { tokenManager.userId } returns flowOf(null)
 
         repository = AuthRepository(authApi, tokenManager)
     }
@@ -164,6 +157,10 @@ class AuthRepositoryTest {
 
     @Test
     fun `logout clears all tokens`() = runTest {
+        // Stub getRefreshToken — logout sends it to server before clearing
+        every { tokenManager.getRefreshToken() } returns "refresh-token"
+        coEvery { authApi.logout(any()) } returns Response.success(Unit)
+
         repository.logout()
 
         coVerify { tokenManager.clearTokens() }

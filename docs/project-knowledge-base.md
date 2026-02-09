@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `d:\FREELANCE\Wheels-On-Go_Platform\Wheels_On_Go`
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-02-07
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend) and Kotlin + Jetpack Compose (mobile). **Phase 1** is complete: OTP authentication, driver KYC document upload (Cloudflare R2), and biometric face verification are fully implemented end-to-end. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend) and Kotlin + Jetpack Compose (mobile). **Phase 1** is complete: OTP authentication, driver KYC document upload (Cloudflare R2), biometric face verification, session resume, and hamburger menu drawer are fully implemented end-to-end. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
 
 ---
 
@@ -23,6 +23,7 @@
 | 2026-01-31 | Week 3 mobile-backend integration | ✅ Complete |
 | 2026-02-04 | Google Maps Platform migration | ✅ Complete |
 | 2026-02-06 | FR-1.2 KYC upload (R2) + FR-1.3 Biometric screen | ✅ Complete |
+| 2026-02-07 | Phase 1 bug fixes: 403 fix, ORCR removal, KYC persistence, biometric leniency, navigation fixes, hamburger menu | ✅ Complete |
 | Week 4 | Integration testing | ⚠️ In Progress |
 | Week 4-5 | Core ride functionality | 📅 Planned |
 | Week 5-6 | Real-time tracking & safety | 📅 Planned |
@@ -126,7 +127,7 @@ Wheels_On_Go/
 1. **User** - Core identity (RIDER/DRIVER/ADMIN roles)
 2. **OtpCode** - OTP management with TTL and attempts
 3. **DriverProfile** - Driver status and metrics
-4. **DriverDocument** - KYC documents (LICENSE, ORCR, GOVERNMENT_ID, PROFILE_PHOTO)
+4. **DriverDocument** - KYC documents (LICENSE, GOVERNMENT_ID, PROFILE_PHOTO)
 5. **AuditLog** - Comprehensive audit trail
 6. **BiometricVerification** - Face verification logs
 7. **RiderProfile** - Rider preferences (partial)
@@ -309,6 +310,17 @@ netAmount = totalFare × (1 - commissionRate)
 
 ## Recent Changes (from CHANGELOG.md)
 
+### 2026-02-07 - Phase 1 Bug Fixes & Polish
+- Fixed 403 "Missing user context" on KYC upload (removed global RolesGuard from app.module.ts)
+- Removed ORCR document type — only LICENSE, GOVERNMENT_ID, PROFILE_PHOTO remain
+- Fixed DocumentUploadViewModel @JvmOverloads crash
+- KYC uploads now persist across sessions (ViewModel fetches existing status on init via GET /drivers/kyc)
+- Backend GET /drivers/kyc returns proper { documents, allUploaded, allVerified } response
+- Biometric leniency: accepts BIOMETRIC_WEAK on older phones; OTP-only if no biometrics available
+- Fixed driver skipping DocumentUpload (route args with needsKyc flag)
+- Added hamburger menu drawer (AppDrawer with phone, role, logout)
+- Added ModalNavigationDrawer to HomeScreen
+
 ### 2026-02-06 10:00 PHT - FR-1.2 KYC + FR-1.3 Biometric Complete
 - Configured Cloudflare R2 storage for KYC document uploads
 - Enabled KYC presign/confirm endpoints (removed 503 blocks)
@@ -387,6 +399,9 @@ netAmount = totalFare × (1 - commissionRate)
 | OTP Verification | `apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt` |
 | Biometric Verify | `apps/mobile/.../ui/screens/auth/BiometricVerificationScreen.kt` |
 | Document Upload | `apps/mobile/.../ui/screens/driver/DocumentUploadScreen.kt` |
+| App Drawer | `apps/mobile/.../ui/components/AppDrawer.kt` |
+| Session Resume | `apps/mobile/.../ui/screens/auth/SessionResumeViewModel.kt` |
+| Biometric Helper | `apps/mobile/.../data/auth/BiometricPromptHelper.kt` |
 
 ---
 
@@ -425,8 +440,11 @@ Mobile App (Kotlin/Compose)
 | Token Storage | N/A | ✅ | ✅ DataStore | Handles biometric + access tokens |
 | JWT Auth Header | N/A | ✅ | ✅ AuthInterceptor | Auto-injected; routes biometric token for face verify |
 | Driver Profile | ✅ | ✅ | ✅ Connected | Biometric flow supported |
-| KYC Upload | ✅ | ✅ | ✅ Connected | Cloudflare R2 via presigned URL (2026-02-06) |
-| Biometric Verify | ✅ | ✅ | ✅ Connected | Camera selfie → Base64 → backend (2026-02-06) |
+| KYC Upload | ✅ | ✅ | ✅ Connected | Cloudflare R2 via presigned URL; persists across sessions (2026-02-07) |
+| KYC Status Fetch | ✅ | ✅ | ✅ Connected | GET /drivers/kyc returns { documents, allUploaded, allVerified } (2026-02-07) |
+| Biometric Verify | ✅ | ✅ | ✅ Connected | Camera selfie → Base64 → backend; lenient on older phones (2026-02-07) |
+| Session Resume | N/A | ✅ | ✅ Connected | Auto-refresh tokens on app restart (2026-02-07) |
+| Hamburger Menu | N/A | ✅ | ✅ Working | ModalNavigationDrawer with AppDrawer (2026-02-07) |
 | URL Encoding | N/A | ✅ | ✅ Fixed | Phone number `+` preserved (2026-01-31) |
 
 ### Critical Fixes Applied (2026-01-31)
@@ -467,9 +485,10 @@ Mobile App (Kotlin/Compose)
 1. **Biometric Mode:** Defaults to mock mode (always returns match=true). Switch to `BIOMETRIC_MODE=rekognition` for production with AWS credentials.
 2. **Liveness Detection:** Camera captures static photo via `TakePicturePreview`. No anti-spoofing (could accept photos of photos). Consider ML Kit Face Detection for liveness in production.
 3. **Admin Dashboard UI:** No web frontend for admin driver approval — admin endpoints exist but need a UI.
-4. **Integration Tests:** Not yet implemented (significant gap for production)
-5. **Key Rotation:** Procedure not yet documented
-6. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented
+4. **Integration Tests:** Not yet implemented (significant gap for production).
+5. **Key Rotation:** Procedure not yet documented.
+6. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.
+7. **Logout:** Hamburger menu has logout button wired to clear tokens + navigate to welcome, but no backend token invalidation endpoint.
 
 ---
 
