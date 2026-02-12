@@ -71,7 +71,7 @@ describe('AuthService', () => {
 
       await service.requestOtp({ phoneNumber: '+639171234567', role: UserRole.RIDER });
 
-      expect(otpService.requestOtp).toHaveBeenCalledWith('+639171234567', UserRole.RIDER);
+      expect(otpService.requestOtp).toHaveBeenCalledWith('+639171234567', UserRole.RIDER, undefined);
     });
 
     it('throws BadRequestException when phone registered with different role', async () => {

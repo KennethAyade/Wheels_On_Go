@@ -24,7 +24,7 @@ export class OtpService {
     private readonly auditService: AuditService,
   ) {}
 
-  async requestOtp(phoneNumber: string, role: UserRole): Promise<{ expiresAt: Date }> {
+  async requestOtp(phoneNumber: string, role: UserRole, debugMode?: boolean): Promise<{ expiresAt: Date }> {
     const ttlSeconds = Number(this.configService.get<number>('OTP_CODE_TTL_SECONDS', 300));
     const maxPerHour = Number(this.configService.get<number>('OTP_REQUESTS_PER_HOUR', 5));
     const now = new Date();
@@ -52,7 +52,7 @@ export class OtpService {
       },
     });
 
-    await this.smsService.sendOtp(phoneNumber, code);
+    await this.smsService.sendOtp(phoneNumber, code, debugMode ? 'console' : undefined);
     await this.auditService.log(null, 'OTP_REQUESTED', 'otp', phoneNumber, {
       role,
       expiresAt,

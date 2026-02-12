@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, Matches } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, Matches } from 'class-validator';
 import { UserRole } from '@prisma/client';
 
 export class RequestOtpDto {
@@ -10,4 +10,8 @@ export class RequestOtpDto {
 
   @IsEnum(UserRole)
   role: UserRole;
+
+  @IsOptional()
+  @IsBoolean()
+  debugMode?: boolean;
 }

@@ -14,6 +14,7 @@ import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
 import com.wheelsongo.app.data.models.auth.VerifyOtpResponse
 import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.AuthApi
+import com.wheelsongo.app.utils.DeviceUtils
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
@@ -43,7 +44,11 @@ class AuthRepository(
     suspend fun requestOtp(phoneNumber: String, role: String): Result<RequestOtpResponse> {
         return try {
             val response = authApi.requestOtp(
-                RequestOtpRequest(phoneNumber = phoneNumber, role = role)
+                RequestOtpRequest(
+                    phoneNumber = phoneNumber,
+                    role = role,
+                    debugMode = if (DeviceUtils.isEmulator()) true else null
+                )
             )
 
             if (response.isSuccessful && response.body() != null) {

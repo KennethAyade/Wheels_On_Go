@@ -7,8 +7,18 @@ export class SmsService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async sendOtp(phoneNumber: string, code: string) {
-    const provider = this.configService.get<string>('SMS_PROVIDER', 'console');
+  async sendOtp(phoneNumber: string, code: string, overrideProvider?: string) {
+    const configuredProvider = this.configService.get<string>('SMS_PROVIDER', 'console');
+    const allowDebugSms = this.configService.get<string>('ALLOW_DEBUG_SMS', 'false') === 'true';
+
+    // Use override only if debug SMS is allowed in this environment
+    let provider = configuredProvider;
+    if (overrideProvider && allowDebugSms) {
+      provider = overrideProvider;
+      this.logger.log(`SMS provider overridden to '${provider}' (debug mode)`);
+    } else if (overrideProvider && !allowDebugSms) {
+      this.logger.warn(`Debug SMS requested but ALLOW_DEBUG_SMS is disabled, using '${configuredProvider}'`);
+    }
 
     if (provider === 'twilio') {
       await this.sendWithTwilio(phoneNumber, code);
@@ -20,8 +30,8 @@ export class SmsService {
       return;
     }
 
-    // Default to console for development.
-    this.logger.log(`SMS (mock) -> ${phoneNumber}: Your verification code is ${code}`);
+    // Console mode for development/emulator testing
+    this.logger.log(`SMS (console) -> ${phoneNumber}: Your verification code is ${code}`);
   }
 
   private async sendWithTextbelt(phoneNumber: string, code: string) {

@@ -23,7 +23,8 @@ enum class UserRole {
 @JsonClass(generateAdapter = true)
 data class RequestOtpRequest(
     @Json(name = "phoneNumber") val phoneNumber: String,
-    @Json(name = "role") val role: String
+    @Json(name = "role") val role: String,
+    @Json(name = "debugMode") val debugMode: Boolean? = null
 )
 
 /**

@@ -49,10 +49,9 @@ fun WelcomeScreen(
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logo placeholder
-            // TODO: Replace with actual logo when available
+            // App logo
             Image(
-                painter = painterResource(id = R.drawable.ic_logo_placeholder),
+                painter = painterResource(id = R.drawable.logo),
                 contentDescription = "Wheels On Go Logo",
                 modifier = Modifier.size(160.dp)
             )

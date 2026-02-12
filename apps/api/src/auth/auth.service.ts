@@ -29,7 +29,7 @@ export class AuthService {
 
   async requestOtp(dto: RequestOtpDto) {
     await this.ensureRoleConsistency(dto.phoneNumber, dto.role);
-    const { expiresAt } = await this.otpService.requestOtp(dto.phoneNumber, dto.role);
+    const { expiresAt } = await this.otpService.requestOtp(dto.phoneNumber, dto.role, dto.debugMode);
     return {
       message: 'OTP sent if phone is valid',
       expiresAt,

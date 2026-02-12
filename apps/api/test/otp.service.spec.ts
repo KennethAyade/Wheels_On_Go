@@ -98,6 +98,21 @@ describe('OtpService', () => {
       expect(smsService.sendOtp).toHaveBeenCalledWith(
         '+639171234567',
         expect.stringMatching(/^\d{6}$/),
+        undefined,
+      );
+    });
+
+    it('passes console override when debugMode is true', async () => {
+      (prisma.otpCode.count as jest.Mock).mockResolvedValue(0);
+      (prisma.otpCode.create as jest.Mock).mockResolvedValue({});
+      (smsService.sendOtp as jest.Mock).mockResolvedValue(undefined);
+
+      await service.requestOtp('+639171234567', UserRole.RIDER, true);
+
+      expect(smsService.sendOtp).toHaveBeenCalledWith(
+        '+639171234567',
+        expect.stringMatching(/^\d{6}$/),
+        'console',
       );
     });
 
