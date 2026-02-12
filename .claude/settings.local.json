@@ -41,7 +41,13 @@
       "Bash(bash -c:*)",
       "Bash(grep:*)",
       "Bash(npm run test:api:*)",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -verbose)",
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -list-avds)",
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu host)",
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu swiftshader_indirect)",
+      "Bash(taskkill:*)",
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu swiftshader_indirect -verbose)"
     ]
   }
 }
