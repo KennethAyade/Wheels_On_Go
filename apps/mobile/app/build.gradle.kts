@@ -19,9 +19,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Default API URL — points to Render deployment
+        buildConfigField("String", "API_BASE_URL", "\"https://wheels-on-go-dev-env.onrender.com/\"")
     }
 
     buildTypes {
+        debug {
+            // To use local backend instead of Render, uncomment below:
+            // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

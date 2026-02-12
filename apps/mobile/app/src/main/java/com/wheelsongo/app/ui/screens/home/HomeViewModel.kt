@@ -30,7 +30,9 @@ data class HomeUiState(
  * ViewModel for the home screen
  * Handles map state, address input, and location services
  */
-class HomeViewModel(application: Application) : AndroidViewModel(application) {
+class HomeViewModel @JvmOverloads constructor(
+    application: Application
+) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
 
