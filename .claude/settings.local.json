@@ -47,7 +47,19 @@
       "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu host)",
       "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu swiftshader_indirect)",
       "Bash(taskkill:*)",
-      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu swiftshader_indirect -verbose)"
+      "Bash(\"C:\\\\Users\\\\Kenneth Ayade\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\" -avd Pixel_9_Pro_XL -no-window -no-audio -gpu swiftshader_indirect -verbose)",
+      "Bash(rd /s /q \"C:\\\\Users\\\\Kenneth Ayade\\\\.gradle\\\\caches\\\\transforms-4\")",
+      "Bash(export JAVA_HOME=\"C:/Program Files/Android/Android Studio1/jbr\")",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio1/jbr\" PATH=\"$JAVA_HOME/bin:$PATH\" java:*)",
+      "Bash(export PATH=\"$JAVA_HOME/bin:$PATH\")",
+      "Bash(\"C:/Program Files/Android/Android Studio1/jbr/bin/java.exe\" -Dorg.gradle.appname=gradlew -classpath \"gradle/wrapper/gradle-wrapper.jar\" org.gradle.wrapper.GradleWrapperMain --stop)",
+      "Bash(\"C:/Program Files/Android/Android Studio1/jbr/bin/java.exe\":*)",
+      "Bash(\"C:/Program Files/Android/Android Studio1/jbr/bin/java.exe\" -Dorg.gradle.appname=gradlew -classpath \"gradle/wrapper/gradle-wrapper.jar\" org.gradle.wrapper.GradleWrapperMain assembleDebug)",
+      "Bash(\"C:/Program Files/Android/Android Studio1/jbr/bin/java.exe\" -Dorg.gradle.appname=gradlew -classpath \"gradle/wrapper/gradle-wrapper.jar\" org.gradle.wrapper.GradleWrapperMain testDebugUnitTest)",
+      "Bash(\"C:/Program Files/Android/Android Studio1/jbr/bin/java.exe\" -Dorg.gradle.appname=gradlew -classpath \"gradle/wrapper/gradle-wrapper.jar\" org.gradle.wrapper.GradleWrapperMain testDebugUnitTest --tests \"com.wheelsongo.app.data.repository.AuthRepositoryTest\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
