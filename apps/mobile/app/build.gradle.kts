@@ -26,8 +26,6 @@ android {
 
     buildTypes {
         debug {
-            // To use local backend instead of Render, uncomment below:
-            // buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
         }
         release {
             isMinifyEnabled = false
