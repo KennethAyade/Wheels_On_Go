@@ -96,7 +96,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `verifyOtp skips accessToken save when null`() = runTest {
+    fun `verifyOtp saves user info even when accessToken is null`() = runTest {
         val response = VerifyOtpResponse(
             accessToken = null,
             user = UserDto(id = "driver-1", phoneNumber = "+639171234567", role = "DRIVER"),
@@ -107,8 +107,9 @@ class AuthRepositoryTest {
 
         repository.verifyOtp("+639171234567", "123456", "DRIVER")
 
-        // saveTokens should NOT be called when accessToken is null
-        coVerify(exactly = 0) { tokenManager.saveTokens(any()) }
+        // saveTokens should always be called to persist user info (role, phone, userId)
+        // even when accessToken is null — saveTokens handles null tokens gracefully
+        coVerify { tokenManager.saveTokens(response) }
     }
 
     @Test

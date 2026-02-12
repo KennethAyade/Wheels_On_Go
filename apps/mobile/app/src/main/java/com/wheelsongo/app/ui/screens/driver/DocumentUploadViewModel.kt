@@ -61,7 +61,8 @@ data class DocumentState(
     val uploadProgress: Float = 0f,
     val errorMessage: String? = null,
     val fileUri: String? = null,
-    val isPendingSync: Boolean = false
+    val isPendingSync: Boolean = false,
+    val downloadUrl: String? = null
 )
 
 /**
@@ -124,7 +125,11 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                         val docType = DocumentType.entries.find { it.apiName == doc.type }
                         if (docType != null && doc.status == "UPLOADED") {
                             updateDocumentState(docType) {
-                                it.copy(isUploaded = true, uploadProgress = 1f)
+                                it.copy(
+                                    isUploaded = true,
+                                    uploadProgress = 1f,
+                                    downloadUrl = doc.downloadUrl
+                                )
                             }
                         }
                     }

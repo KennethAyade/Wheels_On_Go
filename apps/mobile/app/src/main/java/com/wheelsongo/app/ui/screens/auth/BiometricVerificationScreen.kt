@@ -1,10 +1,13 @@
 package com.wheelsongo.app.ui.screens.auth
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -52,6 +56,7 @@ fun BiometricVerificationScreen(
     viewModel: BiometricVerificationViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     // Camera launcher using TakePicturePreview (returns Bitmap directly)
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -59,6 +64,17 @@ fun BiometricVerificationScreen(
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
             viewModel.onPhotoCaptured(bitmap)
+        }
+    }
+
+    // Permission launcher — requests CAMERA permission, then launches camera on grant
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            cameraLauncher.launch(null)
+        } else {
+            viewModel.onPermissionDenied()
         }
     }
 
@@ -178,7 +194,16 @@ fun BiometricVerificationScreen(
             if (!uiState.isVerified) {
                 PrimaryButton(
                     text = if (uiState.errorMessage != null) "Try Again" else "Take Selfie",
-                    onClick = { cameraLauncher.launch(null) },
+                    onClick = {
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            cameraLauncher.launch(null)
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
                     enabled = !uiState.isVerifying,
                     isLoading = uiState.isVerifying
                 )

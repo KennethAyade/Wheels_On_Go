@@ -36,6 +36,20 @@ export class DriverService {
       DriverDocumentType.PROFILE_PHOTO,
     ];
 
+    // Enrich documents with presigned download URLs for viewing
+    const enrichedDocuments = await Promise.all(
+      documents.map(async (doc) => {
+        if (doc.status === DocumentStatus.UPLOADED && doc.storageKey) {
+          const downloadUrl = await this.storageService.getDownloadUrl(
+            doc.storageKey,
+            900,
+          );
+          return { ...doc, downloadUrl };
+        }
+        return { ...doc, downloadUrl: null };
+      }),
+    );
+
     const allUploaded = requiredTypes.every((type) =>
       documents.some(
         (d) => d.type === type && d.status === DocumentStatus.UPLOADED,
@@ -44,7 +58,7 @@ export class DriverService {
     // No VERIFIED status yet — allVerified is future-proofing
     const allVerified = false;
 
-    return { documents, allUploaded, allVerified };
+    return { documents: enrichedDocuments, allUploaded, allVerified };
   }
 
   async getMine(userId: string) {

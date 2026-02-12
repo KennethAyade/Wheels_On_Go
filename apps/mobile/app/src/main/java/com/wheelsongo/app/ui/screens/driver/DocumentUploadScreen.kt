@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,6 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,8 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wheelsongo.app.ui.components.buttons.PrimaryButton
 import com.wheelsongo.app.ui.components.headers.TopBarWithBack
@@ -64,6 +69,9 @@ fun DocumentUploadScreen(
 
     // Track which document type is being picked
     var pendingDocumentType by remember { mutableStateOf<DocumentType?>(null) }
+
+    // Track which document to preview (view uploaded image)
+    var previewDocument by remember { mutableStateOf<DocumentState?>(null) }
 
     // File picker launcher - accepts images (JPG, PNG)
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -143,8 +151,12 @@ fun DocumentUploadScreen(
                     DocumentCard(
                         documentState = document,
                         onClick = {
-                            pendingDocumentType = document.type
-                            filePickerLauncher.launch("image/*")
+                            if (document.isUploaded && document.downloadUrl != null) {
+                                previewDocument = document
+                            } else {
+                                pendingDocumentType = document.type
+                                filePickerLauncher.launch("image/*")
+                            }
                         },
                         onRemove = { viewModel.onRemoveDocument(document.type) }
                     )
@@ -179,6 +191,46 @@ fun DocumentUploadScreen(
                     enabled = uiState.allRequiredUploaded,
                     isLoading = uiState.isSubmitting
                 )
+            }
+        }
+    }
+
+    // Document preview dialog
+    if (previewDocument != null) {
+        Dialog(onDismissRequest = { previewDocument = null }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = previewDocument!!.type.title,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AsyncImage(
+                        model = previewDocument!!.downloadUrl,
+                        contentDescription = previewDocument!!.type.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 200.dp, max = 400.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(onClick = { previewDocument = null }) {
+                        Text("Close")
+                    }
+                }
             }
         }
     }
@@ -285,7 +337,7 @@ private fun DocumentCard(
                 Text(
                     text = when {
                         documentState.isUploading -> "Uploading..."
-                        documentState.isUploaded -> "Uploaded successfully"
+                        documentState.isUploaded -> "Uploaded successfully · Tap to view"
                         documentState.errorMessage != null -> documentState.errorMessage
                         else -> documentState.type.description
                     },

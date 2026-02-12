@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.auth
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -29,7 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.wheelsongo.app.data.auth.BiometricPromptHelper
+
 import com.wheelsongo.app.ui.components.NumericKeypad
 import com.wheelsongo.app.ui.components.headers.TopBarWithBack
 import com.wheelsongo.app.ui.components.inputs.OtpInputField
@@ -61,11 +62,11 @@ fun OtpVerificationScreen(
     // Navigate when verified - route to biometric if required
     LaunchedEffect(uiState.isVerified, uiState.biometricRequired) {
         if (uiState.isVerified) {
-            if (uiState.biometricRequired && BiometricPromptHelper.canAuthenticate(context)) {
-                // Device supports biometrics — proceed with face verification
+            if (uiState.biometricRequired && context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+                // Returning driver — proceed with camera-based face verification
                 onBiometricRequired()
             } else {
-                // No biometric support or not required — OTP is sufficient
+                // Not required — OTP is sufficient
                 val needsKyc = uiState.userRole == "DRIVER" && !uiState.biometricEnrolled
                 onVerified(needsKyc)
             }

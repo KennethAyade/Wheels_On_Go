@@ -94,6 +94,15 @@ class BiometricVerificationViewModel @JvmOverloads constructor(
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    /**
+     * Called when user denies camera permission
+     */
+    fun onPermissionDenied() {
+        _uiState.update {
+            it.copy(errorMessage = "Camera permission is required for face verification. Please grant camera access in Settings.")
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }

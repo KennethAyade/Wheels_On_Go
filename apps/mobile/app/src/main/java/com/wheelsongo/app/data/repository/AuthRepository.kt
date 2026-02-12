@@ -83,11 +83,9 @@ class AuthRepository(
 
             if (response.isSuccessful && response.body() != null) {
                 val body = response.body()!!
-                // Save tokens to secure storage (only if accessToken is present)
-                // Drivers requiring biometric auth will have null accessToken
-                if (body.accessToken != null) {
-                    tokenManager.saveTokens(body)
-                }
+                // Save user info and tokens to secure storage
+                // saveTokens() handles null accessToken/refreshToken gracefully via ?.let
+                tokenManager.saveTokens(body)
                 // Save biometric token for drivers requiring face verification
                 if (body.biometricRequired == true && body.biometricToken != null) {
                     tokenManager.saveBiometricToken(body.biometricToken)

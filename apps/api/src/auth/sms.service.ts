@@ -15,8 +15,36 @@ export class SmsService {
       return;
     }
 
+    if (provider === 'textbelt') {
+      await this.sendWithTextbelt(phoneNumber, code);
+      return;
+    }
+
     // Default to console for development.
     this.logger.log(`SMS (mock) -> ${phoneNumber}: Your verification code is ${code}`);
+  }
+
+  private async sendWithTextbelt(phoneNumber: string, code: string) {
+    const apiKey = this.configService.get<string>('TEXTBELT_API_KEY', 'textbelt');
+
+    const response = await fetch('https://textbelt.com/text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: phoneNumber,
+        message: `Wheels On Go: Your verification code is ${code}`,
+        key: apiKey,
+      }),
+    });
+
+    const result = (await response.json()) as { success: boolean; error?: string; quotaRemaining?: number };
+
+    if (!result.success) {
+      this.logger.error(`Textbelt send failed: ${result.error}`);
+      throw new InternalServerErrorException('Failed to dispatch OTP SMS');
+    }
+
+    this.logger.log(`SMS sent via Textbelt. Quota remaining: ${result.quotaRemaining}`);
   }
 
   private async sendWithTwilio(phoneNumber: string, code: string) {
@@ -29,7 +57,7 @@ export class SmsService {
     }
 
     const body = new URLSearchParams({
-      Body: `Valet&Go code: ${code}`,
+      Body: `Wheels On Go: Your verification code is ${code}`,
       From: fromNumber,
       To: phoneNumber,
     });

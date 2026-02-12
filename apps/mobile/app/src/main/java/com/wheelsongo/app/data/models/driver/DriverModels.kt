@@ -76,10 +76,11 @@ data class DriverDocumentDto(
     @Json(name = "id") val id: String? = null,
     @Json(name = "type") val type: String,
     @Json(name = "status") val status: String? = null,
-    @Json(name = "s3Key") val s3Key: String? = null,
+    @Json(name = "storageKey") val storageKey: String? = null,
     @Json(name = "uploadedAt") val uploadedAt: String? = null,
     @Json(name = "verifiedAt") val verifiedAt: String? = null,
-    @Json(name = "rejectionReason") val rejectionReason: String? = null
+    @Json(name = "rejectionReason") val rejectionReason: String? = null,
+    @Json(name = "downloadUrl") val downloadUrl: String? = null
 )
 
 // ==========================================
