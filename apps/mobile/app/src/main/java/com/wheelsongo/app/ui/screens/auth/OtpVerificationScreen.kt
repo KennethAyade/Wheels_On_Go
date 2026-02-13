@@ -45,6 +45,7 @@ import com.wheelsongo.app.ui.theme.WheelsOnGoTheme
 fun OtpVerificationScreen(
     phoneNumber: String,
     role: String,
+    verificationId: String? = null,
     onBack: () -> Unit,
     onVerified: (needsKyc: Boolean) -> Unit,
     onBiometricRequired: () -> Unit = {},
@@ -211,7 +212,7 @@ fun OtpVerificationScreen(
             // Numeric Keypad
             NumericKeypad(
                 onNumberClick = { digit ->
-                    viewModel.onDigitEntered(digit, phoneNumber, role)
+                    viewModel.onDigitEntered(digit, phoneNumber, role, verificationId)
                 },
                 onBackspaceClick = viewModel::onBackspace,
                 modifier = Modifier.padding(bottom = 24.dp)

@@ -2,6 +2,8 @@ package com.wheelsongo.app.ui.screens.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheelsongo.app.data.auth.FirebasePhoneAuthHelper
+import com.wheelsongo.app.data.models.auth.VerifyOtpResponse
 import com.wheelsongo.app.data.repository.AuthRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,22 +26,19 @@ data class OtpVerificationUiState(
     val countdownSeconds: Int = 60,
     val userRole: String? = null
 ) {
-    /**
-     * Whether user can request a new OTP
-     */
     val canResend: Boolean
         get() = countdownSeconds <= 0 && !isLoading
 
-    /**
-     * Whether OTP is complete (6 digits)
-     */
     val isOtpComplete: Boolean
         get() = otpValue.length == 6
 }
 
 /**
- * ViewModel for the OTP verification screen
- * Handles OTP entry, countdown timer, and verification via AuthRepository
+ * ViewModel for the OTP verification screen.
+ *
+ * Supports two flows:
+ * - Backend OTP (emulator): verificationId is null → calls authRepository.verifyOtp()
+ * - Firebase OTP (real phone): verificationId is set → calls FirebasePhoneAuthHelper + authRepository.verifyFirebaseToken()
  */
 class OtpVerificationViewModel(
     private val authRepository: AuthRepository = AuthRepository()
@@ -50,9 +49,6 @@ class OtpVerificationViewModel(
 
     private var countdownJob: Job? = null
 
-    /**
-     * Start the countdown timer for resend
-     */
     fun startCountdown() {
         countdownJob?.cancel()
         countdownJob = viewModelScope.launch {
@@ -66,10 +62,12 @@ class OtpVerificationViewModel(
     }
 
     /**
-     * Add a digit to the OTP value
-     * Auto-verifies when 6 digits are entered
+     * Add a digit to the OTP value.
+     * Auto-verifies when 6 digits are entered.
+     *
+     * @param verificationId Firebase verification ID (null = backend flow)
      */
-    fun onDigitEntered(digit: String, phoneNumber: String, role: String) {
+    fun onDigitEntered(digit: String, phoneNumber: String, role: String, verificationId: String?) {
         val currentOtp = _uiState.value.otpValue
         if (currentOtp.length >= 6) return
 
@@ -81,15 +79,11 @@ class OtpVerificationViewModel(
             )
         }
 
-        // Auto-verify when 6 digits entered
         if (newOtp.length == 6) {
-            verifyOtp(phoneNumber, role, newOtp)
+            verifyOtp(phoneNumber, role, newOtp, verificationId)
         }
     }
 
-    /**
-     * Remove the last digit from OTP
-     */
     fun onBackspace() {
         val currentOtp = _uiState.value.otpValue
         if (currentOtp.isNotEmpty()) {
@@ -102,22 +96,22 @@ class OtpVerificationViewModel(
         }
     }
 
-    /**
-     * Verify the OTP code via API
-     */
-    private fun verifyOtp(phoneNumber: String, role: String, code: String) {
+    private fun verifyOtp(phoneNumber: String, role: String, code: String, verificationId: String?) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result = authRepository.verifyOtp(
-                phoneNumber = phoneNumber,
-                code = code,
-                role = role
-            )
+            val result = if (verificationId != null) {
+                verifyWithFirebase(verificationId, code, role)
+            } else {
+                authRepository.verifyOtp(
+                    phoneNumber = phoneNumber,
+                    code = code,
+                    role = role
+                )
+            }
 
             result.fold(
                 onSuccess = { response ->
-                    // Token automatically saved by AuthRepository
                     _uiState.update {
                         it.copy(
                             isVerified = true,
@@ -132,7 +126,6 @@ class OtpVerificationViewModel(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            // Don't clear otpValue - let user backspace to fix their input
                             errorMessage = error.message ?: "Verification failed. Please try again."
                         )
                     }
@@ -141,9 +134,19 @@ class OtpVerificationViewModel(
         }
     }
 
-    /**
-     * Request a new OTP code
-     */
+    private suspend fun verifyWithFirebase(
+        verificationId: String,
+        code: String,
+        role: String
+    ): Result<VerifyOtpResponse> {
+        return try {
+            val idToken = FirebasePhoneAuthHelper.verifyCodeAndGetIdToken(verificationId, code)
+            authRepository.verifyFirebaseToken(idToken, role)
+        } catch (e: Exception) {
+            Result.failure(Exception(e.message ?: "Firebase verification failed"))
+        }
+    }
+
     fun resendOtp(phoneNumber: String, role: String) {
         if (!_uiState.value.canResend) return
 
@@ -157,7 +160,6 @@ class OtpVerificationViewModel(
 
             result.fold(
                 onSuccess = {
-                    // Reset countdown and clear OTP
                     _uiState.update {
                         it.copy(
                             countdownSeconds = 60,
@@ -180,19 +182,13 @@ class OtpVerificationViewModel(
         }
     }
 
-    /**
-     * Manual verify button (if user doesn't want to wait for auto-verify)
-     */
-    fun onVerifyClick(phoneNumber: String, role: String) {
+    fun onVerifyClick(phoneNumber: String, role: String, verificationId: String?) {
         val currentOtp = _uiState.value.otpValue
         if (currentOtp.length == 6 && !_uiState.value.isLoading) {
-            verifyOtp(phoneNumber, role, currentOtp)
+            verifyOtp(phoneNumber, role, currentOtp, verificationId)
         }
     }
 
-    /**
-     * Clear any error message
-     */
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }

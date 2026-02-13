@@ -37,6 +37,20 @@ data class RequestOtpResponse(
 )
 
 // ==========================================
+// Verify Firebase (real phone OTP via Firebase Phone Auth)
+// ==========================================
+
+/**
+ * Request to verify Firebase Phone Auth token
+ * POST /auth/verify-firebase
+ */
+@JsonClass(generateAdapter = true)
+data class VerifyFirebaseRequest(
+    @Json(name = "firebaseIdToken") val firebaseIdToken: String,
+    @Json(name = "role") val role: String
+)
+
+// ==========================================
 // Verify OTP
 // ==========================================
 

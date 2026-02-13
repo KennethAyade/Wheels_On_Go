@@ -45,7 +45,7 @@ class PhoneInputViewModelTest {
     @Test
     fun `clears error message on phone number change`() {
         // Simulate an error state by requesting OTP with invalid number
-        viewModel.requestOtp("RIDER") {}
+        viewModel.requestOtp("RIDER", null) { _, _ -> }
         assertNotNull(viewModel.uiState.value.errorMessage)
 
         // Typing should clear the error
@@ -83,7 +83,7 @@ class PhoneInputViewModelTest {
                 Result.success(RequestOtpResponse(message = "OTP sent"))
 
         viewModel.onPhoneNumberChange("9171234567")
-        viewModel.requestOtp("RIDER") {}
+        viewModel.requestOtp("RIDER", null) { _, _ -> }
 
         advanceUntilIdle()
 
@@ -97,7 +97,7 @@ class PhoneInputViewModelTest {
                 Result.failure(Exception("Server error"))
 
         viewModel.onPhoneNumberChange("9171234567")
-        viewModel.requestOtp("RIDER") {}
+        viewModel.requestOtp("RIDER", null) { _, _ -> }
 
         advanceUntilIdle()
 

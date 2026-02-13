@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { OtpService } from './otp.service';
 import { SmsService } from './sms.service';
+import { FirebaseService } from './firebase.service';
 import { JwtStrategy } from './jwt.strategy';
 import { BiometricModule } from '../biometric/biometric.module';
 import { AuditModule } from '../audit/audit.module';
@@ -29,7 +30,7 @@ import { BiometricGuard } from './guards/biometric.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, OtpService, SmsService, JwtStrategy, BiometricGuard],
+  providers: [AuthService, OtpService, SmsService, FirebaseService, JwtStrategy, BiometricGuard],
   exports: [AuthService],
 })
 export class AuthModule {}

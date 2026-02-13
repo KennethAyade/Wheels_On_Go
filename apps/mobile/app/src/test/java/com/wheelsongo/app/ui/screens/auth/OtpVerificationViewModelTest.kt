@@ -44,10 +44,10 @@ class OtpVerificationViewModelTest {
 
     @Test
     fun `onDigitEntered appends digit to otpValue`() {
-        viewModel.onDigitEntered("1", phone, role)
+        viewModel.onDigitEntered("1", phone, role, null)
         assertEquals("1", viewModel.uiState.value.otpValue)
 
-        viewModel.onDigitEntered("2", phone, role)
+        viewModel.onDigitEntered("2", phone, role, null)
         assertEquals("12", viewModel.uiState.value.otpValue)
     }
 
@@ -57,8 +57,8 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.failure(Exception("test"))
 
-        repeat(6) { viewModel.onDigitEntered("${it + 1}", phone, role) }
-        viewModel.onDigitEntered("7", phone, role)
+        repeat(6) { viewModel.onDigitEntered("${it + 1}", phone, role, null) }
+        viewModel.onDigitEntered("7", phone, role, null)
 
         assertEquals("123456", viewModel.uiState.value.otpValue)
     }
@@ -69,7 +69,7 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.failure(Exception("Invalid code"))
 
-        repeat(6) { viewModel.onDigitEntered("0", phone, role) }
+        repeat(6) { viewModel.onDigitEntered("0", phone, role, null) }
 
         // Wait for the error to be set
         testDispatcher.scheduler.advanceUntilIdle()
@@ -77,7 +77,7 @@ class OtpVerificationViewModelTest {
 
         // Now clear the OTP and enter a new digit - error should clear
         viewModel.onBackspace()
-        viewModel.onDigitEntered("1", phone, role)
+        viewModel.onDigitEntered("1", phone, role, null)
         assertNull(viewModel.uiState.value.errorMessage)
     }
 
@@ -86,7 +86,7 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.success(createRiderResponse())
 
-        repeat(6) { viewModel.onDigitEntered("${it + 1}", phone, role) }
+        repeat(6) { viewModel.onDigitEntered("${it + 1}", phone, role, null) }
 
         advanceUntilIdle()
 
@@ -96,8 +96,8 @@ class OtpVerificationViewModelTest {
 
     @Test
     fun `onBackspace removes last digit`() {
-        viewModel.onDigitEntered("1", phone, role)
-        viewModel.onDigitEntered("2", phone, role)
+        viewModel.onDigitEntered("1", phone, role, null)
+        viewModel.onDigitEntered("2", phone, role, null)
         viewModel.onBackspace()
 
         assertEquals("1", viewModel.uiState.value.otpValue)
@@ -131,7 +131,7 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.success(createRiderResponse())
 
-        repeat(6) { viewModel.onDigitEntered("1", phone, role) }
+        repeat(6) { viewModel.onDigitEntered("1", phone, role, null) }
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.isVerified)
@@ -143,7 +143,7 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.success(createDriverBiometricResponse())
 
-        repeat(6) { viewModel.onDigitEntered("1", phone, "DRIVER") }
+        repeat(6) { viewModel.onDigitEntered("1", phone, "DRIVER", null) }
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.biometricRequired)
@@ -155,7 +155,7 @@ class OtpVerificationViewModelTest {
         coEvery { authRepository.verifyOtp(any(), any(), any()) } returns
                 Result.failure(Exception("Invalid code"))
 
-        repeat(6) { viewModel.onDigitEntered("1", phone, role) }
+        repeat(6) { viewModel.onDigitEntered("1", phone, role, null) }
         advanceUntilIdle()
 
         assertEquals("111111", viewModel.uiState.value.otpValue)
@@ -190,7 +190,7 @@ class OtpVerificationViewModelTest {
                 Result.failure(Exception("Bad code"))
 
         // Enter some OTP digits
-        repeat(3) { viewModel.onDigitEntered("1", phone, role) }
+        repeat(3) { viewModel.onDigitEntered("1", phone, role, null) }
 
         // Exhaust countdown
         viewModel.startCountdown()

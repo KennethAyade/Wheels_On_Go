@@ -40,14 +40,20 @@ sealed class Route(val value: String) {
      * @param phoneNumber Full phone number with country code
      * @param role User role (RIDER or DRIVER)
      */
-    data object OtpVerification : Route("otp_verification/{phoneNumber}/{role}") {
+    data object OtpVerification : Route("otp_verification/{phoneNumber}/{role}?verificationId={verificationId}") {
         const val ARG_PHONE_NUMBER = "phoneNumber"
         const val ARG_ROLE = "role"
+        const val ARG_VERIFICATION_ID = "verificationId"
 
-        fun createRoute(phoneNumber: String, role: String): String {
-            // URL encode phone number to preserve + symbol (+ becomes space in URLs)
+        fun createRoute(phoneNumber: String, role: String, verificationId: String? = null): String {
             val encodedPhone = URLEncoder.encode(phoneNumber, StandardCharsets.UTF_8.toString())
-            return "otp_verification/$encodedPhone/$role"
+            val base = "otp_verification/$encodedPhone/$role"
+            return if (verificationId != null) {
+                val encodedId = URLEncoder.encode(verificationId, StandardCharsets.UTF_8.toString())
+                "$base?verificationId=$encodedId"
+            } else {
+                base
+            }
         }
     }
 

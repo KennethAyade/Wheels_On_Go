@@ -99,10 +99,15 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             PhoneInputScreen(
                 role = role,
                 onBack = { navController.popBackStack() },
-                onNext = { phoneNumber: String ->
-                    // URL encode the phone number to handle special characters
-                    val encodedPhone = URLEncoder.encode(phoneNumber, StandardCharsets.UTF_8.toString())
-                    navController.navigate(Route.OtpVerification.createRoute(encodedPhone, role))
+                onNext = { phoneNumber: String, verificationId: String? ->
+                    if (verificationId == "AUTO_VERIFIED") {
+                        // Firebase auto-verified — skip OTP screen, go straight to next step
+                        navController.navigate(Route.LocationConfirm.createRoute(role, false)) {
+                            popUpTo(Route.Welcome.value) { inclusive = false }
+                        }
+                    } else {
+                        navController.navigate(Route.OtpVerification.createRoute(phoneNumber, role, verificationId))
+                    }
                 }
             )
         }
@@ -118,16 +123,23 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 },
                 navArgument(Route.OtpVerification.ARG_ROLE) {
                     type = NavType.StringType
+                },
+                navArgument(Route.OtpVerification.ARG_VERIFICATION_ID) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
             val encodedPhoneNumber = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_PHONE_NUMBER) ?: ""
             val phoneNumber = URLDecoder.decode(encodedPhoneNumber, StandardCharsets.UTF_8.toString())
             val role = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_ROLE) ?: UserRole.RIDER
+            val verificationId = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_VERIFICATION_ID)
 
             OtpVerificationScreen(
                 phoneNumber = phoneNumber,
                 role = role,
+                verificationId = verificationId,
                 onBack = { navController.popBackStack() },
                 onVerified = { needsKyc ->
                     navController.navigate(Route.LocationConfirm.createRoute(role, needsKyc)) {

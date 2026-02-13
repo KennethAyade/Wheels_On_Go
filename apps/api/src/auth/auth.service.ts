@@ -9,8 +9,10 @@ import { DriverStatus, User, UserRole } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from './otp.service';
+import { FirebaseService } from './firebase.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { VerifyFirebaseDto } from './dto/verify-firebase.dto';
 import { JwtUser } from '../common/types/jwt-user.type';
 import { BiometricService } from '../biometric/biometric.service';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
@@ -22,6 +24,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
+    private readonly firebaseService: FirebaseService,
     private readonly biometricService: BiometricService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
@@ -39,8 +42,19 @@ export class AuthService {
   async verifyOtp(dto: VerifyOtpDto) {
     await this.ensureRoleConsistency(dto.phoneNumber, dto.role);
     await this.otpService.verifyOtp(dto);
+    return this.buildLoginResponse(dto.phoneNumber, dto.role);
+  }
 
-    const user = await this.findOrCreateUser(dto.phoneNumber, dto.role);
+  async verifyFirebaseToken(dto: VerifyFirebaseDto) {
+    const { phoneNumber } = await this.firebaseService.verifyIdToken(
+      dto.firebaseIdToken,
+    );
+    await this.ensureRoleConsistency(phoneNumber, dto.role);
+    return this.buildLoginResponse(phoneNumber, dto.role);
+  }
+
+  private async buildLoginResponse(phoneNumber: string, role: UserRole) {
+    const user = await this.findOrCreateUser(phoneNumber, role);
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },

@@ -11,6 +11,7 @@ import com.wheelsongo.app.data.models.auth.RefreshTokenRequest
 import com.wheelsongo.app.data.models.auth.RefreshTokenResponse
 import com.wheelsongo.app.data.models.auth.RequestOtpRequest
 import com.wheelsongo.app.data.models.auth.RequestOtpResponse
+import com.wheelsongo.app.data.models.auth.VerifyFirebaseRequest
 import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
 import com.wheelsongo.app.data.models.auth.VerifyOtpResponse
 import com.wheelsongo.app.BuildConfig
@@ -134,6 +135,14 @@ interface AuthApi {
      */
     @POST("auth/verify-otp")
     suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>
+
+    /**
+     * Verify Firebase Phone Auth token and receive JWT tokens
+     * POST /auth/verify-firebase
+     * Used on real phones (Firebase handles SMS delivery + OTP verification)
+     */
+    @POST("auth/verify-firebase")
+    suspend fun verifyFirebase(@Body request: VerifyFirebaseRequest): Response<VerifyOtpResponse>
 
     /**
      * Get current authenticated user's profile

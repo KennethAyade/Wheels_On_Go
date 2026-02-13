@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { VerifyFirebaseDto } from './dto/verify-firebase.dto';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { BiometricGuard } from './guards/biometric.guard';
@@ -26,6 +27,12 @@ export class AuthController {
   verifyOtp(@Body() dto: VerifyOtpDto) {
     this.logger.log(`Verify OTP request: ${JSON.stringify({ phoneNumber: dto.phoneNumber, role: dto.role, codeLength: dto.code?.length })}`);
     return this.authService.verifyOtp(dto);
+  }
+
+  @Post('verify-firebase')
+  verifyFirebase(@Body() dto: VerifyFirebaseDto) {
+    this.logger.log(`Verify Firebase request: role=${dto.role}`);
+    return this.authService.verifyFirebaseToken(dto);
   }
 
   @Post('biometric/verify')

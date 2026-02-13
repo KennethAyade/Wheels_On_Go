@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.auth
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,11 +32,12 @@ import com.wheelsongo.app.ui.theme.WheelsOnGoTheme
 fun PhoneInputScreen(
     role: String,
     onBack: () -> Unit,
-    onNext: (String) -> Unit,
+    onNext: (phoneNumber: String, verificationId: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PhoneInputViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val activity = LocalContext.current as? Activity
 
     Scaffold(
         topBar = {
@@ -90,8 +93,8 @@ fun PhoneInputScreen(
             PrimaryButton(
                 text = "Next",
                 onClick = {
-                    viewModel.requestOtp(role) { phoneNumber ->
-                        onNext(phoneNumber)
+                    viewModel.requestOtp(role, activity) { phoneNumber, verificationId ->
+                        onNext(phoneNumber, verificationId)
                     }
                 },
                 enabled = uiState.isValid,
@@ -110,7 +113,7 @@ private fun PhoneInputScreenPreview() {
         PhoneInputScreen(
             role = "RIDER",
             onBack = {},
-            onNext = {}
+            onNext = { _, _ -> }
         )
     }
 }
@@ -122,7 +125,7 @@ private fun PhoneInputScreenDriverPreview() {
         PhoneInputScreen(
             role = "DRIVER",
             onBack = {},
-            onNext = {}
+            onNext = { _, _ -> }
         )
     }
 }

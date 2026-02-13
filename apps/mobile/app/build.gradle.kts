@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp") version "1.9.23-1.0.19"
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -114,6 +115,10 @@ dependencies {
 
     // Location Services (FREE - uses device GPS hardware)
     implementation("com.google.android.gms:play-services-location:21.1.0")
+
+    // Firebase (Phone Auth for real-phone OTP)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-auth")
 
     // Biometric (device fingerprint/face unlock for session resumption)
     implementation("androidx.biometric:biometric:1.1.0")

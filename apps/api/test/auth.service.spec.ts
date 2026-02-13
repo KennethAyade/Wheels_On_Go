@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../src/auth/auth.service';
 import { OtpService } from '../src/auth/otp.service';
+import { FirebaseService } from '../src/auth/firebase.service';
 import { BiometricService } from '../src/biometric/biometric.service';
 import { AuditService } from '../src/audit/audit.service';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -39,6 +40,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let prisma: PrismaService;
   let otpService: OtpService;
+  let firebaseService: FirebaseService;
   let biometricService: BiometricService;
   let auditService: AuditService;
   let jwtService: JwtService;
@@ -49,6 +51,9 @@ describe('AuthService', () => {
       requestOtp: jest.fn().mockResolvedValue({ expiresAt: new Date() }),
       verifyOtp: jest.fn().mockResolvedValue({ id: 'otp-1' }),
     } as unknown as OtpService;
+    firebaseService = {
+      verifyIdToken: jest.fn(),
+    } as unknown as FirebaseService;
     biometricService = {
       verifyDriverFace: jest.fn(),
     } as unknown as BiometricService;
@@ -59,6 +64,7 @@ describe('AuthService', () => {
       prisma,
       jwtService,
       otpService,
+      firebaseService,
       biometricService,
       auditService,
       config,
@@ -234,6 +240,110 @@ describe('AuthService', () => {
           data: { lastLoginAt: expect.any(Date) },
         }),
       );
+    });
+  });
+
+  describe('verifyFirebaseToken()', () => {
+    it('returns access token for rider after Firebase verify', async () => {
+      (firebaseService.verifyIdToken as jest.Mock).mockResolvedValue({
+        phoneNumber: '+631234567890',
+        uid: 'firebase-uid-1',
+      });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'user-1',
+        phoneNumber: '+631234567890',
+        role: UserRole.RIDER,
+      });
+      (prisma.user.update as jest.Mock).mockResolvedValue({});
+
+      const result = await service.verifyFirebaseToken({
+        firebaseIdToken: 'valid-firebase-token',
+        role: UserRole.RIDER,
+      });
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.user.id).toBe('user-1');
+      expect(result.user.role).toBe(UserRole.RIDER);
+    });
+
+    it('issues biometric token for driver with enrolled photo', async () => {
+      (firebaseService.verifyIdToken as jest.Mock).mockResolvedValue({
+        phoneNumber: '+631234567890',
+        uid: 'firebase-uid-2',
+      });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'driver-1',
+        phoneNumber: '+631234567890',
+        role: UserRole.DRIVER,
+      });
+      (prisma.user.update as jest.Mock).mockResolvedValue({});
+      (prisma.driverProfile.findUnique as jest.Mock).mockResolvedValue({
+        id: 'profile-1',
+        userId: 'driver-1',
+        status: DriverStatus.PENDING,
+        profilePhotoKey: 'drivers/profile-1/profile.jpg',
+      });
+
+      const result = await service.verifyFirebaseToken({
+        firebaseIdToken: 'valid-firebase-token',
+        role: UserRole.DRIVER,
+      });
+
+      expect(result.biometricRequired).toBe(true);
+      expect(result.biometricToken).toBeDefined();
+      expect(result.accessToken).toBeNull();
+    });
+
+    it('creates new user when phone number not found', async () => {
+      (firebaseService.verifyIdToken as jest.Mock).mockResolvedValue({
+        phoneNumber: '+639999999999',
+        uid: 'firebase-uid-3',
+      });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.user.create as jest.Mock).mockResolvedValue({
+        id: 'new-user',
+        phoneNumber: '+639999999999',
+        role: UserRole.RIDER,
+      });
+      (prisma.user.update as jest.Mock).mockResolvedValue({});
+
+      const result = await service.verifyFirebaseToken({
+        firebaseIdToken: 'valid-firebase-token',
+        role: UserRole.RIDER,
+      });
+
+      expect(prisma.user.create).toHaveBeenCalled();
+      expect(result.user.id).toBe('new-user');
+    });
+
+    it('throws when Firebase token is invalid', async () => {
+      (firebaseService.verifyIdToken as jest.Mock).mockRejectedValue(
+        new UnauthorizedException('Invalid Firebase token'),
+      );
+
+      await expect(
+        service.verifyFirebaseToken({
+          firebaseIdToken: 'invalid-token',
+          role: UserRole.RIDER,
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws when phone registered with different role', async () => {
+      (firebaseService.verifyIdToken as jest.Mock).mockResolvedValue({
+        phoneNumber: '+631234567890',
+        uid: 'firebase-uid-4',
+      });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        role: UserRole.DRIVER,
+      });
+
+      await expect(
+        service.verifyFirebaseToken({
+          firebaseIdToken: 'valid-firebase-token',
+          role: UserRole.RIDER,
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
