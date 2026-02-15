@@ -24,7 +24,11 @@ data class HomeUiState(
     val isLoadingLocation: Boolean = false,
     val hasLocationPermission: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val canProceedToBooking: Boolean
+        get() = pickupLocation != null && dropoffLocation != null
+                && fromAddress.isNotBlank() && toAddress.isNotBlank()
+}
 
 /**
  * ViewModel for the home screen

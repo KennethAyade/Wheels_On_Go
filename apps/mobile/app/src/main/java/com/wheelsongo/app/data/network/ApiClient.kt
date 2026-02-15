@@ -108,6 +108,20 @@ object ApiClient {
     val locationApi: LocationApi by lazy {
         retrofit.create(LocationApi::class.java)
     }
+
+    /**
+     * Ride management API endpoints
+     */
+    val rideApi: RideApi by lazy {
+        retrofit.create(RideApi::class.java)
+    }
+
+    /**
+     * Rider vehicle management API endpoints
+     */
+    val riderVehicleApi: RiderVehicleApi by lazy {
+        retrofit.create(RiderVehicleApi::class.java)
+    }
 }
 
 /**

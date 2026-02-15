@@ -169,6 +169,21 @@ data class AdminDriverActionResponse(
 )
 
 // ==========================================
+// Driver Status Update
+// ==========================================
+
+/**
+ * Request to toggle driver online/offline status
+ * PATCH /drivers/me/status
+ */
+@JsonClass(generateAdapter = true)
+data class UpdateDriverStatusRequest(
+    @Json(name = "isOnline") val isOnline: Boolean,
+    @Json(name = "latitude") val latitude: Double? = null,
+    @Json(name = "longitude") val longitude: Double? = null
+)
+
+// ==========================================
 // Type Aliases for API Compatibility
 // ==========================================
 

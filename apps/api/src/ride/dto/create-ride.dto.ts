@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsDateString,
+  IsUUID,
   Min,
   Max,
 } from 'class-validator';
@@ -75,6 +76,10 @@ export class CreateRideDto {
   @IsOptional()
   @IsString()
   notes?: string; // Special instructions for driver
+
+  @IsOptional()
+  @IsUUID()
+  riderVehicleId?: string; // Rider's own vehicle for driver-for-hire
 }
 
 /**

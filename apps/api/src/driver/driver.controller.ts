@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { DriverService } from './driver.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -8,6 +8,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtUser } from '../common/types/jwt-user.type';
 import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
+import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 
 @Controller('drivers')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +29,11 @@ export class DriverController {
   @Post('kyc/confirm')
   confirmUpload(@CurrentUser() user: JwtUser, @Body() dto: ConfirmKycUploadDto) {
     return this.driverService.confirmKycUpload(user.sub, dto);
+  }
+
+  @Patch('me/status')
+  updateStatus(@CurrentUser() user: JwtUser, @Body() dto: UpdateDriverStatusDto) {
+    return this.driverService.updateOnlineStatus(user.sub, dto);
   }
 
   @Get('kyc')

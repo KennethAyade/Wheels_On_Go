@@ -4,6 +4,7 @@ import { RideController } from './ride.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { LocationModule } from '../location/location.module';
+import { DispatchModule } from '../dispatch/dispatch.module';
 
 /**
  * Ride module for managing ride requests
@@ -11,9 +12,10 @@ import { LocationModule } from '../location/location.module';
  * - Calculate fare estimates
  * - Update ride status
  * - Cancel rides
+ * - Auto-dispatch for INSTANT rides
  */
 @Module({
-  imports: [PrismaModule, AuditModule, LocationModule],
+  imports: [PrismaModule, AuditModule, LocationModule, DispatchModule],
   controllers: [RideController],
   providers: [RideService],
   exports: [RideService],

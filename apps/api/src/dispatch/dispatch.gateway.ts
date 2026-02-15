@@ -215,6 +215,44 @@ export class DispatchGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   /**
+   * Initiate dispatch for a ride (called from RideController after ride creation)
+   * Finds nearest driver and sends dispatch request via WebSocket
+   */
+  async initiateDispatch(rideId: string): Promise<void> {
+    try {
+      const result = await this.dispatchService.dispatchRide(rideId);
+      if (result) {
+        const { dispatchAttempt, driver } = result;
+        // Send dispatch request to the matched driver via WebSocket
+        this.sendDispatchToDriver(driver.userId, dispatchAttempt.id, {
+          rideId,
+          dispatchAttemptId: dispatchAttempt.id,
+        });
+
+        // Notify rider that we're searching for a driver
+        const ride = await this.dispatchService.getRideForNotification(rideId);
+        if (ride) {
+          this.notifyRider(ride.riderId, 'dispatch:status', {
+            status: 'SEARCHING',
+            rideId,
+          });
+        }
+      } else {
+        // No drivers available — notify rider
+        const ride = await this.dispatchService.getRideForNotification(rideId);
+        if (ride) {
+          this.notifyRider(ride.riderId, 'dispatch:status', {
+            status: 'NO_DRIVERS',
+            rideId,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error initiating dispatch for ride ${rideId}: ${error.message}`);
+    }
+  }
+
+  /**
    * Extract JWT token from socket handshake
    */
   private extractToken(client: Socket): string | null {

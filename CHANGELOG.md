@@ -18,6 +18,35 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-13 12:00 PHT
+Summary: Firebase Phone Auth integration for real phone OTP delivery. Emulators use backend console SMS, real phones use Firebase SDK. Free tier: 10K verifications/month.
+Changes:
+- apps/api/src/auth/firebase.service.ts: NEW — Firebase Admin SDK service for verifying Firebase ID tokens
+- apps/api/src/auth/dto/verify-firebase.dto.ts: NEW — DTO for Firebase token verification
+- apps/api/src/auth/auth.service.ts: Added verifyFirebaseToken() method, refactored buildLoginResponse() to avoid duplication
+- apps/api/src/auth/auth.controller.ts: Added POST /auth/verify-firebase endpoint
+- apps/api/src/auth/auth.module.ts: Added FirebaseService to providers
+- apps/api/.env: Added FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
+- apps/api/.env.example: Documented Firebase env vars
+- apps/api/test/firebase.service.spec.ts: NEW — 5 tests for Firebase service
+- apps/api/test/auth.service.spec.ts: Added 5 tests for Firebase auth flow
+- apps/api/package.json: Added firebase-admin dependency
+- apps/mobile/build.gradle.kts: Added google-services plugin
+- apps/mobile/app/build.gradle.kts: Added Firebase BOM and firebase-auth dependencies
+- apps/mobile/app/google-services.json: NEW — Firebase config (in .gitignore)
+- apps/mobile/.../data/auth/FirebasePhoneAuthHelper.kt: NEW — Firebase Phone Auth wrapper with suspendable methods
+- apps/mobile/.../data/models/auth/AuthModels.kt: Added VerifyFirebaseRequest model
+- apps/mobile/.../data/network/ApiClient.kt: Added verifyFirebase endpoint
+- apps/mobile/.../data/repository/AuthRepository.kt: Added verifyFirebaseToken() method
+- apps/mobile/.../ui/screens/auth/PhoneInputViewModel.kt: Rewritten with conditional Firebase/backend flow based on DeviceUtils.isEmulator()
+- apps/mobile/.../ui/screens/auth/PhoneInputScreen.kt: Updated onNext callback to pass verificationId
+- apps/mobile/.../ui/screens/auth/OtpVerificationViewModel.kt: Rewritten with conditional Firebase/backend verify
+- apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt: Added verificationId parameter
+- apps/mobile/.../ui/navigation/Routes.kt: Updated OTP route to include optional verificationId query param
+- apps/mobile/.../AppNav.kt: Updated navigation to handle Firebase auto-verify (skip OTP screen)
+- .gitignore: Added apps/mobile/app/google-services.json
+- Tests: 101 backend tests (11 suites), 60 mobile tests (7 files) — all passing
+
 ## 2026-02-07 20:00 PHT
 Summary: Fix KYC upload persistence — DocumentUploadViewModel now fetches existing KYC status on init; backend GET /drivers/kyc returns proper { documents, allUploaded, allVerified } response.
 Changes:

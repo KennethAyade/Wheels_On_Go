@@ -64,6 +64,7 @@ fun HomeScreen(
     drawerContent: @Composable () -> Unit = {},
     onFromFieldClick: () -> Unit = {},
     onToFieldClick: () -> Unit = {},
+    onConfirmBooking: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
@@ -182,6 +183,8 @@ fun HomeScreen(
             onFromFieldClick = onFromFieldClick,
             onToFieldClick = onToFieldClick,
             onUsePinnedAddress = viewModel::onUsePinnedAddress,
+            canProceedToBooking = uiState.canProceedToBooking,
+            onConfirmBooking = onConfirmBooking,
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
@@ -216,6 +219,8 @@ private fun BottomSearchSheet(
     onFromFieldClick: () -> Unit,
     onToFieldClick: () -> Unit,
     onUsePinnedAddress: () -> Unit,
+    canProceedToBooking: Boolean = false,
+    onConfirmBooking: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -265,11 +270,19 @@ private fun BottomSearchSheet(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Use Pinned Address Button
-        PrimaryButton(
-            text = "Use pinned address",
-            onClick = onUsePinnedAddress
-        )
+        if (canProceedToBooking) {
+            // Confirm Booking Button — shown when both pickup and dropoff are set
+            PrimaryButton(
+                text = "Confirm Booking",
+                onClick = onConfirmBooking
+            )
+        } else {
+            // Use Pinned Address Button
+            PrimaryButton(
+                text = "Use pinned address",
+                onClick = onUsePinnedAddress
+            )
+        }
     }
 }
 

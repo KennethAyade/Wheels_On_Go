@@ -405,6 +405,7 @@ model RiderProfile {
   emergencyContacts EmergencyContact[]
   savedLocations    SavedLocation[]
   preferences       RiderPreference?
+  riderVehicles     RiderVehicle[]
 }
 
 model EmergencyContact {
@@ -463,6 +464,29 @@ model RiderPreference {
   updatedAt DateTime @updatedAt
 }
 
+model RiderVehicle {
+  id             String       @id @default(uuid())
+  riderProfileId String
+  riderProfile   RiderProfile @relation(fields: [riderProfileId], references: [id], onDelete: Cascade)
+
+  make        String
+  model       String
+  year        Int
+  color       String
+  plateNumber String      @unique
+  vehicleType VehicleType @default(SEDAN)
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rides Ride[]
+
+  @@index([riderProfileId, isDefault])
+  @@index([plateNumber])
+}
+
 // ============================================
 // BOOKING & RIDE DOMAIN
 // ============================================
@@ -518,8 +542,10 @@ model Ride {
   promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   vehicleId               String?
-  vehicle                 Vehicle? @relation(fields: [vehicleId], references: [id])
-  driverSearchRadius      Float    @default(5.0)
+  vehicle                 Vehicle?      @relation(fields: [vehicleId], references: [id])
+  riderVehicleId          String?
+  riderVehicle            RiderVehicle? @relation(fields: [riderVehicleId], references: [id])
+  driverSearchRadius      Float         @default(5.0)
   maxDriverSearchAttempts Int      @default(10)
   driverSearchAttempts    Int      @default(0)
 

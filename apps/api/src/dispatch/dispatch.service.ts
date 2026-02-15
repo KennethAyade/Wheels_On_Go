@@ -379,4 +379,14 @@ export class DispatchService {
       },
     });
   }
+
+  /**
+   * Get ride for notification purposes (minimal fields)
+   */
+  async getRideForNotification(rideId: string) {
+    return this.prisma.ride.findUnique({
+      where: { id: rideId },
+      select: { id: true, riderId: true, driverId: true, status: true },
+    });
+  }
 }

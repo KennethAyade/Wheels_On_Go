@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
+import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 
 @Injectable()
 export class DriverService {
@@ -153,6 +154,32 @@ export class DriverService {
     await this.auditService.log(userId, 'KYC_UPLOAD_CONFIRMED', 'driver', profile.id, {
       type: dto.type,
       key: dto.key,
+    });
+
+    return updated;
+  }
+
+  async updateOnlineStatus(userId: string, dto: UpdateDriverStatusDto) {
+    const profile = await this.ensureProfile(userId);
+
+    const data: any = {
+      isOnline: dto.isOnline,
+      lastOnlineAt: new Date(),
+    };
+
+    if (dto.latitude != null && dto.longitude != null) {
+      data.currentLatitude = dto.latitude;
+      data.currentLongitude = dto.longitude;
+      data.currentLocationUpdatedAt = new Date();
+    }
+
+    const updated = await this.prisma.driverProfile.update({
+      where: { id: profile.id },
+      data,
+    });
+
+    await this.auditService.log(userId, 'DRIVER_STATUS_UPDATED', 'driver', profile.id, {
+      isOnline: dto.isOnline,
     });
 
     return updated;

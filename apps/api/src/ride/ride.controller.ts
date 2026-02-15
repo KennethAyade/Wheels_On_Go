@@ -13,6 +13,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { RideService } from './ride.service';
+import { DispatchGateway } from '../dispatch/dispatch.gateway';
 import {
   CreateRideDto,
   CreateRideResponseDto,
@@ -29,7 +30,10 @@ import {
 @Controller('rides')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RideController {
-  constructor(private readonly rideService: RideService) {}
+  constructor(
+    private readonly rideService: RideService,
+    private readonly dispatchGateway: DispatchGateway,
+  ) {}
 
   /**
    * Create a new ride request
@@ -42,7 +46,17 @@ export class RideController {
     @Request() req,
     @Body() dto: CreateRideDto,
   ): Promise<CreateRideResponseDto> {
-    return this.rideService.createRide(req.user.userId, dto);
+    const ride = await this.rideService.createRide(req.user.userId, dto);
+
+    // Auto-dispatch for INSTANT rides (fire-and-forget)
+    if (dto.rideType === 'INSTANT') {
+      this.dispatchGateway.initiateDispatch(ride.id).catch((err) => {
+        // Log but don't fail the ride creation
+        console.error(`Dispatch initiation failed for ride ${ride.id}:`, err);
+      });
+    }
+
+    return ride;
   }
 
   /**

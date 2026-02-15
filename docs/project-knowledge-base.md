@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `d:\FREELANCE\Wheels-On-Go_Platform\Wheels_On_Go`
-**Last Updated:** 2026-02-07
+**Last Updated:** 2026-02-13
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend) and Kotlin + Jetpack Compose (mobile). **Phase 1** is complete: OTP authentication, driver KYC document upload (Cloudflare R2), biometric face verification, session resume, and hamburger menu drawer are fully implemented end-to-end. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend) and Kotlin + Jetpack Compose (mobile). **Phase 1** is complete: Firebase Phone Auth (real phones) + fallback console OTP (emulators), driver KYC document upload (Cloudflare R2), biometric face verification, session resume, and hamburger menu drawer are fully implemented end-to-end. The complete database schema for Phases 2-7 (40+ models) is ready but not yet implemented.
 
 ---
 
@@ -24,6 +24,7 @@
 | 2026-02-04 | Google Maps Platform migration | ✅ Complete |
 | 2026-02-06 | FR-1.2 KYC upload (R2) + FR-1.3 Biometric screen | ✅ Complete |
 | 2026-02-07 | Phase 1 bug fixes: 403 fix, ORCR removal, KYC persistence, biometric leniency, navigation fixes, hamburger menu | ✅ Complete |
+| 2026-02-13 | Firebase Phone Auth integration (real phone OTP) | ✅ Complete |
 | Week 4 | Integration testing | ⚠️ In Progress |
 | Week 4-5 | Core ride functionality | 📅 Planned |
 | Week 5-6 | Real-time tracking & safety | 📅 Planned |
@@ -42,7 +43,7 @@
 | **Encryption** | AES-256-GCM (at rest), TLS 1.3 (in transit) |
 | **Biometrics** | AWS Rekognition (with mock mode) |
 | **Storage** | Cloudflare R2 (S3-compatible, free tier: 10GB) |
-| **SMS** | Twilio (with console fallback for dev) |
+| **SMS/OTP** | Firebase Phone Auth (real phones, 10K/month free), console SMS (emulators) |
 | **Maps** | Google Maps SDK (Android), Geocoding, Places, Distance Matrix APIs |
 | **Mobile** | Kotlin + Jetpack Compose, Retrofit, DataStore |
 | **Testing** | Jest with ts-jest |
@@ -89,13 +90,14 @@ Wheels_On_Go/
 
 ---
 
-## Phase 1 API Endpoints (12 Endpoints)
+## Phase 1 API Endpoints (13 Endpoints)
 
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/auth/request-otp` | Request OTP code (rate-limited: 5/hour) |
+| POST | `/auth/request-otp` | Request OTP code (emulators: console SMS) |
 | POST | `/auth/verify-otp` | Verify OTP, receive tokens |
+| POST | `/auth/verify-firebase` | Verify Firebase ID token (real phones) |
 | POST | `/auth/biometric/verify` | Face recognition verification |
 | GET | `/auth/me` | Get current user profile |
 
@@ -213,14 +215,16 @@ Wheels_On_Go/
 
 ## Testing Status
 
-### Current Coverage
+### Current Coverage (as of Feb 13, 2026)
 | Component | Unit | Integration | E2E |
 |-----------|------|-------------|-----|
+| Backend Tests | ✅ 101 passing (11 suites) | ⚠️ Pending | ⚠️ Pending |
+| Mobile Tests | ✅ 60 passing (7 files) | ⚠️ Pending | ⚠️ Pending |
 | EncryptionService | ✅ 100% (22 tests) | ⚠️ Pending | ⚠️ Pending |
+| FirebaseService | ✅ 100% (5 tests) | ⚠️ Pending | ⚠️ Pending |
+| AuthService | ✅ Firebase flow (5 new tests) | ⚠️ Pending | ⚠️ Pending |
 | PrismaMiddleware | N/A | ⚠️ Pending | ⚠️ Pending |
 | AuditService | ⚠️ 0% | ⚠️ Pending | ⚠️ Pending |
-| Auth endpoints | ✅ Basic | ⚠️ Pending | ⚠️ Pending |
-| Driver endpoints | ✅ Basic | ⚠️ Pending | ⚠️ Pending |
 
 ### Testing Roadmap
 - **Phase 1 (Weeks 2-3):** Integration tests, E2E tests (6-8 hours)
@@ -246,10 +250,13 @@ ENCRYPTION_KEY=64-hex-characters-here
 
 # OTP/SMS
 OTP_CODE_TTL_SECONDS=300
-SMS_PROVIDER=twilio|console
-TWILIO_ACCOUNT_SID=...
-TWILIO_AUTH_TOKEN=...
-TWILIO_FROM_NUMBER=...
+SMS_PROVIDER=textbelt|console
+ALLOW_DEBUG_SMS=true
+
+# Firebase Phone Auth (for real phone OTP delivery)
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-...@...iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...-----END PRIVATE KEY-----\n"
 
 # Storage (S3-compatible)
 STORAGE_BUCKET=bucket-name
@@ -309,6 +316,18 @@ netAmount = totalFare × (1 - commissionRate)
 ---
 
 ## Recent Changes (from CHANGELOG.md)
+
+### 2026-02-13 12:00 PHT - Firebase Phone Auth Integration
+- Integrated Firebase Phone Auth SDK for real phone OTP delivery (free tier: 10K verifications/month)
+- Emulator detection: real devices use Firebase, emulators keep backend console SMS
+- New backend `/auth/verify-firebase` endpoint validates Firebase ID tokens
+- Mobile: `FirebasePhoneAuthHelper` handles verification flow with auto-verify support
+- Backend: `FirebaseService` verifies tokens via Firebase Admin SDK
+- Refactored `AuthService.buildLoginResponse()` to avoid duplication
+- Tests: 101 backend tests (11 suites), 60 mobile tests (7 files) — all passing
+- Updated navigation to pass optional `verificationId` for Firebase flow
+- Handles auto-verification (some devices verify SMS without user input)
+- Firebase credentials configured in both local `.env` and Render deployment
 
 ### 2026-02-07 - Phase 1 Bug Fixes & Polish
 - Fixed 403 "Missing user context" on KYC upload (removed global RolesGuard from app.module.ts)
@@ -374,6 +393,7 @@ netAmount = totalFare × (1 - commissionRate)
 | Encryption service | `apps/api/src/encryption/encryption.service.ts` |
 | Encryption constants | `apps/api/src/encryption/encryption.constants.ts` |
 | Audit service | `apps/api/src/audit/audit.service.ts` |
+| Firebase service | `apps/api/src/auth/firebase.service.ts` |
 | Auth controller | `apps/api/src/auth/auth.controller.ts` |
 | Driver controller | `apps/api/src/driver/driver.controller.ts` |
 | Data privacy policy | `docs/data-privacy-policy.md` |
@@ -402,6 +422,8 @@ netAmount = totalFare × (1 - commissionRate)
 | App Drawer | `apps/mobile/.../ui/components/AppDrawer.kt` |
 | Session Resume | `apps/mobile/.../ui/screens/auth/SessionResumeViewModel.kt` |
 | Biometric Helper | `apps/mobile/.../data/auth/BiometricPromptHelper.kt` |
+| Firebase Phone Auth | `apps/mobile/.../data/auth/FirebasePhoneAuthHelper.kt` |
+| Google Services Config | `apps/mobile/app/google-services.json` (in .gitignore) |
 
 ---
 
@@ -435,8 +457,10 @@ Mobile App (Kotlin/Compose)
 ### Integration Status
 | Feature | Backend | Mobile | Integration | Notes |
 |---------|---------|--------|-------------|-------|
-| OTP Request | ✅ | ✅ | ✅ Connected | Rate-limited 3/min |
-| OTP Verify | ✅ | ✅ | ✅ Connected | Response structure fixed (2026-01-31) |
+| OTP Request (Emulator) | ✅ | ✅ | ✅ Connected | Backend console SMS for emulators |
+| OTP Verify (Emulator) | ✅ | ✅ | ✅ Connected | Response structure fixed (2026-01-31) |
+| Firebase Phone Auth | ✅ | ✅ | ✅ Connected | Real phones use Firebase SDK (2026-02-13) |
+| Firebase Token Verify | ✅ | ✅ | ✅ Connected | `/auth/verify-firebase` endpoint (2026-02-13) |
 | Token Storage | N/A | ✅ | ✅ DataStore | Handles biometric + access tokens |
 | JWT Auth Header | N/A | ✅ | ✅ AuthInterceptor | Auto-injected; routes biometric token for face verify |
 | Driver Profile | ✅ | ✅ | ✅ Connected | Biometric flow supported |
@@ -486,9 +510,10 @@ Mobile App (Kotlin/Compose)
 2. **Liveness Detection:** Camera captures static photo via `TakePicturePreview`. No anti-spoofing (could accept photos of photos). Consider ML Kit Face Detection for liveness in production.
 3. **Admin Dashboard UI:** No web frontend for admin driver approval — admin endpoints exist but need a UI.
 4. **Integration Tests:** Not yet implemented (significant gap for production).
-5. **Key Rotation:** Procedure not yet documented.
+5. **Key Rotation:** Procedure not yet documented (applies to both encryption keys and Firebase service account keys).
 6. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.
 7. **Logout:** Hamburger menu has logout button wired to clear tokens + navigate to welcome, but no backend token invalidation endpoint.
+8. **Firebase Quota:** Free tier limited to 10K phone auth verifications/month; plan upgrade needed for high volume.
 
 ---
 

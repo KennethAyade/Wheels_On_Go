@@ -6,9 +6,11 @@ import com.wheelsongo.app.data.models.driver.DriverProfileResponse
 import com.wheelsongo.app.data.models.driver.KycStatusResponse
 import com.wheelsongo.app.data.models.driver.PresignUrlRequest
 import com.wheelsongo.app.data.models.driver.PresignUrlResponse
+import com.wheelsongo.app.data.models.driver.UpdateDriverStatusRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 
 /**
@@ -44,4 +46,11 @@ interface DriverApi {
      */
     @POST("drivers/kyc/confirm")
     suspend fun confirmUpload(@Body request: ConfirmUploadRequest): Response<ConfirmUploadResponse>
+
+    /**
+     * Update driver online/offline status
+     * PATCH /drivers/me/status
+     */
+    @PATCH("drivers/me/status")
+    suspend fun updateStatus(@Body request: UpdateDriverStatusRequest): Response<DriverProfileResponse>
 }

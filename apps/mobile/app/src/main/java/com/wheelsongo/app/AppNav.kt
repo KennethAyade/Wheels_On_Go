@@ -23,11 +23,17 @@ import com.wheelsongo.app.ui.screens.auth.OtpVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.PhoneInputScreen
 import com.wheelsongo.app.ui.screens.auth.SessionResumeScreen
 import com.wheelsongo.app.ui.screens.driver.DocumentUploadScreen
+import com.wheelsongo.app.ui.screens.driver.DriverActiveRideScreen
+import com.wheelsongo.app.ui.screens.driver.DriverHomeScreen
 import com.wheelsongo.app.ui.screens.home.HomeScreen
 import com.wheelsongo.app.ui.screens.home.HomeViewModel
+import com.wheelsongo.app.ui.screens.vehicle.VehicleListScreen
 import com.wheelsongo.app.ui.screens.location.LocationConfirmScreen
 import com.wheelsongo.app.ui.screens.search.PlaceSearchScreen
 import com.wheelsongo.app.ui.screens.welcome.WelcomeScreen
+import com.wheelsongo.app.ui.screens.booking.BookingConfirmScreen
+import com.wheelsongo.app.ui.screens.ride.ActiveRideScreen
+import com.wheelsongo.app.ui.screens.vehicle.VehicleRegistrationScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
@@ -226,10 +232,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         }
 
         // ==========================================
-        // Home Screen (Map View)
+        // Home Screen (Role-Conditional: Rider vs Driver)
         // ==========================================
         composable(Route.Home.value) { backStackEntry ->
-            // Share HomeViewModel between Home and PlaceSearch
             val homeViewModel: HomeViewModel = viewModel()
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
@@ -239,36 +244,60 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val userRole by tokenManager.userRole.collectAsState(initial = null)
             val phoneNumber by tokenManager.phoneNumber.collectAsState(initial = null)
 
-            HomeScreen(
-                drawerState = drawerState,
-                drawerContent = {
-                    AppDrawer(
-                        userRole = userRole,
-                        phoneNumber = phoneNumber,
-                        onMyDocuments = {
-                            scope.launch { drawerState.close() }
-                            navController.navigate(Route.DriverDocumentUpload.value)
-                        },
-                        onLogout = {
-                            scope.launch {
-                                drawerState.close()
-                                AuthRepository().logout()
-                                navController.navigate(Route.Welcome.value) {
-                                    popUpTo(0) { inclusive = true }
-                                }
+            val drawerContent: @Composable () -> Unit = {
+                AppDrawer(
+                    userRole = userRole,
+                    phoneNumber = phoneNumber,
+                    onMyDocuments = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.DriverDocumentUpload.value)
+                    },
+                    onMyVehicles = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.VehicleList.value)
+                    },
+                    onLogout = {
+                        scope.launch {
+                            drawerState.close()
+                            AuthRepository().logout()
+                            navController.navigate(Route.Welcome.value) {
+                                popUpTo(0) { inclusive = true }
                             }
                         }
+                    }
+                )
+            }
+
+            when (userRole) {
+                UserRole.DRIVER -> {
+                    DriverHomeScreen(
+                        drawerState = drawerState,
+                        drawerContent = drawerContent,
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onNavigateToActiveRide = { rideId ->
+                            navController.navigate(Route.DriverActiveRide.createRoute(rideId))
+                        }
                     )
-                },
-                onMenuClick = { scope.launch { drawerState.open() } },
-                onFromFieldClick = {
-                    navController.navigate(Route.PlaceSearch.createRoute(isPickup = true))
-                },
-                onToFieldClick = {
-                    navController.navigate(Route.PlaceSearch.createRoute(isPickup = false))
-                },
-                viewModel = homeViewModel
-            )
+                }
+                else -> {
+                    // Rider or unknown role — show rider booking HomeScreen
+                    HomeScreen(
+                        drawerState = drawerState,
+                        drawerContent = drawerContent,
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onFromFieldClick = {
+                            navController.navigate(Route.PlaceSearch.createRoute(isPickup = true))
+                        },
+                        onToFieldClick = {
+                            navController.navigate(Route.PlaceSearch.createRoute(isPickup = false))
+                        },
+                        onConfirmBooking = {
+                            navController.navigate(Route.BookingConfirm.value)
+                        },
+                        viewModel = homeViewModel
+                    )
+                }
+            }
         }
 
         // ==========================================
@@ -308,6 +337,106 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
 
                     // Navigate back to home
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // ==========================================
+        // Booking Confirmation Screen
+        // ==========================================
+        composable(Route.BookingConfirm.value) {
+            // Share HomeViewModel to read pickup/dropoff data
+            val parentEntry = navController.getBackStackEntry(Route.Home.value)
+            val homeViewModel: HomeViewModel = viewModel(parentEntry)
+            val homeState by homeViewModel.uiState.collectAsState()
+
+            BookingConfirmScreen(
+                pickupLat = homeState.pickupLocation?.latitude ?: 0.0,
+                pickupLng = homeState.pickupLocation?.longitude ?: 0.0,
+                pickupAddress = homeState.fromAddress,
+                dropoffLat = homeState.dropoffLocation?.latitude ?: 0.0,
+                dropoffLng = homeState.dropoffLocation?.longitude ?: 0.0,
+                dropoffAddress = homeState.toAddress,
+                onBack = { navController.popBackStack() },
+                onRideCreated = { rideId ->
+                    navController.navigate(Route.ActiveRide.createRoute(rideId)) {
+                        popUpTo(Route.Home.value) { inclusive = false }
+                    }
+                },
+                onAddVehicle = {
+                    navController.navigate(Route.VehicleRegistration.value)
+                }
+            )
+        }
+
+        // ==========================================
+        // Active Ride Screen
+        // ==========================================
+        composable(
+            route = Route.ActiveRide.value,
+            arguments = listOf(
+                navArgument(Route.ActiveRide.ARG_RIDE_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.ActiveRide.ARG_RIDE_ID) ?: ""
+
+            ActiveRideScreen(
+                rideId = rideId,
+                onBack = { navController.popBackStack() },
+                onRideCompleted = {
+                    navController.navigate(Route.Home.value) {
+                        popUpTo(Route.Home.value) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Vehicle List Screen (My Vehicles)
+        // ==========================================
+        composable(Route.VehicleList.value) {
+            VehicleListScreen(
+                onBack = { navController.popBackStack() },
+                onAddVehicle = {
+                    navController.navigate(Route.VehicleRegistration.value)
+                }
+            )
+        }
+
+        // ==========================================
+        // Vehicle Registration Screen
+        // ==========================================
+        composable(Route.VehicleRegistration.value) {
+            VehicleRegistrationScreen(
+                onBack = { navController.popBackStack() },
+                onSuccess = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // ==========================================
+        // Driver Active Ride Screen
+        // ==========================================
+        composable(
+            route = Route.DriverActiveRide.value,
+            arguments = listOf(
+                navArgument(Route.DriverActiveRide.ARG_RIDE_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.DriverActiveRide.ARG_RIDE_ID) ?: ""
+
+            DriverActiveRideScreen(
+                rideId = rideId,
+                onBack = { navController.popBackStack() },
+                onRideCompleted = {
+                    navController.navigate(Route.Home.value) {
+                        popUpTo(Route.Home.value) { inclusive = true }
+                    }
                 }
             )
         }

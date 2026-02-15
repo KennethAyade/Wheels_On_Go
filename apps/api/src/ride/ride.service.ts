@@ -70,6 +70,19 @@ export class RideService {
       throw new BadRequestException('You already have an active ride');
     }
 
+    // Validate rider vehicle if provided
+    if (dto.riderVehicleId) {
+      const riderVehicle = await this.prisma.riderVehicle.findUnique({
+        where: { id: dto.riderVehicleId },
+      });
+      if (!riderVehicle) {
+        throw new BadRequestException('Rider vehicle not found');
+      }
+      if (riderVehicle.riderProfileId !== riderProfile.id) {
+        throw new ForbiddenException('This vehicle does not belong to you');
+      }
+    }
+
     // Get distance and fare estimate
     const estimate = await this.calculateEstimate({
       pickupLatitude: dto.pickupLatitude,
@@ -114,6 +127,7 @@ export class RideService {
         promoDiscount: estimate.promoDiscount,
         totalFare: estimate.estimatedFare, // Required field
         paymentMethod: dto.paymentMethod,
+        riderVehicleId: dto.riderVehicleId || null,
         scheduledPickupTime: dto.scheduledPickupTime
           ? new Date(dto.scheduledPickupTime)
           : null,
@@ -446,34 +460,130 @@ export class RideService {
   }
 
   /**
-   * Get surge multiplier for a location (placeholder - implement based on demand)
+   * Get surge multiplier based on local demand/supply ratio
    */
   private async getSurgeMultiplier(
     latitude: number,
     longitude: number,
   ): Promise<number> {
-    // TODO: Implement actual surge pricing based on:
-    // - Number of active ride requests in the area
-    // - Number of available drivers in the area
-    // - Time of day
-    // - Events/weather
+    const SURGE_RADIUS_KM = 3;
+    const SUPPLY_RADIUS_KM = 5;
+    const MAX_SURGE = 2.0;
+    const DEMAND_WINDOW_MINUTES = 15;
 
-    // For now, return no surge
-    return 1.0;
+    const demandSince = new Date(
+      Date.now() - DEMAND_WINDOW_MINUTES * 60 * 1000,
+    );
+
+    // Count recent PENDING rides in the area (demand)
+    const allPendingRides = await this.prisma.ride.findMany({
+      where: {
+        status: RideStatus.PENDING,
+        createdAt: { gte: demandSince },
+      },
+      select: { pickupLatitude: true, pickupLongitude: true },
+    });
+
+    const demandCount = allPendingRides.filter((r) => {
+      const dist = this.locationService.calculateHaversineDistance(
+        latitude,
+        longitude,
+        r.pickupLatitude,
+        r.pickupLongitude,
+      );
+      return dist <= SURGE_RADIUS_KM;
+    }).length;
+
+    // Count available drivers in the area (supply)
+    const allOnlineDrivers = await this.prisma.driverProfile.findMany({
+      where: {
+        isOnline: true,
+        status: 'APPROVED',
+        currentLatitude: { not: null },
+        currentLongitude: { not: null },
+      },
+      select: { currentLatitude: true, currentLongitude: true },
+    });
+
+    const supplyCount = allOnlineDrivers.filter((d) => {
+      const dist = this.locationService.calculateHaversineDistance(
+        latitude,
+        longitude,
+        d.currentLatitude!,
+        d.currentLongitude!,
+      );
+      return dist <= SUPPLY_RADIUS_KM;
+    }).length;
+
+    // Calculate surge multiplier from demand/supply ratio
+    const ratio = demandCount / Math.max(supplyCount, 1);
+    let multiplier = 1.0;
+    if (ratio >= 3.0) multiplier = 2.0;
+    else if (ratio >= 2.0) multiplier = 1.5;
+    else if (ratio >= 1.0) multiplier = 1.25;
+
+    multiplier = Math.min(multiplier, MAX_SURGE);
+
+    // Log to SurgePricingLog
+    await this.prisma.surgePricingLog.create({
+      data: {
+        latitude,
+        longitude,
+        radius: SURGE_RADIUS_KM,
+        surgeMultiplier: multiplier,
+        activeRideCount: demandCount,
+        availableDriverCount: supplyCount,
+      },
+    });
+
+    return multiplier;
   }
 
   /**
-   * Calculate promo discount
+   * Calculate promo discount using PromoCode and UserPromoUsage tables
    */
   private async calculatePromoDiscount(
     promoCode: string,
     subtotal: number,
   ): Promise<number> {
-    // TODO: Implement promo code validation and discount calculation
-    // using PromoCode and UserPromoUsage tables
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { code: promoCode },
+    });
 
-    // For now, return no discount
-    return 0;
+    if (!promo) return 0;
+    if (!promo.isActive) return 0;
+
+    const now = new Date();
+    if (now < promo.validFrom || now > promo.validUntil) return 0;
+
+    // Check max usage count
+    if (promo.maxUsageCount && promo.currentUsageCount >= promo.maxUsageCount) {
+      return 0;
+    }
+
+    // Check minimum fare requirement
+    if (promo.minRideFare && subtotal < promo.minRideFare.toNumber()) {
+      return 0;
+    }
+
+    // Calculate discount
+    let discount = 0;
+    if (promo.discountType === 'PERCENTAGE') {
+      discount = subtotal * (promo.discountValue.toNumber() / 100);
+    } else {
+      // FIXED_AMOUNT
+      discount = promo.discountValue.toNumber();
+    }
+
+    // Cap at max discount
+    if (promo.maxDiscount) {
+      discount = Math.min(discount, promo.maxDiscount.toNumber());
+    }
+
+    // Cap at subtotal (can't have negative fare)
+    discount = Math.min(discount, subtotal);
+
+    return discount;
   }
 
   /**

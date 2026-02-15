@@ -106,6 +106,50 @@ sealed class Route(val value: String) {
     data object DriverDashboard : Route("driver/dashboard")
 
     // ==========================================
+    // Booking & Rides
+    // ==========================================
+
+    /**
+     * Booking confirmation screen — shows fare estimate, vehicle selection, and "Find a Driver" button
+     * Receives pickup/dropoff data from HomeScreen via shared ViewModel
+     */
+    data object BookingConfirm : Route("booking_confirm")
+
+    /**
+     * Active ride screen — real-time ride tracking
+     * @param rideId The ride ID to track
+     */
+    data object ActiveRide : Route("active_ride/{rideId}") {
+        const val ARG_RIDE_ID = "rideId"
+
+        fun createRoute(rideId: String): String = "active_ride/$rideId"
+    }
+
+    // ==========================================
+    // Vehicle Management
+    // ==========================================
+
+    /**
+     * Vehicle list screen — rider views/manages their registered vehicles
+     */
+    data object VehicleList : Route("vehicle_list")
+
+    /**
+     * Vehicle registration screen — rider registers their own car
+     */
+    data object VehicleRegistration : Route("vehicle_registration")
+
+    /**
+     * Driver active ride screen — driver managing an accepted ride
+     * @param rideId The ride ID
+     */
+    data object DriverActiveRide : Route("driver_active_ride/{rideId}") {
+        const val ARG_RIDE_ID = "rideId"
+
+        fun createRoute(rideId: String): String = "driver_active_ride/$rideId"
+    }
+
+    // ==========================================
     // Place Search
     // ==========================================
 
