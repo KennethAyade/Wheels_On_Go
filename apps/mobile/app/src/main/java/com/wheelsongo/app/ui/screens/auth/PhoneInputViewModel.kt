@@ -89,9 +89,20 @@ class PhoneInputViewModel(
 
         val phoneNumber = currentState.formattedPhoneNumber
 
+        // === DEBUG LOGGING START ===
+        android.util.Log.d("PhoneInputVM", "=== OTP Request Debug ===")
+        android.util.Log.d("PhoneInputVM", "isEmulator: ${DeviceUtils.isEmulator()}")
+        android.util.Log.d("PhoneInputVM", "activity: $activity")
+        android.util.Log.d("PhoneInputVM", "Build.FINGERPRINT: ${android.os.Build.FINGERPRINT}")
+        android.util.Log.d("PhoneInputVM", "Build.MODEL: ${android.os.Build.MODEL}")
+        android.util.Log.d("PhoneInputVM", "Build.MANUFACTURER: ${android.os.Build.MANUFACTURER}")
+        // === DEBUG LOGGING END ===
+
         if (DeviceUtils.isEmulator() || activity == null) {
+            android.util.Log.d("PhoneInputVM", "USING BACKEND SMS")
             requestOtpBackend(phoneNumber, role, onSuccess)
         } else {
+            android.util.Log.d("PhoneInputVM", "USING FIREBASE SMS")
             requestOtpFirebase(phoneNumber, role, activity, onSuccess)
         }
     }
