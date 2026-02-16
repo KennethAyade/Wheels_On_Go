@@ -110,6 +110,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Socket.IO Client (for real-time WebSocket communication)
+    implementation("io.socket:socket.io-client:2.1.1")
+
     // JSON - Moshi
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
     ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")

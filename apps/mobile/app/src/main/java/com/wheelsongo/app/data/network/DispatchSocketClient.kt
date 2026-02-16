@@ -6,17 +6,16 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import io.socket.client.IO
+import io.socket.client.Socket
+import io.socket.emitter.Emitter
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import java.util.concurrent.TimeUnit
+import org.json.JSONObject
+import java.net.URISyntaxException
 
 /**
- * WebSocket client for real-time dispatch updates
+ * WebSocket client for real-time dispatch updates using Socket.IO
  *
  * Connects to the backend /dispatch namespace and emits dispatch events
  * as a Kotlin Flow for UI consumption. Supports both rider and driver events.
@@ -24,7 +23,7 @@ import java.util.concurrent.TimeUnit
 class DispatchSocketClient(
     private val tokenManager: TokenManager = ApiClient.getTokenManager()
 ) {
-    private var webSocket: WebSocket? = null
+    private var socket: Socket? = null
     private var isConnected = false
 
     private val moshi = Moshi.Builder()
@@ -34,62 +33,65 @@ class DispatchSocketClient(
     private val _events = MutableSharedFlow<DispatchEvent>(replay = 1)
     val events: SharedFlow<DispatchEvent> = _events
 
-    private val client = OkHttpClient.Builder()
-        .readTimeout(0, TimeUnit.MILLISECONDS) // No timeout for WebSocket
-        .build()
-
     /**
-     * Connect to the dispatch WebSocket
+     * Connect to the dispatch WebSocket using Socket.IO
      */
     fun connect() {
         if (isConnected) return
 
         val token = tokenManager.getAccessToken() ?: return
 
-        // Convert HTTP URL to WS URL
-        val wsUrl = AppConfig.BASE_URL
-            .replace("http://", "ws://")
-            .replace("https://", "wss://")
-            .trimEnd('/') + "/dispatch"
+        try {
+            // Convert HTTP URL to Socket.IO URL with namespace
+            val baseUrl = AppConfig.BASE_URL.trimEnd('/')
+            val socketUrl = "$baseUrl/dispatch"
 
-        val request = Request.Builder()
-            .url("$wsUrl?token=$token")
-            .build()
+            // Configure Socket.IO options with authentication
+            val options = IO.Options().apply {
+                // Auth via query param (Socket.IO will send in handshake)
+                query = "token=$token"
 
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                isConnected = true
-                _events.tryEmit(DispatchEvent.Connected)
+                // Connection settings
+                reconnection = true
+                reconnectionDelay = 5000
+                reconnectionAttempts = Int.MAX_VALUE
+                timeout = 10000
+                transports = arrayOf("websocket", "polling")
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                handleMessage(text)
-            }
+            // Create Socket.IO connection
+            socket = IO.socket(socketUrl, options)
 
-            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                isConnected = false
-                webSocket.close(1000, null)
-                _events.tryEmit(DispatchEvent.Disconnected)
-            }
+            // Connection lifecycle handlers
+            socket?.on(Socket.EVENT_CONNECT, onConnect)
+            socket?.on(Socket.EVENT_DISCONNECT, onDisconnect)
+            socket?.on(Socket.EVENT_CONNECT_ERROR, onConnectError)
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                isConnected = false
-                _events.tryEmit(DispatchEvent.Error(t.message ?: "Connection failed"))
+            // Rider-side events
+            socket?.on("dispatch:status", onDispatchStatus)
+            socket?.on("ride:driver_assigned", onDriverAssigned)
+            socket?.on("ride:status_update", onRideStatusUpdate)
 
-                // Auto-reconnect after 5 seconds
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    connect()
-                }, 5000)
-            }
-        })
+            // Driver-side events
+            socket?.on("dispatch:request", onDispatchRequest)
+            socket?.on("dispatch:accepted", onDispatchAccepted)
+            socket?.on("dispatch:declined", onDispatchDeclined)
+            socket?.on("dispatch:error", onDispatchError)
+
+            // Connect to server
+            socket?.connect()
+        } catch (e: URISyntaxException) {
+            _events.tryEmit(DispatchEvent.Error("Invalid server URL: ${e.message}"))
+        }
     }
 
     /**
      * Disconnect from the dispatch WebSocket
      */
     fun disconnect() {
-        webSocket?.close(1000, "Client disconnect")
-        webSocket = null
+        socket?.disconnect()
+        socket?.off()
+        socket = null
         isConnected = false
     }
 
@@ -101,72 +103,132 @@ class DispatchSocketClient(
      * Send dispatch accept (driver accepts a ride request)
      */
     fun sendAccept(dispatchAttemptId: String) {
-        val msg = """{"event":"dispatch:accept","data":{"dispatchAttemptId":"$dispatchAttemptId"}}"""
-        webSocket?.send(msg)
+        val data = JSONObject().apply {
+            put("dispatchAttemptId", dispatchAttemptId)
+        }
+        socket?.emit("dispatch:accept", data)
     }
 
     /**
      * Send dispatch decline (driver declines a ride request)
      */
     fun sendDecline(dispatchAttemptId: String, reason: String? = null) {
-        val reasonPart = if (reason != null) ""","reason":"$reason"""" else ""
-        val msg = """{"event":"dispatch:decline","data":{"dispatchAttemptId":"$dispatchAttemptId"$reasonPart}}"""
-        webSocket?.send(msg)
+        val data = JSONObject().apply {
+            put("dispatchAttemptId", dispatchAttemptId)
+            if (reason != null) {
+                put("reason", reason)
+            }
+        }
+        socket?.emit("dispatch:decline", data)
+    }
+
+    // ==========================================
+    // Event Handlers
+    // ==========================================
+
+    private val onConnect = Emitter.Listener {
+        isConnected = true
+        _events.tryEmit(DispatchEvent.Connected)
+    }
+
+    private val onDisconnect = Emitter.Listener {
+        isConnected = false
+        _events.tryEmit(DispatchEvent.Disconnected)
+    }
+
+    private val onConnectError = Emitter.Listener { args ->
+        val error = args.getOrNull(0)?.toString() ?: "Connection failed"
+        _events.tryEmit(DispatchEvent.Error(error))
+    }
+
+    private val onDispatchStatus = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val status = data.optString("status", "")
+            val rideId = data.optString("rideId", "")
+            _events.tryEmit(DispatchEvent.StatusUpdate(status, rideId))
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onDriverAssigned = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val dataMap = jsonToMap(data)
+            _events.tryEmit(DispatchEvent.DriverAssigned(dataMap))
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onRideStatusUpdate = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val status = data.optString("status", "")
+            _events.tryEmit(DispatchEvent.RideStatusChanged(status))
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onDispatchRequest = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val dispatchAttemptId = data.optString("dispatchAttemptId", "")
+            val dataMap = jsonToMap(data)
+            _events.tryEmit(
+                DispatchEvent.IncomingRideRequest(
+                    dispatchAttemptId = dispatchAttemptId,
+                    rideData = dataMap
+                )
+            )
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onDispatchAccepted = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject
+            val dataMap = data?.let { jsonToMap(it) }
+            _events.tryEmit(DispatchEvent.DispatchAccepted(dataMap))
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onDispatchDeclined = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val attemptId = data.optString("dispatchAttemptId", "")
+            _events.tryEmit(DispatchEvent.DispatchDeclined(attemptId))
+        } catch (e: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onDispatchError = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val message = data.optString("message", "Unknown dispatch error")
+            _events.tryEmit(DispatchEvent.Error(message))
+        } catch (e: Exception) {
+            _events.tryEmit(DispatchEvent.Error("Dispatch error"))
+        }
     }
 
     /**
-     * Parse incoming WebSocket messages
+     * Helper: Convert JSONObject to Map<String, String>
      */
-    private fun handleMessage(text: String) {
-        try {
-            val adapter = moshi.adapter(SocketMessage::class.java)
-            val message = adapter.fromJson(text) ?: return
-
-            when (message.event) {
-                // Rider events
-                "dispatch:status" -> {
-                    val status = message.data?.get("status") ?: return
-                    val rideId = message.data["rideId"]
-                    _events.tryEmit(
-                        DispatchEvent.StatusUpdate(
-                            status = status,
-                            rideId = rideId ?: ""
-                        )
-                    )
-                }
-                "ride:driver_assigned" -> {
-                    _events.tryEmit(DispatchEvent.DriverAssigned(message.data ?: emptyMap()))
-                }
-                "ride:status_update" -> {
-                    val status = message.data?.get("status") ?: return
-                    _events.tryEmit(DispatchEvent.RideStatusChanged(status))
-                }
-
-                // Driver events
-                "dispatch:request" -> {
-                    val dispatchAttemptId = message.data?.get("dispatchAttemptId") ?: return
-                    _events.tryEmit(
-                        DispatchEvent.IncomingRideRequest(
-                            dispatchAttemptId = dispatchAttemptId,
-                            rideData = message.data
-                        )
-                    )
-                }
-                "dispatch:accepted" -> {
-                    _events.tryEmit(DispatchEvent.DispatchAccepted(message.data))
-                }
-                "dispatch:declined" -> {
-                    val attemptId = message.data?.get("dispatchAttemptId") ?: ""
-                    _events.tryEmit(DispatchEvent.DispatchDeclined(attemptId))
-                }
-                "dispatch:error" -> {
-                    val msg = message.data?.get("message") ?: "Unknown dispatch error"
-                    _events.tryEmit(DispatchEvent.Error(msg))
-                }
-            }
-        } catch (e: Exception) {
-            // Ignore parse errors for non-JSON messages
+    private fun jsonToMap(json: JSONObject): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val key = keys.next() as String
+            map[key] = json.optString(key, "")
         }
+        return map
     }
 }
 
@@ -194,7 +256,7 @@ sealed class DispatchEvent {
 }
 
 /**
- * Generic socket message format
+ * Generic socket message format (kept for compatibility)
  */
 @JsonClass(generateAdapter = true)
 data class SocketMessage(
