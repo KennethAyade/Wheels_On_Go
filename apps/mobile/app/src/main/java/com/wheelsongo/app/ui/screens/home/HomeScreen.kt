@@ -65,10 +65,19 @@ fun HomeScreen(
     onFromFieldClick: () -> Unit = {},
     onToFieldClick: () -> Unit = {},
     onConfirmBooking: () -> Unit = {},
+    onNavigateToActiveRide: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Auto-navigate to active ride if one exists
+    LaunchedEffect(uiState.activeRideId) {
+        uiState.activeRideId?.let { rideId ->
+            viewModel.onActiveRideNavigated()
+            onNavigateToActiveRide(rideId)
+        }
+    }
 
     // Location permissions
     val locationPermissions = rememberMultiplePermissionsState(
@@ -115,6 +124,7 @@ fun HomeScreen(
             } else null,
             pickupLocation = uiState.pickupLocation,
             dropoffLocation = uiState.dropoffLocation,
+            routePoints = uiState.routePoints,
             onMapTap = { lat, lng ->
                 viewModel.onMapTap(lat, lng)
             }

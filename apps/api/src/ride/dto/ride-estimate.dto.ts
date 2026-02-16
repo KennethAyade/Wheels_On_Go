@@ -97,8 +97,9 @@ export class UpdateRideStatusDto {
  * Cancel ride DTO
  */
 export class CancelRideDto {
+  @IsOptional()
   @IsString()
-  reason: string;
+  reason?: string;
 }
 
 /**

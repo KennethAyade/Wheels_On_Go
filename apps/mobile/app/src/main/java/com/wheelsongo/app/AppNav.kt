@@ -32,13 +32,14 @@ import com.wheelsongo.app.ui.screens.location.LocationConfirmScreen
 import com.wheelsongo.app.ui.screens.search.PlaceSearchScreen
 import com.wheelsongo.app.ui.screens.welcome.WelcomeScreen
 import com.wheelsongo.app.ui.screens.booking.BookingConfirmScreen
+import com.wheelsongo.app.ui.screens.driver.DriverListScreen
+import com.wheelsongo.app.ui.screens.driver.DriverProfileScreen
 import com.wheelsongo.app.ui.screens.ride.ActiveRideScreen
+import com.wheelsongo.app.ui.screens.ride.RideCompletionScreen
 import com.wheelsongo.app.ui.screens.vehicle.VehicleRegistrationScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import java.net.URLDecoder
 import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 /**
  * Main navigation graph for the Wheels On Go app
@@ -137,8 +138,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 }
             )
         ) { backStackEntry ->
-            val encodedPhoneNumber = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_PHONE_NUMBER) ?: ""
-            val phoneNumber = URLDecoder.decode(encodedPhoneNumber, StandardCharsets.UTF_8.toString())
+            val phoneNumber = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_PHONE_NUMBER) ?: ""
             val role = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_ROLE) ?: UserRole.RIDER
             val verificationId = backStackEntry.arguments?.getString(Route.OtpVerification.ARG_VERIFICATION_ID)
 
@@ -294,6 +294,11 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         onConfirmBooking = {
                             navController.navigate(Route.BookingConfirm.value)
                         },
+                        onNavigateToActiveRide = { rideId ->
+                            navController.navigate(Route.ActiveRide.createRoute(rideId)) {
+                                popUpTo(Route.Home.value) { inclusive = false }
+                            }
+                        },
                         viewModel = homeViewModel
                     )
                 }
@@ -350,18 +355,32 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val homeViewModel: HomeViewModel = viewModel(parentEntry)
             val homeState by homeViewModel.uiState.collectAsState()
 
+            val pickupLat = homeState.pickupLocation?.latitude ?: 0.0
+            val pickupLng = homeState.pickupLocation?.longitude ?: 0.0
+            val dropoffLat = homeState.dropoffLocation?.latitude ?: 0.0
+            val dropoffLng = homeState.dropoffLocation?.longitude ?: 0.0
+
             BookingConfirmScreen(
-                pickupLat = homeState.pickupLocation?.latitude ?: 0.0,
-                pickupLng = homeState.pickupLocation?.longitude ?: 0.0,
+                pickupLat = pickupLat,
+                pickupLng = pickupLng,
                 pickupAddress = homeState.fromAddress,
-                dropoffLat = homeState.dropoffLocation?.latitude ?: 0.0,
-                dropoffLng = homeState.dropoffLocation?.longitude ?: 0.0,
+                dropoffLat = dropoffLat,
+                dropoffLng = dropoffLng,
                 dropoffAddress = homeState.toAddress,
                 onBack = { navController.popBackStack() },
                 onRideCreated = { rideId ->
                     navController.navigate(Route.ActiveRide.createRoute(rideId)) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
+                },
+                onFindDriver = {
+                    navController.navigate(
+                        Route.DriverList.createRoute(
+                            pickupLat, pickupLng,
+                            dropoffLat, dropoffLng,
+                            homeState.fromAddress, homeState.toAddress
+                        )
+                    )
                 },
                 onAddVehicle = {
                     navController.navigate(Route.VehicleRegistration.value)
@@ -385,9 +404,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             ActiveRideScreen(
                 rideId = rideId,
                 onBack = { navController.popBackStack() },
-                onRideCompleted = {
-                    navController.navigate(Route.Home.value) {
-                        popUpTo(Route.Home.value) { inclusive = true }
+                onRideCompleted = { driverName ->
+                    navController.navigate(Route.RideCompletion.createRoute(rideId, driverName)) {
+                        popUpTo(Route.Home.value) { inclusive = false }
                     }
                 }
             )
@@ -434,6 +453,112 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 rideId = rideId,
                 onBack = { navController.popBackStack() },
                 onRideCompleted = {
+                    navController.navigate(Route.Home.value) {
+                        popUpTo(Route.Home.value) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Driver List Screen (Rider selects driver)
+        // ==========================================
+        composable(
+            route = Route.DriverList.value,
+            arguments = listOf(
+                navArgument(Route.DriverList.ARG_PICKUP_LAT) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_PICKUP_LNG) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_DROPOFF_LAT) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_DROPOFF_LNG) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_PICKUP_ADDRESS) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_DROPOFF_ADDRESS) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val pickupLat = backStackEntry.arguments?.getString(Route.DriverList.ARG_PICKUP_LAT)?.toDoubleOrNull() ?: 0.0
+            val pickupLng = backStackEntry.arguments?.getString(Route.DriverList.ARG_PICKUP_LNG)?.toDoubleOrNull() ?: 0.0
+            val dropoffLat = backStackEntry.arguments?.getString(Route.DriverList.ARG_DROPOFF_LAT)?.toDoubleOrNull() ?: 0.0
+            val dropoffLng = backStackEntry.arguments?.getString(Route.DriverList.ARG_DROPOFF_LNG)?.toDoubleOrNull() ?: 0.0
+            val pickupAddress = backStackEntry.arguments?.getString(Route.DriverList.ARG_PICKUP_ADDRESS) ?: ""
+            val dropoffAddress = backStackEntry.arguments?.getString(Route.DriverList.ARG_DROPOFF_ADDRESS) ?: ""
+
+            DriverListScreen(
+                pickupLat = pickupLat,
+                pickupLng = pickupLng,
+                dropoffLat = dropoffLat,
+                dropoffLng = dropoffLng,
+                pickupAddress = pickupAddress,
+                dropoffAddress = dropoffAddress,
+                onNavigateBack = { navController.popBackStack() },
+                onDriverSelected = { driverProfileId ->
+                    navController.navigate(
+                        Route.DriverProfile.createRoute(
+                            driverProfileId,
+                            pickupLat, pickupLng,
+                            dropoffLat, dropoffLng,
+                            pickupAddress, dropoffAddress
+                        )
+                    )
+                }
+            )
+        }
+
+        // ==========================================
+        // Driver Profile Screen
+        // ==========================================
+        composable(
+            route = Route.DriverProfile.value,
+            arguments = listOf(
+                navArgument(Route.DriverProfile.ARG_DRIVER_PROFILE_ID) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_PICKUP_LAT) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_PICKUP_LNG) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_DROPOFF_LAT) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_DROPOFF_LNG) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_PICKUP_ADDRESS) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_DROPOFF_ADDRESS) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val driverProfileId = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DRIVER_PROFILE_ID) ?: ""
+            val pickupLat = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_PICKUP_LAT)?.toDoubleOrNull() ?: 0.0
+            val pickupLng = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_PICKUP_LNG)?.toDoubleOrNull() ?: 0.0
+            val dropoffLat = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DROPOFF_LAT)?.toDoubleOrNull() ?: 0.0
+            val dropoffLng = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DROPOFF_LNG)?.toDoubleOrNull() ?: 0.0
+            val pickupAddress = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_PICKUP_ADDRESS) ?: ""
+            val dropoffAddress = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DROPOFF_ADDRESS) ?: ""
+
+            DriverProfileScreen(
+                driverProfileId = driverProfileId,
+                pickupLat = pickupLat,
+                pickupLng = pickupLng,
+                dropoffLat = dropoffLat,
+                dropoffLng = dropoffLng,
+                pickupAddress = pickupAddress,
+                dropoffAddress = dropoffAddress,
+                onNavigateBack = { navController.popBackStack() },
+                onRideCreated = { rideId ->
+                    navController.navigate(Route.ActiveRide.createRoute(rideId)) {
+                        popUpTo(Route.Home.value) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Ride Completion / Rating Screen
+        // ==========================================
+        composable(
+            route = Route.RideCompletion.value,
+            arguments = listOf(
+                navArgument(Route.RideCompletion.ARG_RIDE_ID) { type = NavType.StringType },
+                navArgument(Route.RideCompletion.ARG_DRIVER_NAME) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.RideCompletion.ARG_RIDE_ID) ?: ""
+            val driverName = backStackEntry.arguments?.getString(Route.RideCompletion.ARG_DRIVER_NAME) ?: "your driver"
+
+            RideCompletionScreen(
+                rideId = rideId,
+                driverName = driverName,
+                onDone = {
                     navController.navigate(Route.Home.value) {
                         popUpTo(Route.Home.value) { inclusive = true }
                     }

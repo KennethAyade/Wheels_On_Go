@@ -44,7 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun ActiveRideScreen(
     rideId: String,
     onBack: () -> Unit,
-    onRideCompleted: () -> Unit,
+    onRideCompleted: (driverName: String) -> Unit,
     viewModel: ActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,7 +57,8 @@ fun ActiveRideScreen(
         if (uiState.isCompleted) {
             // Small delay to show completion status before navigating
             kotlinx.coroutines.delay(2000)
-            onRideCompleted()
+            val driverName = uiState.ride?.driver?.phoneNumber ?: "your driver"
+            onRideCompleted(driverName)
         }
     }
 

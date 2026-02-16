@@ -5,11 +5,12 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtUser } from '../common/types/jwt-user.type';
 import { UserRole } from '@prisma/client';
 import { TrackingService } from './tracking.service';
 import { UpdateLocationDto, LocationUpdateResponseDto } from './dto/update-location.dto';
@@ -30,11 +31,11 @@ export class TrackingController {
   @Post('location')
   @Roles(UserRole.DRIVER)
   async updateLocation(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Body() dto: UpdateLocationDto,
   ): Promise<LocationUpdateResponseDto> {
     const result = await this.trackingService.updateDriverLocation(
-      req.user.userId,
+      user.sub,
       dto,
     );
 

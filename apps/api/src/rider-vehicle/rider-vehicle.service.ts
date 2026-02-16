@@ -178,11 +178,13 @@ export class RiderVehicleService {
    * Get rider profile for a user (throws if not found)
    */
   private async getRiderProfile(userId: string) {
-    const riderProfile = await this.prisma.riderProfile.findUnique({
+    let riderProfile = await this.prisma.riderProfile.findUnique({
       where: { userId },
     });
     if (!riderProfile) {
-      throw new NotFoundException('Rider profile not found');
+      riderProfile = await this.prisma.riderProfile.create({
+        data: { userId },
+      });
     }
     return riderProfile;
   }

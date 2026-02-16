@@ -54,7 +54,8 @@ data class CreateRideRequest(
     @Json(name = "paymentMethod") val paymentMethod: String = "CASH",
     @Json(name = "promoCode") val promoCode: String? = null,
     @Json(name = "riderVehicleId") val riderVehicleId: String? = null,
-    @Json(name = "scheduledPickupTime") val scheduledPickupTime: String? = null
+    @Json(name = "scheduledPickupTime") val scheduledPickupTime: String? = null,
+    @Json(name = "selectedDriverId") val selectedDriverId: String? = null
 )
 
 @JsonClass(generateAdapter = true)

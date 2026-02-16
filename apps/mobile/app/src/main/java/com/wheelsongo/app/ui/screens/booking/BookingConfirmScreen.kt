@@ -49,6 +49,7 @@ fun BookingConfirmScreen(
     dropoffAddress: String,
     onBack: () -> Unit,
     onRideCreated: (rideId: String) -> Unit,
+    onFindDriver: () -> Unit = {},
     onAddVehicle: () -> Unit,
     viewModel: BookingConfirmViewModel = viewModel()
 ) {
@@ -61,6 +62,13 @@ fun BookingConfirmScreen(
     LaunchedEffect(uiState.bookingSuccess) {
         if (uiState.bookingSuccess && uiState.createdRideId != null) {
             onRideCreated(uiState.createdRideId!!)
+        }
+    }
+
+    // Redirect to existing active ride if "already have an active ride" error
+    LaunchedEffect(uiState.existingActiveRideId) {
+        uiState.existingActiveRideId?.let { rideId ->
+            onRideCreated(rideId)
         }
     }
 
@@ -214,12 +222,11 @@ fun BookingConfirmScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Find a Driver button
+            // Find a Driver button — navigates to driver list
             PrimaryButton(
                 text = "Find a Driver",
-                onClick = viewModel::findDriver,
-                enabled = uiState.selectedVehicle != null && !uiState.isBooking && uiState.estimate != null,
-                isLoading = uiState.isBooking,
+                onClick = onFindDriver,
+                enabled = uiState.selectedVehicle != null && uiState.estimate != null,
                 modifier = Modifier.fillMaxWidth()
             )
 

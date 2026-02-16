@@ -122,6 +122,10 @@ object ApiClient {
     val riderVehicleApi: RiderVehicleApi by lazy {
         retrofit.create(RiderVehicleApi::class.java)
     }
+
+    val ratingApi: RatingApi by lazy {
+        retrofit.create(RatingApi::class.java)
+    }
 }
 
 /**

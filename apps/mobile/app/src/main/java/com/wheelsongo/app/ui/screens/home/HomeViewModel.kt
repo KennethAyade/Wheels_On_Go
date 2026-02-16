@@ -1,10 +1,16 @@
 package com.wheelsongo.app.ui.screens.home
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.location.LocationData
+import com.wheelsongo.app.data.network.DirectionsApi
+import com.wheelsongo.app.data.repository.RideRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,9 +27,12 @@ data class HomeUiState(
     val currentLongitude: Double = LocationService.DEFAULT_LONGITUDE,
     val pickupLocation: LocationData? = null,
     val dropoffLocation: LocationData? = null,
+    val routePoints: List<LatLng> = emptyList(),
+    val isLoadingRoute: Boolean = false,
     val isLoadingLocation: Boolean = false,
     val hasLocationPermission: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val activeRideId: String? = null
 ) {
     val canProceedToBooking: Boolean
         get() = pickupLocation != null && dropoffLocation != null
@@ -39,6 +48,20 @@ class HomeViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
+    private val directionsApi = DirectionsApi.instance
+    private val rideRepository = RideRepository()
+    private val mapsApiKey: String
+    private var routeFetchJob: Job? = null
+
+    init {
+        val appInfo = application.packageManager.getApplicationInfo(
+            application.packageName, PackageManager.GET_META_DATA
+        )
+        mapsApiKey = appInfo.metaData?.getString("com.google.android.geo.API_KEY") ?: ""
+
+        // Check for active ride on startup
+        checkForActiveRide()
+    }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -49,7 +72,6 @@ class HomeViewModel @JvmOverloads constructor(
     fun onLocationPermissionResult(granted: Boolean) {
         _uiState.update { it.copy(hasLocationPermission = granted) }
         if (granted) {
-            // Get current location when permission granted
             onMyLocationClick()
         }
     }
@@ -78,6 +100,7 @@ class HomeViewModel @JvmOverloads constructor(
                 fromAddress = address
             )
         }
+        fetchRouteIfReady()
     }
 
     /**
@@ -90,6 +113,7 @@ class HomeViewModel @JvmOverloads constructor(
                 toAddress = address
             )
         }
+        fetchRouteIfReady()
     }
 
     /**
@@ -97,7 +121,6 @@ class HomeViewModel @JvmOverloads constructor(
      */
     fun onUsePinnedAddress() {
         val state = _uiState.value
-        // Use current map center as pickup
         _uiState.update {
             it.copy(
                 pickupLocation = LocationData(
@@ -107,7 +130,7 @@ class HomeViewModel @JvmOverloads constructor(
                 fromAddress = "Pinned location"
             )
         }
-        // TODO: Call reverse geocoding API to get actual address
+        fetchRouteIfReady()
     }
 
     /**
@@ -129,7 +152,6 @@ class HomeViewModel @JvmOverloads constructor(
                         )
                     }
                 } else {
-                    // Try last known location as fallback
                     val lastKnown = locationService.getLastKnownLocation()
                     _uiState.update {
                         it.copy(
@@ -180,5 +202,65 @@ class HomeViewModel @JvmOverloads constructor(
      */
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    /**
+     * Check if user has an active ride and auto-navigate
+     */
+    private fun checkForActiveRide() {
+        viewModelScope.launch {
+            rideRepository.getActiveRide()
+                .onSuccess { ride ->
+                    if (ride != null) {
+                        _uiState.update { it.copy(activeRideId = ride.id) }
+                    }
+                }
+        }
+    }
+
+    /**
+     * Clear active ride ID after navigation
+     */
+    fun onActiveRideNavigated() {
+        _uiState.update { it.copy(activeRideId = null) }
+    }
+
+    /**
+     * Fetch route from Google Directions API when both locations are set
+     */
+    private fun fetchRouteIfReady() {
+        val state = _uiState.value
+        val pickup = state.pickupLocation
+        val dropoff = state.dropoffLocation
+
+        if (pickup == null || dropoff == null) {
+            _uiState.update { it.copy(routePoints = emptyList(), isLoadingRoute = false) }
+            return
+        }
+
+        routeFetchJob?.cancel()
+        routeFetchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingRoute = true) }
+            try {
+                val origin = "${pickup.latitude},${pickup.longitude}"
+                val destination = "${dropoff.latitude},${dropoff.longitude}"
+                val response = directionsApi.getDirections(origin, destination, mapsApiKey)
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val encodedPolyline = body?.routes?.firstOrNull()?.overviewPolyline?.points
+                    if (encodedPolyline != null) {
+                        val points = PolyUtil.decode(encodedPolyline)
+                        _uiState.update { it.copy(routePoints = points, isLoadingRoute = false) }
+                    } else {
+                        _uiState.update { it.copy(routePoints = emptyList(), isLoadingRoute = false) }
+                    }
+                } else {
+                    _uiState.update { it.copy(routePoints = emptyList(), isLoadingRoute = false) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(routePoints = emptyList(), isLoadingRoute = false) }
+            }
+        }
     }
 }

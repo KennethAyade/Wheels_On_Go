@@ -7,13 +7,14 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtUser } from '../common/types/jwt-user.type';
 import { UserRole } from '@prisma/client';
 import { RiderVehicleService } from './rider-vehicle.service';
 import {
@@ -38,10 +39,10 @@ export class RiderVehicleController {
    */
   @Post()
   async createVehicle(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Body() dto: CreateRiderVehicleDto,
   ): Promise<RiderVehicleResponseDto> {
-    return this.riderVehicleService.createVehicle(req.user.userId, dto);
+    return this.riderVehicleService.createVehicle(user.sub, dto);
   }
 
   /**
@@ -49,8 +50,8 @@ export class RiderVehicleController {
    * GET /rider-vehicles
    */
   @Get()
-  async getVehicles(@Request() req): Promise<RiderVehicleResponseDto[]> {
-    return this.riderVehicleService.getVehicles(req.user.userId);
+  async getVehicles(@CurrentUser() user: JwtUser): Promise<RiderVehicleResponseDto[]> {
+    return this.riderVehicleService.getVehicles(user.sub);
   }
 
   /**
@@ -59,10 +60,10 @@ export class RiderVehicleController {
    */
   @Get(':id')
   async getVehicleById(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Param('id') vehicleId: string,
   ): Promise<RiderVehicleResponseDto> {
-    return this.riderVehicleService.getVehicleById(req.user.userId, vehicleId);
+    return this.riderVehicleService.getVehicleById(user.sub, vehicleId);
   }
 
   /**
@@ -71,12 +72,12 @@ export class RiderVehicleController {
    */
   @Patch(':id')
   async updateVehicle(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Param('id') vehicleId: string,
     @Body() dto: UpdateRiderVehicleDto,
   ): Promise<RiderVehicleResponseDto> {
     return this.riderVehicleService.updateVehicle(
-      req.user.userId,
+      user.sub,
       vehicleId,
       dto,
     );
@@ -89,10 +90,10 @@ export class RiderVehicleController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteVehicle(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Param('id') vehicleId: string,
   ): Promise<void> {
-    return this.riderVehicleService.deleteVehicle(req.user.userId, vehicleId);
+    return this.riderVehicleService.deleteVehicle(user.sub, vehicleId);
   }
 
   /**
@@ -101,11 +102,11 @@ export class RiderVehicleController {
    */
   @Patch(':id/default')
   async setDefaultVehicle(
-    @Request() req,
+    @CurrentUser() user: JwtUser,
     @Param('id') vehicleId: string,
   ): Promise<RiderVehicleResponseDto> {
     return this.riderVehicleService.setDefaultVehicle(
-      req.user.userId,
+      user.sub,
       vehicleId,
     );
   }

@@ -80,6 +80,10 @@ export class CreateRideDto {
   @IsOptional()
   @IsUUID()
   riderVehicleId?: string; // Rider's own vehicle for driver-for-hire
+
+  @IsOptional()
+  @IsUUID()
+  selectedDriverId?: string; // Driver chosen by rider from available list
 }
 
 /**

@@ -120,6 +120,7 @@ dependencies {
     // Google Maps Platform
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.maps.android:maps-compose:4.2.0")
+    implementation("com.google.maps.android:android-maps-utils:3.8.0")
 
     // Location Services (FREE - uses device GPS hardware)
     implementation("com.google.android.gms:play-services-location:21.1.0")

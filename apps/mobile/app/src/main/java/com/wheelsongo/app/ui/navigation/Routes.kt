@@ -150,6 +150,60 @@ sealed class Route(val value: String) {
     }
 
     // ==========================================
+    // Driver Selection & Rating
+    // ==========================================
+
+    data object DriverList : Route("driver_list/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}") {
+        const val ARG_PICKUP_LAT = "pickupLat"
+        const val ARG_PICKUP_LNG = "pickupLng"
+        const val ARG_DROPOFF_LAT = "dropoffLat"
+        const val ARG_DROPOFF_LNG = "dropoffLng"
+        const val ARG_PICKUP_ADDRESS = "pickupAddress"
+        const val ARG_DROPOFF_ADDRESS = "dropoffAddress"
+
+        fun createRoute(
+            pickupLat: Double, pickupLng: Double,
+            dropoffLat: Double, dropoffLng: Double,
+            pickupAddress: String, dropoffAddress: String
+        ): String {
+            val encPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
+            val encDropoff = URLEncoder.encode(dropoffAddress, StandardCharsets.UTF_8.toString())
+            return "driver_list/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff"
+        }
+    }
+
+    data object DriverProfile : Route("driver_profile/{driverProfileId}/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}") {
+        const val ARG_DRIVER_PROFILE_ID = "driverProfileId"
+        const val ARG_PICKUP_LAT = "pickupLat"
+        const val ARG_PICKUP_LNG = "pickupLng"
+        const val ARG_DROPOFF_LAT = "dropoffLat"
+        const val ARG_DROPOFF_LNG = "dropoffLng"
+        const val ARG_PICKUP_ADDRESS = "pickupAddress"
+        const val ARG_DROPOFF_ADDRESS = "dropoffAddress"
+
+        fun createRoute(
+            driverProfileId: String,
+            pickupLat: Double, pickupLng: Double,
+            dropoffLat: Double, dropoffLng: Double,
+            pickupAddress: String, dropoffAddress: String
+        ): String {
+            val encPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
+            val encDropoff = URLEncoder.encode(dropoffAddress, StandardCharsets.UTF_8.toString())
+            return "driver_profile/$driverProfileId/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff"
+        }
+    }
+
+    data object RideCompletion : Route("ride_completion/{rideId}/{driverName}") {
+        const val ARG_RIDE_ID = "rideId"
+        const val ARG_DRIVER_NAME = "driverName"
+
+        fun createRoute(rideId: String, driverName: String): String {
+            val encName = URLEncoder.encode(driverName, StandardCharsets.UTF_8.toString())
+            return "ride_completion/$rideId/$encName"
+        }
+    }
+
+    // ==========================================
     // Place Search
     // ==========================================
 

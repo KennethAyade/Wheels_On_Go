@@ -244,6 +244,10 @@ export class AuthService {
                 },
               }
             : undefined,
+        riderProfile:
+          role === UserRole.RIDER
+            ? { create: {} }
+            : undefined,
       },
     });
 

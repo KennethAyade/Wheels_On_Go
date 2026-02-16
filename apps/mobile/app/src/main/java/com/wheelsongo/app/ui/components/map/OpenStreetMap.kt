@@ -2,10 +2,12 @@ package com.wheelsongo.app.ui.components.map
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.wheelsongo.app.data.models.location.LocationData
 
@@ -20,6 +22,7 @@ import com.wheelsongo.app.data.models.location.LocationData
  * @param pickupLocation        Green marker
  * @param dropoffLocation       Red marker
  * @param driverLocation        Blue marker (for active-ride tracking)
+ * @param routePoints           Decoded polyline points for route display
  * @param onMapTap              Fires with (lat, lng) when the map surface is tapped
  */
 @Composable
@@ -32,6 +35,7 @@ fun GoogleMapView(
     pickupLocation: LocationData? = null,
     dropoffLocation: LocationData? = null,
     driverLocation: LocationData? = null,
+    routePoints: List<LatLng> = emptyList(),
     onMapTap: ((Double, Double) -> Unit)? = null
 ) {
     val cameraPositionState = rememberCameraPositionState {
@@ -41,9 +45,25 @@ fun GoogleMapView(
         )
     }
 
-    // Animate camera to the new current-location whenever it changes
+    // Auto-zoom to fit both markers when both are set
+    LaunchedEffect(pickupLocation, dropoffLocation, routePoints) {
+        if (pickupLocation != null && dropoffLocation != null) {
+            val boundsBuilder = LatLngBounds.builder()
+                .include(LatLng(pickupLocation.latitude, pickupLocation.longitude))
+                .include(LatLng(dropoffLocation.latitude, dropoffLocation.longitude))
+
+            // Include route points for tighter fit
+            routePoints.forEach { boundsBuilder.include(it) }
+
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 120)
+            )
+        }
+    }
+
+    // Animate camera to current-location only when no route is being shown
     LaunchedEffect(currentLocation) {
-        if (currentLocation != null) {
+        if (currentLocation != null && pickupLocation == null && dropoffLocation == null) {
             cameraPositionState.animate(
                 update = CameraUpdateFactory.newLatLngZoom(
                     LatLng(currentLocation.latitude, currentLocation.longitude),
@@ -60,6 +80,15 @@ fun GoogleMapView(
             onMapTap?.invoke(latLng.latitude, latLng.longitude)
         }
     ) {
+        // Route polyline (drawn first so markers appear on top)
+        if (routePoints.isNotEmpty()) {
+            Polyline(
+                points = routePoints,
+                color = Color(0xFF4285F4),
+                width = 12f
+            )
+        }
+
         // Pickup marker (green)
         pickupLocation?.let {
             Marker(

@@ -215,6 +215,55 @@ export class DispatchGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   /**
+   * Notify a specific driver selected by the rider.
+   * Creates a dispatch attempt and sends WebSocket event to that driver only.
+   */
+  async notifySelectedDriver(rideId: string, selectedDriverProfileId: string): Promise<void> {
+    try {
+      // Get the driver profile to find userId
+      const driverProfile = await this.dispatchService['prisma'].driverProfile.findUnique({
+        where: { id: selectedDriverProfileId },
+      });
+
+      if (!driverProfile) {
+        this.logger.warn(`Selected driver profile ${selectedDriverProfileId} not found`);
+        return;
+      }
+
+      // Create a dispatch attempt for tracking
+      const dispatchAttempt = await this.dispatchService['prisma'].dispatchAttempt.create({
+        data: {
+          rideId,
+          driverProfileId: selectedDriverProfileId,
+          driverLatitude: driverProfile.currentLatitude ?? 0,
+          driverLongitude: driverProfile.currentLongitude ?? 0,
+          distanceToPickup: 0,
+          sentAt: new Date(),
+        },
+      });
+
+      // Send dispatch request to the selected driver via WebSocket
+      this.sendDispatchToDriver(driverProfile.userId, dispatchAttempt.id, {
+        rideId,
+        dispatchAttemptId: dispatchAttempt.id,
+      });
+
+      // Notify rider that request was sent
+      const ride = await this.dispatchService.getRideForNotification(rideId);
+      if (ride) {
+        this.notifyRider(ride.riderId, 'dispatch:status', {
+          status: 'WAITING_FOR_DRIVER',
+          rideId,
+        });
+      }
+
+      this.logger.log(`Selected driver ${selectedDriverProfileId} notified for ride ${rideId}`);
+    } catch (error) {
+      this.logger.error(`Error notifying selected driver for ride ${rideId}: ${error.message}`);
+    }
+  }
+
+  /**
    * Initiate dispatch for a ride (called from RideController after ride creation)
    * Finds nearest driver and sends dispatch request via WebSocket
    */

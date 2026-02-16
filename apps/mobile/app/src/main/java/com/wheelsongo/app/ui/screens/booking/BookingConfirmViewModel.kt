@@ -30,7 +30,8 @@ data class BookingConfirmUiState(
     val isBooking: Boolean = false,
     val bookingSuccess: Boolean = false,
     val createdRideId: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val existingActiveRideId: String? = null
 )
 
 class BookingConfirmViewModel(
@@ -179,8 +180,27 @@ class BookingConfirmViewModel(
                     }
                 },
                 onFailure = { error ->
-                    _uiState.update {
-                        it.copy(isBooking = false, errorMessage = error.message ?: "Failed to create ride")
+                    if (error.message?.contains("already have an active ride", ignoreCase = true) == true) {
+                        // Fetch the existing active ride and redirect
+                        rideRepository.getActiveRide().onSuccess { ride ->
+                            if (ride != null) {
+                                _uiState.update {
+                                    it.copy(isBooking = false, existingActiveRideId = ride.id)
+                                }
+                            } else {
+                                _uiState.update {
+                                    it.copy(isBooking = false, errorMessage = error.message)
+                                }
+                            }
+                        }.onFailure {
+                            _uiState.update {
+                                it.copy(isBooking = false, errorMessage = error.message)
+                            }
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(isBooking = false, errorMessage = error.message ?: "Failed to create ride")
+                        }
                     }
                 }
             )

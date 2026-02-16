@@ -3,6 +3,7 @@ import { DriverService } from '../src/driver/driver.service';
 import { AuditService } from '../src/audit/audit.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { StorageService } from '../src/storage/storage.service';
+import { LocationService } from '../src/location/location.service';
 import { DriverStatus, DocumentStatus, DriverDocumentType } from '@prisma/client';
 
 const prismaMock = () =>
@@ -25,6 +26,7 @@ describe('DriverService', () => {
   let prisma: PrismaService;
   let storage: StorageService;
   let audit: AuditService;
+  let location: LocationService;
 
   beforeEach(() => {
     prisma = prismaMock();
@@ -32,7 +34,10 @@ describe('DriverService', () => {
       getUploadUrl: jest.fn().mockResolvedValue('https://presigned.example.com/upload'),
     } as unknown as StorageService;
     audit = { log: jest.fn() } as unknown as AuditService;
-    service = new DriverService(prisma, storage, audit);
+    location = {
+      getDistanceMatrix: jest.fn().mockResolvedValue({ distanceKm: 5, durationSeconds: 600, distanceMeters: 5000 }),
+    } as unknown as LocationService;
+    service = new DriverService(prisma, storage, audit, location);
   });
 
   describe('requestKycUpload()', () => {

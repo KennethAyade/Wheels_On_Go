@@ -11,6 +11,7 @@ const prismaMock = () =>
   ({
     riderProfile: {
       findUnique: jest.fn(),
+      create: jest.fn(),
     },
     riderVehicle: {
       create: jest.fn(),
@@ -103,11 +104,13 @@ describe('RiderVehicleService', () => {
       );
     });
 
-    it('throws NotFoundException if rider profile not found', async () => {
+    it('auto-creates rider profile if not found', async () => {
       (prisma.riderProfile.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(service.createVehicle(userId, dto)).rejects.toThrow(
-        NotFoundException,
-      );
+      (prisma.riderProfile.create as jest.Mock).mockResolvedValue(mockRiderProfile);
+      (prisma.riderVehicle.create as jest.Mock).mockResolvedValue(mockVehicle);
+      const result = await service.createVehicle(userId, dto);
+      expect(prisma.riderProfile.create).toHaveBeenCalledWith({ data: { userId } });
+      expect(result.id).toBe(vehicleId);
     });
   });
 
