@@ -42,7 +42,15 @@ export class FirebaseService {
     }
 
     try {
+      const startTime = Date.now();
+      this.logger.log('[PERF] Firebase Admin SDK verifyIdToken START');
+
       const decoded = await admin.auth().verifyIdToken(idToken);
+
+      this.logger.log(
+        `[PERF] Firebase Admin SDK verifyIdToken took ${Date.now() - startTime}ms`,
+      );
+
       if (!decoded.phone_number) {
         throw new UnauthorizedException(
           'Firebase token does not contain a phone number',

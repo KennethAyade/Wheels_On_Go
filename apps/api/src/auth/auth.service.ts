@@ -46,35 +46,95 @@ export class AuthService {
   }
 
   async verifyFirebaseToken(dto: VerifyFirebaseDto) {
-    const { phoneNumber } = await this.firebaseService.verifyIdToken(
-      dto.firebaseIdToken,
-    );
-    await this.ensureRoleConsistency(phoneNumber, dto.role);
-    return this.buildLoginResponse(phoneNumber, dto.role);
+    const startTime = Date.now();
+    this.logger.log('[PERF] verifyFirebaseToken START');
+
+    try {
+      // Step 1: Verify Firebase token
+      const step1Start = Date.now();
+      const { phoneNumber } = await this.firebaseService.verifyIdToken(
+        dto.firebaseIdToken,
+      );
+      this.logger.log(
+        `[PERF] Firebase verifyIdToken took ${Date.now() - step1Start}ms`,
+      );
+
+      // Step 2: Role consistency
+      const step2Start = Date.now();
+      await this.ensureRoleConsistency(phoneNumber, dto.role);
+      this.logger.log(
+        `[PERF] ensureRoleConsistency took ${Date.now() - step2Start}ms`,
+      );
+
+      // Step 3: Build response
+      const step3Start = Date.now();
+      const result = await this.buildLoginResponse(phoneNumber, dto.role);
+      this.logger.log(
+        `[PERF] buildLoginResponse took ${Date.now() - step3Start}ms`,
+      );
+
+      this.logger.log(
+        `[PERF] verifyFirebaseToken TOTAL took ${Date.now() - startTime}ms`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `[PERF] verifyFirebaseToken FAILED after ${Date.now() - startTime}ms`,
+        error,
+      );
+      throw error;
+    }
   }
 
   private async buildLoginResponse(phoneNumber: string, role: UserRole) {
+    // Step 1: Find or create user
+    const step1Start = Date.now();
     const user = await this.findOrCreateUser(phoneNumber, role);
+    this.logger.log(`[PERF] findOrCreateUser took ${Date.now() - step1Start}ms`);
+
+    // Step 2: Update last login
+    const step2Start = Date.now();
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+    this.logger.log(`[PERF] update lastLoginAt took ${Date.now() - step2Start}ms`);
 
     if (user.role === UserRole.DRIVER) {
+      // Step 3: Ensure driver profile
+      const step3Start = Date.now();
       const driverProfile = await this.ensureDriverProfile(user.id);
+      this.logger.log(`[PERF] ensureDriverProfile took ${Date.now() - step3Start}ms`);
+
       const hasProfilePhoto = !!driverProfile.profilePhotoKey;
+
+      // Step 4: Build biometric token if needed
+      const step4Start = Date.now();
       const biometricToken = hasProfilePhoto
         ? await this.buildBiometricToken(user, driverProfile.id)
         : null;
+      if (hasProfilePhoto) {
+        this.logger.log(`[PERF] buildBiometricToken took ${Date.now() - step4Start}ms`);
+      }
 
       // Drivers with profile photo need biometric first — no refresh token yet
       // Drivers without profile photo get access + refresh tokens immediately
+      const step5Start = Date.now();
       const refreshToken = hasProfilePhoto
         ? null
         : await this.buildRefreshToken(user);
+      if (!hasProfilePhoto) {
+        this.logger.log(`[PERF] buildRefreshToken took ${Date.now() - step5Start}ms`);
+      }
+
+      const step6Start = Date.now();
+      const accessToken = hasProfilePhoto ? null : await this.buildAccessToken(user);
+      if (!hasProfilePhoto) {
+        this.logger.log(`[PERF] buildAccessToken took ${Date.now() - step6Start}ms`);
+      }
 
       return {
-        accessToken: hasProfilePhoto ? null : await this.buildAccessToken(user),
+        accessToken,
         refreshToken,
         user: {
           id: user.id,
@@ -92,9 +152,17 @@ export class AuthService {
     }
 
     // Riders get access + refresh tokens
+    const step3Start = Date.now();
+    const accessToken = await this.buildAccessToken(user);
+    this.logger.log(`[PERF] buildAccessToken (rider) took ${Date.now() - step3Start}ms`);
+
+    const step4Start = Date.now();
+    const refreshToken = await this.buildRefreshToken(user);
+    this.logger.log(`[PERF] buildRefreshToken (rider) took ${Date.now() - step4Start}ms`);
+
     return {
-      accessToken: await this.buildAccessToken(user),
-      refreshToken: await this.buildRefreshToken(user),
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         phoneNumber: user.phoneNumber,
