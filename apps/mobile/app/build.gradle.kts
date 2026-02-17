@@ -131,6 +131,12 @@ dependencies {
     // Firebase (Phone Auth for real-phone OTP)
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-auth")
+    // Firebase App Check (required for Phone Auth — Play Integrity verification)
+    // Note: correct artifact IDs use "appcheck" (no hyphen), NOT "app-check"
+    // Not in Firebase BOM — explicit versions required
+    // Both included so BuildConfig.DEBUG can select provider at runtime without compile errors
+    implementation("com.google.firebase:firebase-appcheck-debug:19.0.2")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity:19.0.2")
 
     // Biometric (device fingerprint/face unlock for session resumption)
     implementation("androidx.biometric:biometric:1.1.0")
