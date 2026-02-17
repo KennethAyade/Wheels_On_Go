@@ -183,6 +183,24 @@ class PhoneInputViewModel(
                     }
                 }
 
+                is FirebaseVerificationResult.RateLimited -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Too many requests. Please wait 1 hour before trying again, or use a different phone number."
+                        )
+                    }
+                }
+
+                is FirebaseVerificationResult.RecaptchaRequired -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Verification could not be completed. Please ensure you have the latest version of the app and try again."
+                        )
+                    }
+                }
+
                 is FirebaseVerificationResult.Failed -> {
                     _uiState.update {
                         it.copy(

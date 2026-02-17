@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.auth
 
+import android.app.Activity
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +55,7 @@ fun OtpVerificationScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val activity = context as? Activity
 
     // Start countdown on first composition
     LaunchedEffect(Unit) {
@@ -215,7 +217,14 @@ fun OtpVerificationScreen(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .clickable { viewModel.resendOtp(phoneNumber, role) }
+                        .clickable {
+                            viewModel.resendOtp(
+                                phoneNumber = phoneNumber,
+                                role = role,
+                                activity = activity,
+                                verificationId = verificationId
+                            )
+                        }
                         .padding(16.dp)
                 )
             } else {

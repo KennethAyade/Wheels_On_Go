@@ -2,7 +2,9 @@ package com.wheelsongo.app.data.auth
 
 import android.app.Activity
 import com.google.firebase.FirebaseException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
@@ -26,6 +28,12 @@ sealed class FirebaseVerificationResult {
 
     /** Verification failed */
     data class Failed(val exception: Exception) : FirebaseVerificationResult()
+
+    /** Rate limited / device blocked — too many requests */
+    data class RateLimited(val retryAfterSeconds: Long = 3600) : FirebaseVerificationResult()
+
+    /** reCAPTCHA or app verification required */
+    data class RecaptchaRequired(val exception: FirebaseException) : FirebaseVerificationResult()
 }
 
 /**
@@ -60,8 +68,14 @@ object FirebasePhoneAuthHelper {
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
+                android.util.Log.e("FirebasePhoneAuth", "Verification failed: ${e.javaClass.simpleName} - ${e.message}")
+                val result = when (e) {
+                    is FirebaseTooManyRequestsException -> FirebaseVerificationResult.RateLimited()
+                    is FirebaseAuthInvalidCredentialsException -> FirebaseVerificationResult.RecaptchaRequired(e)
+                    else -> FirebaseVerificationResult.Failed(e)
+                }
                 if (cont.isActive) {
-                    cont.resume(FirebaseVerificationResult.Failed(e))
+                    cont.resume(result)
                 }
             }
 
@@ -77,7 +91,7 @@ object FirebasePhoneAuthHelper {
 
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
+            .setTimeout(120L, TimeUnit.SECONDS)
             .setActivity(activity)
             .setCallbacks(callbacks)
             .build()

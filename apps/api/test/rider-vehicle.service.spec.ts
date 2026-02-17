@@ -95,10 +95,33 @@ describe('RiderVehicleService', () => {
       );
     });
 
-    it('throws ConflictException for duplicate plate number', async () => {
+    it('returns existing vehicle if user already owns it (idempotent)', async () => {
+      const existingVehicle = {
+        ...mockVehicle,
+        riderProfileId: mockRiderProfile.id,
+      };
+
       (prisma.riderVehicle.findUnique as jest.Mock).mockResolvedValue(
-        mockVehicle,
+        existingVehicle,
       );
+
+      const result = await service.createVehicle(userId, dto);
+
+      expect(result.id).toBe(vehicleId);
+      expect(result.plateNumber).toBe('ABC 1234');
+      expect(prisma.riderVehicle.create).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException for duplicate plate owned by different user', async () => {
+      const otherUserVehicle = {
+        ...mockVehicle,
+        riderProfileId: 'different-rider-id',
+      };
+
+      (prisma.riderVehicle.findUnique as jest.Mock).mockResolvedValue(
+        otherUserVehicle,
+      );
+
       await expect(service.createVehicle(userId, dto)).rejects.toThrow(
         ConflictException,
       );

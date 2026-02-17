@@ -37,9 +37,19 @@ export class RiderVehicleService {
       where: { plateNumber: dto.plateNumber },
     });
     if (existing) {
-      throw new ConflictException(
-        `Vehicle with plate number ${dto.plateNumber} already exists`,
-      );
+      // Check ownership - make creation idempotent for same user
+      if (existing.riderProfileId === riderProfile.id) {
+        // Idempotent: vehicle already exists for THIS user, return it
+        this.logger.log(
+          `Vehicle ${dto.plateNumber} already exists for rider ${riderProfile.id}, returning existing`,
+        );
+        return this.mapToResponse(existing);
+      } else {
+        // Conflict: vehicle belongs to DIFFERENT user
+        throw new ConflictException(
+          `Vehicle with plate number ${dto.plateNumber} already exists`,
+        );
+      }
     }
 
     // If this is the first vehicle or isDefault is true, handle default logic

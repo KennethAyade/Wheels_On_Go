@@ -99,7 +99,7 @@ class BookingConfirmViewModel(
     /**
      * Fetch rider's registered vehicles
      */
-    private fun fetchVehicles() {
+    fun fetchVehicles() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingVehicles = true) }
 
