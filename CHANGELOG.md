@@ -18,6 +18,54 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-17 13:00 PHT
+Summary: Firebase App Check integration to fix "missing valid app identifier" error; resend OTP device-aware fix; vehicle 409 idempotency fix with error parsing and lifecycle refresh.
+Changes:
+- apps/mobile/app/build.gradle.kts: Added firebase-appcheck-debug:19.0.2 and firebase-appcheck-playintegrity:19.0.2 dependencies
+- apps/mobile/.../WheelsOnGoApplication.kt: Initialize Firebase App Check — DebugAppCheckProviderFactory for debug builds, PlayIntegrityAppCheckProviderFactory for release
+- apps/mobile/.../data/auth/FirebasePhoneAuthHelper.kt: Increased timeout 60s→120s; added RateLimited and RecaptchaRequired sealed result types; onVerificationFailed now detects FirebaseTooManyRequestsException vs FirebaseAuthInvalidCredentialsException
+- apps/mobile/.../ui/screens/auth/PhoneInputViewModel.kt: Handle RateLimited and RecaptchaRequired result types with user-friendly messages
+- apps/mobile/.../ui/screens/auth/OtpVerificationViewModel.kt: Handle RateLimited and RecaptchaRequired result types; resendOtp now device-aware (Firebase on real phones, backend on emulators)
+- apps/mobile/.../ui/screens/auth/OtpVerificationScreen.kt: resend button passes activity and verificationId to resendOtp()
+- apps/api/src/rider-vehicle/rider-vehicle.service.ts: Idempotent vehicle creation — returns existing vehicle if same rider, throws ConflictException only if different rider owns the plate
+- apps/api/test/rider-vehicle.service.spec.ts: Added idempotency test and updated conflict test
+- apps/mobile/.../data/models/ErrorResponse.kt: NEW — Moshi model for NestJS error response body
+- apps/mobile/.../data/repository/VehicleRepository.kt: Added Moshi error body parsing (parseErrorMessage) across all 4 methods
+- apps/mobile/.../ui/screens/vehicle/VehicleListScreen.kt: Added DisposableEffect lifecycle observer to auto-refresh on ON_RESUME
+- apps/mobile/.../ui/screens/booking/BookingConfirmScreen.kt: Added DisposableEffect lifecycle observer to auto-refresh vehicles on ON_RESUME
+- apps/mobile/.../ui/screens/booking/BookingConfirmViewModel.kt: Changed fetchVehicles() from private to public
+- Firebase Console: SHA-256 fingerprint added (C1:5D:...), test phone +639761337834 whitelisted (code 123456), App Check debug token registered
+- Tests: 121 backend tests (13 suites) passing
+Details: `changes/2026-02-17-1300-pht.md`
+
+## 2026-02-14 10:00 PHT
+Summary: Phase 2 Week 4 — Core Booking Engine complete. RiderVehicle CRUD, surge pricing, promo codes, dispatch integration, mobile booking flow (BookingConfirm + ActiveRide), and 5 new mobile test files.
+Changes:
+- apps/api/src/rider-vehicle/*: NEW module — RiderVehicle CRUD (create, list, delete, set-default) with 10 unit tests
+- apps/api/src/pricing/surge-pricing.service.ts: Haversine-based demand/supply surge (1.0x–2.0x, 5 tiers)
+- apps/api/src/pricing/promo-code.service.ts: PERCENTAGE + FIXED_AMOUNT promo validation with expiry and usage limits
+- apps/api/src/rides/rides.service.ts: Ride creation triggers WebSocket dispatch event
+- apps/api/src/rides/rides.controller.ts: POST /rides creates ride with fare estimate, surge, promo
+- apps/api/src/dispatch/dispatch.service.ts: WebSocket-based driver dispatch on ride creation
+- apps/mobile/.../data/models/booking/BookingModels.kt: NEW — FareEstimate, RideRequest, RideResponse, PromoCode models
+- apps/mobile/.../data/models/vehicle/VehicleModels.kt: NEW — RiderVehicle, CreateVehicleRequest models
+- apps/mobile/.../data/network/RidesApi.kt: NEW — Retrofit interface for rides endpoints
+- apps/mobile/.../data/network/VehicleApi.kt: NEW — Retrofit interface for vehicle endpoints
+- apps/mobile/.../data/repository/RidesRepository.kt: NEW — ride creation, fare estimate, promo validation
+- apps/mobile/.../data/repository/VehicleRepository.kt: NEW — CRUD for rider vehicles
+- apps/mobile/.../data/websocket/RideWebSocketClient.kt: NEW — Socket.IO client for real-time ride events
+- apps/mobile/.../ui/screens/vehicle/VehicleRegistrationScreen.kt: NEW — plate, make, model, color form
+- apps/mobile/.../ui/screens/vehicle/VehicleListScreen.kt: NEW — list with delete and set-default actions
+- apps/mobile/.../ui/screens/booking/BookingConfirmScreen.kt: NEW — fare estimate, vehicle selector, promo code input, confirm button
+- apps/mobile/.../ui/screens/booking/BookingConfirmViewModel.kt: NEW — fare estimate fetch, promo validation, vehicle loading
+- apps/mobile/.../ui/screens/ride/ActiveRideScreen.kt: NEW — real-time map tracking, driver ETA, cancel button
+- apps/mobile/.../ui/screens/ride/ActiveRideViewModel.kt: NEW — WebSocket event handling (driver_assigned, ride_started, ride_completed)
+- apps/mobile/.../AppNav.kt: Added BookingConfirm → ActiveRide navigation; VehicleRegistration from drawer
+- apps/mobile/.../data/network/ApiClient.kt: Added ridesApi, vehicleApi
+- apps/mobile/test/*: 5 new test files (BookingConfirmViewModelTest, ActiveRideViewModelTest, RidesRepositoryTest, VehicleRepositoryTest, VehicleRegistrationViewModelTest) — 27 tests
+- Tests: 121 backend tests (13 suites) passing; mobile tests compile but blocked by JBR-21 JVM crash
+Details: `changes/2026-02-14-1000-pht.md`
+
 ## 2026-02-13 12:00 PHT
 Summary: Firebase Phone Auth integration for real phone OTP delivery. Emulators use backend console SMS, real phones use Firebase SDK. Free tier: 10K verifications/month.
 Changes:

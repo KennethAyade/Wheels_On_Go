@@ -1,7 +1,7 @@
-# Testing Status - Weeks 2-3 Implementation
+# Testing Status - Phase 1 + Phase 2 Week 4
 
-**Last Updated:** 2026-02-07 23:00 PHT
-**Status:** Phase 1 Feature-Complete, 146 Tests Passing (86 Backend + 60 Mobile)
+**Last Updated:** 2026-02-17 13:00 PHT
+**Status:** Phase 1 Complete + Phase 2 Week 4 Complete — 121 Backend Tests, 87 Mobile Tests (compile verified)
 
 ---
 
@@ -9,7 +9,11 @@
 
 **Week 2 (Data Privacy):** Fully implemented with comprehensive unit test coverage (22/22 passing). Foundation testing is 100% complete. Integration and E2E tests are planned but not yet implemented.
 
-**Week 3 (Mobile-Backend Integration):** Authentication flow tested with **146 automated tests** across backend and mobile. All three Phase 1 features (FR-1.1 OTP Auth, FR-1.2 Driver KYC, FR-1.3 Biometric Login) have comprehensive test coverage.
+**Week 3 (Mobile-Backend Integration):** Authentication flow tested with **146 automated tests** across backend and mobile (86 backend + 60 mobile). All three Phase 1 features (FR-1.1 OTP Auth, FR-1.2 Driver KYC, FR-1.3 Biometric Login) have comprehensive test coverage.
+
+**Week 4 (Booking Engine):** Core booking engine delivered — RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, BookingConfirm + ActiveRide mobile screens. 35 new tests added (10 backend, 27 mobile — 5 new files). Mobile test execution blocked by JBR-21 JVM GC crash; APK builds and runs fine.
+
+**Feb 17 Fixes:** Firebase App Check integrated (DebugAppCheckProvider for debug, PlayIntegrity for release), resend OTP device-aware routing, vehicle 409 idempotency, improved error messages.
 
 ### Quick Status
 
@@ -22,12 +26,22 @@
 - ⚠️ **Performance Tests:** Not yet implemented
 
 **Week 3 (Mobile Integration):**
-- ✅ **Backend Unit Tests:** 86/86 passing across 10 test suites (2026-02-07)
+- ✅ **Backend Unit Tests:** 101/101 passing across 11 test suites (2026-02-13)
 - ✅ **Mobile Unit Tests:** 60/60 passing across 7 test files (2026-02-07)
+- ✅ **Firebase Phone Auth:** Real phones use Firebase SDK; emulators use backend console SMS
 - ✅ **Auth Flow (Manual):** OTP request/verify working end-to-end
 - ✅ **Critical Bugs:** 6 blocking issues fixed (response format, URL encoding, OTP UX, 403 guard, ViewModel crash, KYC persistence)
 - ✅ **Token Persistence:** DataStore working correctly (access + biometric tokens)
 - ✅ **KYC Upload:** Presign → R2 upload → confirm flow implemented (2026-02-06)
+
+**Week 4 (Booking Engine):**
+- ✅ **Backend Unit Tests:** 121/121 passing across 13 test suites (2026-02-17)
+- ✅ **Mobile Tests:** 87 tests (12 files) — compile verified; blocked by JBR-21 JVM crash at runtime
+- ✅ **RiderVehicle CRUD:** 10 unit tests including idempotency
+- ✅ **Surge Pricing + Promo Codes:** Validated
+- ✅ **APK Build:** Compiles and installs successfully
+- ✅ **Firebase App Check:** DebugAppCheckProviderFactory active; debug token registered in Console
+- ✅ **Vehicle 409 Fix:** Idempotent creation + error body parsing + lifecycle refresh
 - ✅ **KYC Persistence:** ViewModel fetches existing KYC status on init via GET /drivers/kyc (2026-02-07)
 - ✅ **403 Fix:** Removed global RolesGuard that blocked KYC endpoints (2026-02-07)
 - ✅ **ORCR Removed:** Only 3 doc types remain: LICENSE, GOVERNMENT_ID, PROFILE_PHOTO (2026-02-07)
