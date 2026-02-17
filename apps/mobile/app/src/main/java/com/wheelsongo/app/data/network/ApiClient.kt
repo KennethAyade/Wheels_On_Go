@@ -80,6 +80,21 @@ object ApiClient {
             .build()
     }
 
+    /**
+     * OkHttp client with extended timeout for Firebase verification
+     * Handles Render free tier cold start (30-60s) + processing time
+     */
+    private val firebaseClient: OkHttpClient by lazy {
+        check(isInitialized) { "ApiClient must be initialized before use" }
+        OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(tokenManager))
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(60, TimeUnit.SECONDS)   // Increased from 30s
+            .readTimeout(60, TimeUnit.SECONDS)      // Increased from 30s
+            .writeTimeout(30, TimeUnit.SECONDS)     // Keep same
+            .build()
+    }
+
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(AppConfig.BASE_URL)
@@ -89,10 +104,29 @@ object ApiClient {
     }
 
     /**
-     * Authentication API endpoints
+     * Retrofit instance with extended timeout for Firebase operations
+     */
+    private val firebaseRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(AppConfig.BASE_URL)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .client(firebaseClient)  // Use longer timeout client
+            .build()
+    }
+
+    /**
+     * Authentication API endpoints (standard timeout)
      */
     val authApi: AuthApi by lazy {
         retrofit.create(AuthApi::class.java)
+    }
+
+    /**
+     * Authentication API endpoints with extended timeout for Firebase verification
+     * Use this for /auth/verify-firebase to handle Render cold start
+     */
+    val firebaseAuthApi: AuthApi by lazy {
+        firebaseRetrofit.create(AuthApi::class.java)
     }
 
     /**

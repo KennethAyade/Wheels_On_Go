@@ -118,7 +118,10 @@ class AuthRepository(
         role: String
     ): Result<VerifyOtpResponse> {
         return try {
-            val response = authApi.verifyFirebase(
+            android.util.Log.d("AuthRepository", "Calling /auth/verify-firebase with 60s timeout")
+
+            // Use firebaseAuthApi with 60s timeout to handle Render cold start
+            val response = ApiClient.firebaseAuthApi.verifyFirebase(
                 VerifyFirebaseRequest(
                     firebaseIdToken = firebaseIdToken,
                     role = role
@@ -126,6 +129,7 @@ class AuthRepository(
             )
 
             if (response.isSuccessful && response.body() != null) {
+                android.util.Log.d("AuthRepository", "Firebase verification succeeded")
                 val body = response.body()!!
                 tokenManager.saveTokens(body)
                 if (body.biometricRequired == true && body.biometricToken != null) {
@@ -133,10 +137,12 @@ class AuthRepository(
                 }
                 Result.success(body)
             } else {
+                android.util.Log.e("AuthRepository", "Firebase verification failed: ${response.code()}")
                 val error = parseError(response)
                 Result.failure(Exception(error.message))
             }
         } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Firebase verification error", e)
             Result.failure(Exception("Network error: ${e.message ?: "Unable to connect to server"}"))
         }
     }
