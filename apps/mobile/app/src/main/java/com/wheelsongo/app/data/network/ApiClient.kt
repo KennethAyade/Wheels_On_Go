@@ -160,6 +160,13 @@ object ApiClient {
     val ratingApi: RatingApi by lazy {
         retrofit.create(RatingApi::class.java)
     }
+
+    /**
+     * Driver location tracking API endpoints
+     */
+    val trackingApi: TrackingApi by lazy {
+        retrofit.create(TrackingApi::class.java)
+    }
 }
 
 /**

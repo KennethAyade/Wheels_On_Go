@@ -10,11 +10,14 @@ import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DispatchEvent
 import com.wheelsongo.app.data.network.DispatchSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
+import com.wheelsongo.app.data.network.TrackingApi
+import com.wheelsongo.app.data.network.UpdateLocationRequest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class IncomingRideRequestUiData(
@@ -44,7 +47,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
     application: Application,
     private val socketClient: DispatchSocketClient = DispatchSocketClient(),
     private val rideRepository: RideRepository = RideRepository(),
-    private val driverApi: com.wheelsongo.app.data.network.DriverApi = ApiClient.driverApi
+    private val driverApi: com.wheelsongo.app.data.network.DriverApi = ApiClient.driverApi,
+    private val trackingApi: TrackingApi = ApiClient.trackingApi
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
@@ -53,6 +57,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
     val uiState: StateFlow<DriverHomeUiState> = _uiState.asStateFlow()
 
     private var countdownJob: Job? = null
+    private var locationTrackingJob: Job? = null
 
     init {
         // Listen for dispatch events
@@ -94,13 +99,32 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.value = _uiState.value.copy(isTogglingStatus = true)
 
         viewModelScope.launch {
+            // Get fresh GPS coordinates before going online so we never send Manila defaults
+            val (lat, lng) = if (newStatus) {
+                val location = locationService.getCurrentLocation()
+                if (location == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isTogglingStatus = false,
+                        errorMessage = "Cannot go online: location unavailable. Enable GPS and try again."
+                    )
+                    return@launch
+                }
+                _uiState.value = _uiState.value.copy(
+                    currentLatitude = location.latitude,
+                    currentLongitude = location.longitude
+                )
+                android.util.Log.d("DriverHomeVM", "Going online at lat=${location.latitude}, lng=${location.longitude}")
+                Pair(location.latitude, location.longitude)
+            } else {
+                Pair(_uiState.value.currentLatitude, _uiState.value.currentLongitude)
+            }
+
             try {
-                val state = _uiState.value
                 val response = driverApi.updateStatus(
                     UpdateDriverStatusRequest(
                         isOnline = newStatus,
-                        latitude = state.currentLatitude,
-                        longitude = state.currentLongitude
+                        latitude = lat,
+                        longitude = lng
                     )
                 )
                 if (response.isSuccessful) {
@@ -108,11 +132,12 @@ class DriverHomeViewModel @JvmOverloads constructor(
                         isOnline = newStatus,
                         isTogglingStatus = false
                     )
-                    // Connect/disconnect WebSocket based on status
                     if (newStatus) {
                         socketClient.connect()
+                        startLocationTracking()
                     } else {
                         socketClient.disconnect()
+                        stopLocationTracking()
                     }
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -127,6 +152,39 @@ class DriverHomeViewModel @JvmOverloads constructor(
                 )
             }
         }
+    }
+
+    private fun startLocationTracking() {
+        locationTrackingJob?.cancel()
+        locationTrackingJob = viewModelScope.launch {
+            while (isActive) {
+                val location = locationService.getCurrentLocation()
+                if (location != null) {
+                    _uiState.value = _uiState.value.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude
+                    )
+                    try {
+                        trackingApi.updateLocation(
+                            UpdateLocationRequest(
+                                latitude = location.latitude,
+                                longitude = location.longitude
+                            )
+                        )
+                        android.util.Log.d("DriverHomeVM", "Location update sent: ${location.latitude}, ${location.longitude}")
+                    } catch (e: Exception) {
+                        android.util.Log.w("DriverHomeVM", "Location update failed: ${e.message}")
+                        // Non-fatal — keep looping
+                    }
+                }
+                delay(5_000L)
+            }
+        }
+    }
+
+    private fun stopLocationTracking() {
+        locationTrackingJob?.cancel()
+        locationTrackingJob = null
     }
 
     fun acceptRide() {
@@ -237,5 +295,6 @@ class DriverHomeViewModel @JvmOverloads constructor(
         super.onCleared()
         socketClient.disconnect()
         countdownJob?.cancel()
+        stopLocationTracking()
     }
 }
