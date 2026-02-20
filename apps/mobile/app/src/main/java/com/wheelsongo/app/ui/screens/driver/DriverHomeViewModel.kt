@@ -1,6 +1,7 @@
 package com.wheelsongo.app.ui.screens.driver
 
 import android.app.Application
+import android.location.Geocoder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheelsongo.app.data.location.LocationService
@@ -17,15 +18,25 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 data class IncomingRideRequestUiData(
     val dispatchAttemptId: String,
+    val rideId: String,
+    val riderName: String,
     val pickupAddress: String,
     val dropoffAddress: String,
     val estimatedFare: String,
-    val rideId: String
+    val paymentMethod: String,
+    val rideDurationMinutes: Int,
+    val rideDistanceKm: Double,
+    val pickupLat: Double,
+    val pickupLng: Double,
+    val isScheduled: Boolean = false,
+    val scheduledTime: String? = null
 )
 
 data class DriverHomeUiState(
@@ -33,13 +44,15 @@ data class DriverHomeUiState(
     val isTogglingStatus: Boolean = false,
     val currentLatitude: Double = LocationService.DEFAULT_LATITUDE,
     val currentLongitude: Double = LocationService.DEFAULT_LONGITUDE,
+    val currentLocationAddress: String = "",
     val hasLocationPermission: Boolean = false,
     val isLoadingLocation: Boolean = false,
-    val incomingRequest: IncomingRideRequestUiData? = null,
-    val requestCountdownSeconds: Int = 30,
-    val isAccepting: Boolean = false,
+    val pendingRequests: List<IncomingRideRequestUiData> = emptyList(),
+    val acceptedRideId: String? = null,
+    val acceptedRiderName: String = "",
     val activeRideId: String? = null,
     val activeRide: RideResponse? = null,
+    val navigateToDriveRequests: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -56,7 +69,6 @@ class DriverHomeViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(DriverHomeUiState())
     val uiState: StateFlow<DriverHomeUiState> = _uiState.asStateFlow()
 
-    private var countdownJob: Job? = null
     private var locationTrackingJob: Job? = null
 
     init {
@@ -88,8 +100,30 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     currentLongitude = location.longitude,
                     isLoadingLocation = false
                 )
+                loadAddressForLocation(location.latitude, location.longitude)
             } else {
                 _uiState.value = _uiState.value.copy(isLoadingLocation = false)
+            }
+        }
+    }
+
+    private fun loadAddressForLocation(lat: Double, lng: Double) {
+        viewModelScope.launch {
+            try {
+                val geocoder = Geocoder(getApplication(), Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(lat, lng, 1)
+                val address = addresses?.firstOrNull()
+                if (address != null) {
+                    val parts = listOfNotNull(
+                        address.thoroughfare,
+                        address.subLocality ?: address.locality
+                    )
+                    val readable = if (parts.isNotEmpty()) parts.joinToString(", ") else address.getAddressLine(0) ?: ""
+                    _uiState.update { it.copy(currentLocationAddress = readable) }
+                }
+            } catch (e: Exception) {
+                // Geocoder unavailable — leave address empty
             }
         }
     }
@@ -109,11 +143,14 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     )
                     return@launch
                 }
-                _uiState.value = _uiState.value.copy(
-                    currentLatitude = location.latitude,
-                    currentLongitude = location.longitude
-                )
+                _uiState.update {
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude
+                    )
+                }
                 android.util.Log.d("DriverHomeVM", "Going online at lat=${location.latitude}, lng=${location.longitude}")
+                loadAddressForLocation(location.latitude, location.longitude)
                 Pair(location.latitude, location.longitude)
             } else {
                 Pair(_uiState.value.currentLatitude, _uiState.value.currentLongitude)
@@ -128,10 +165,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     )
                 )
                 if (response.isSuccessful) {
-                    _uiState.value = _uiState.value.copy(
-                        isOnline = newStatus,
-                        isTogglingStatus = false
-                    )
+                    _uiState.update { it.copy(isOnline = newStatus, isTogglingStatus = false) }
                     if (newStatus) {
                         socketClient.connect()
                         startLocationTracking()
@@ -140,18 +174,74 @@ class DriverHomeViewModel @JvmOverloads constructor(
                         stopLocationTracking()
                     }
                 } else {
-                    _uiState.value = _uiState.value.copy(
-                        isTogglingStatus = false,
-                        errorMessage = "Failed to update status"
-                    )
+                    _uiState.update { it.copy(isTogglingStatus = false, errorMessage = "Failed to update status") }
                 }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isTogglingStatus = false,
-                    errorMessage = e.message ?: "Failed to update status"
-                )
+                _uiState.update { it.copy(isTogglingStatus = false, errorMessage = e.message ?: "Failed to update status") }
             }
         }
+    }
+
+    /**
+     * Called when driver taps "Find Drive Requests".
+     * Goes online (if not already) and triggers navigation to DriveRequestsScreen.
+     */
+    fun goOnlineAndFindRides() {
+        if (!_uiState.value.isOnline) {
+            // toggleOnlineStatus sets navigateToDriveRequests after going online
+            viewModelScope.launch {
+                val newStatus = true
+                _uiState.update { it.copy(isTogglingStatus = true) }
+
+                val location = locationService.getCurrentLocation()
+                if (location == null) {
+                    _uiState.update {
+                        it.copy(
+                            isTogglingStatus = false,
+                            errorMessage = "Cannot go online: location unavailable. Enable GPS and try again."
+                        )
+                    }
+                    return@launch
+                }
+                _uiState.update {
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude
+                    )
+                }
+                loadAddressForLocation(location.latitude, location.longitude)
+
+                try {
+                    val response = driverApi.updateStatus(
+                        UpdateDriverStatusRequest(
+                            isOnline = newStatus,
+                            latitude = location.latitude,
+                            longitude = location.longitude
+                        )
+                    )
+                    if (response.isSuccessful) {
+                        _uiState.update {
+                            it.copy(isOnline = true, isTogglingStatus = false, navigateToDriveRequests = true)
+                        }
+                        socketClient.connect()
+                        startLocationTracking()
+                    } else {
+                        _uiState.update { it.copy(isTogglingStatus = false, errorMessage = "Failed to go online") }
+                    }
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(isTogglingStatus = false, errorMessage = e.message ?: "Failed to go online")
+                    }
+                }
+            }
+        } else {
+            // Already online — just navigate
+            _uiState.update { it.copy(navigateToDriveRequests = true) }
+        }
+    }
+
+    fun onDriveRequestsNavigated() {
+        _uiState.update { it.copy(navigateToDriveRequests = false) }
     }
 
     private fun startLocationTracking() {
@@ -160,10 +250,12 @@ class DriverHomeViewModel @JvmOverloads constructor(
             while (isActive) {
                 val location = locationService.getCurrentLocation()
                 if (location != null) {
-                    _uiState.value = _uiState.value.copy(
-                        currentLatitude = location.latitude,
-                        currentLongitude = location.longitude
-                    )
+                    _uiState.update {
+                        it.copy(
+                            currentLatitude = location.latitude,
+                            currentLongitude = location.longitude
+                        )
+                    }
                     try {
                         trackingApi.updateLocation(
                             UpdateLocationRequest(
@@ -187,27 +279,22 @@ class DriverHomeViewModel @JvmOverloads constructor(
         locationTrackingJob = null
     }
 
-    fun acceptRide() {
-        val request = _uiState.value.incomingRequest ?: return
-        _uiState.value = _uiState.value.copy(isAccepting = true)
-        countdownJob?.cancel()
-
-        socketClient.sendAccept(request.dispatchAttemptId)
-
-        // The server will respond with dispatch:accepted, which sets activeRideId
+    fun acceptRide(dispatchAttemptId: String) {
+        val request = _uiState.value.pendingRequests.find { it.dispatchAttemptId == dispatchAttemptId }
+        socketClient.sendAccept(dispatchAttemptId)
+        _uiState.update { s ->
+            s.copy(
+                pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId },
+                acceptedRiderName = request?.riderName ?: s.acceptedRiderName
+            )
+        }
     }
 
-    fun declineRide() {
-        val request = _uiState.value.incomingRequest ?: return
-        countdownJob?.cancel()
-
-        socketClient.sendDecline(request.dispatchAttemptId)
-
-        _uiState.value = _uiState.value.copy(
-            incomingRequest = null,
-            requestCountdownSeconds = 30,
-            isAccepting = false
-        )
+    fun declineRide(dispatchAttemptId: String) {
+        socketClient.sendDecline(dispatchAttemptId)
+        _uiState.update { s ->
+            s.copy(pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId })
+        }
     }
 
     fun checkForActiveRide() {
@@ -215,86 +302,61 @@ class DriverHomeViewModel @JvmOverloads constructor(
             rideRepository.getActiveRide()
                 .onSuccess { ride ->
                     if (ride != null && ride.driverId != null) {
-                        _uiState.value = _uiState.value.copy(
-                            activeRideId = ride.id,
-                            activeRide = ride,
-                            isOnline = true
-                        )
+                        _uiState.update {
+                            it.copy(activeRideId = ride.id, activeRide = ride, isOnline = true)
+                        }
                     }
                 }
         }
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
+        _uiState.update { it.copy(errorMessage = null) }
     }
 
     fun onActiveRideNavigated() {
-        // Reset accepting state after navigation
-        _uiState.value = _uiState.value.copy(isAccepting = false)
+        _uiState.update { it.copy(acceptedRideId = null) }
     }
 
     private fun handleDispatchEvent(event: DispatchEvent) {
         when (event) {
             is DispatchEvent.IncomingRideRequest -> {
                 val data = event.rideData
-                _uiState.value = _uiState.value.copy(
-                    incomingRequest = IncomingRideRequestUiData(
-                        dispatchAttemptId = event.dispatchAttemptId,
-                        pickupAddress = data["pickupAddress"] ?: "Unknown pickup",
-                        dropoffAddress = data["dropoffAddress"] ?: "Unknown dropoff",
-                        estimatedFare = data["estimatedFare"] ?: "---",
-                        rideId = data["rideId"] ?: ""
-                    ),
-                    requestCountdownSeconds = 30
+                val newRequest = IncomingRideRequestUiData(
+                    dispatchAttemptId = event.dispatchAttemptId,
+                    rideId = data["id"] ?: data["rideId"] ?: "",
+                    riderName = data["riderName"] ?: "Customer",
+                    pickupAddress = data["pickupAddress"] ?: "Unknown pickup",
+                    dropoffAddress = data["dropoffAddress"] ?: "Unknown dropoff",
+                    estimatedFare = data["estimatedFare"] ?: "---",
+                    paymentMethod = data["paymentMethod"] ?: "CASH",
+                    rideDurationMinutes = data["estimatedDuration"]?.toIntOrNull()?.div(60) ?: 0,
+                    rideDistanceKm = data["estimatedDistance"]?.toDoubleOrNull()?.div(1000.0) ?: 0.0,
+                    pickupLat = data["pickupLat"]?.toDoubleOrNull() ?: 0.0,
+                    pickupLng = data["pickupLng"]?.toDoubleOrNull() ?: 0.0
                 )
-                startCountdown()
+                _uiState.update { it.copy(pendingRequests = it.pendingRequests + newRequest) }
             }
             is DispatchEvent.DispatchAccepted -> {
-                val rideId = _uiState.value.incomingRequest?.rideId ?: return
-                _uiState.value = _uiState.value.copy(
-                    activeRideId = rideId,
-                    incomingRequest = null,
-                    requestCountdownSeconds = 30,
-                    isAccepting = false
-                )
+                // Extract rideId from event data (backend sends { ride: { id, ... } })
+                val rideId = event.data?.get("id")?.takeIf { it.isNotEmpty() }
+                    ?: _uiState.value.acceptedRideId ?: return
+                _uiState.update { it.copy(pendingRequests = emptyList(), acceptedRideId = rideId) }
             }
             is DispatchEvent.DispatchDeclined -> {
-                _uiState.value = _uiState.value.copy(
-                    incomingRequest = null,
-                    requestCountdownSeconds = 30,
-                    isAccepting = false
-                )
+                // Clear all pending (backend rejected or timed out)
+                _uiState.update { it.copy(pendingRequests = emptyList()) }
             }
             is DispatchEvent.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = event.message,
-                    isAccepting = false
-                )
+                _uiState.update { it.copy(errorMessage = event.message) }
             }
             else -> { /* Rider-side events — ignore for driver */ }
-        }
-    }
-
-    private fun startCountdown() {
-        countdownJob?.cancel()
-        countdownJob = viewModelScope.launch {
-            for (i in 30 downTo 0) {
-                _uiState.value = _uiState.value.copy(requestCountdownSeconds = i)
-                if (i == 0) {
-                    // Auto-decline when timer expires
-                    declineRide()
-                    break
-                }
-                delay(1000)
-            }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         socketClient.disconnect()
-        countdownJob?.cancel()
         stopLocationTracking()
     }
 }

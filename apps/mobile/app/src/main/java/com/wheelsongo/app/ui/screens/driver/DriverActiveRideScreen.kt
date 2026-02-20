@@ -1,6 +1,6 @@
 package com.wheelsongo.app.ui.screens.driver
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,57 +10,65 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.location.LocationData
 import com.wheelsongo.app.ui.components.map.GoogleMapView
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverActiveRideScreen(
     rideId: String,
+    riderName: String = "",
     onBack: () -> Unit,
-    onRideCompleted: () -> Unit,
+    onNavigateToCompletion: (rideId: String, riderName: String) -> Unit,
     viewModel: DriverActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(rideId) {
-        viewModel.initialize(rideId)
+        viewModel.initialize(rideId, riderName)
     }
 
-    LaunchedEffect(uiState.isCompleted) {
-        if (uiState.isCompleted) {
-            onRideCompleted()
+    LaunchedEffect(uiState.navigateToCompletion) {
+        if (uiState.navigateToCompletion) {
+            viewModel.onCompletionNavigated()
+            onNavigateToCompletion(uiState.rideId, uiState.riderName)
         }
     }
 
@@ -71,187 +79,206 @@ fun DriverActiveRideScreen(
         }
     }
 
-    // Determine status display
-    val (statusText, statusColor) = when (uiState.phase) {
-        DriverRidePhase.EN_ROUTE_PICKUP -> "En Route to Pickup" to Color(0xFF2196F3)
-        DriverRidePhase.AT_PICKUP -> "Arrived at Pickup" to Color(0xFFFF9800)
-        DriverRidePhase.EN_ROUTE_DROPOFF -> "Ride in Progress" to Color(0xFF4CAF50)
-        DriverRidePhase.COMPLETED -> "Ride Completed" to Color(0xFF9E9E9E)
-    }
+    val ride = uiState.ride
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(statusText) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = statusColor,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                return@Scaffold
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Layer 1: Full-screen map
+        val pickupLocationData = ride?.let {
+            LocationData(latitude = it.pickupLatitude, longitude = it.pickupLongitude)
+        }
+        val dropoffLocationData = ride?.let {
+            LocationData(latitude = it.dropoffLatitude, longitude = it.dropoffLongitude)
+        }
+        val focusLocation = when (uiState.phase) {
+            DriverRidePhase.EN_ROUTE_PICKUP, DriverRidePhase.AT_PICKUP -> pickupLocationData
+            else -> dropoffLocationData
+        }
+
+        GoogleMapView(
+            modifier = Modifier.fillMaxSize(),
+            initialLatitude = focusLocation?.latitude ?: LocationService.DEFAULT_LATITUDE,
+            initialLongitude = focusLocation?.longitude ?: LocationService.DEFAULT_LONGITUDE,
+            initialZoom = 15.0,
+            pickupLocation = pickupLocationData,
+            dropoffLocation = dropoffLocationData,
+            routePoints = uiState.routePoints,
+            onMapTap = null
+        )
+
+        // Loading overlay
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color.White)
             }
+        }
 
-            val ride = uiState.ride
+        // Layer 2: Back button (top-left)
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(16.dp)
+                .shadow(4.dp, CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .size(48.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Map showing relevant location
-                val targetLocation = if (uiState.phase == DriverRidePhase.EN_ROUTE_PICKUP ||
-                    uiState.phase == DriverRidePhase.AT_PICKUP
-                ) {
-                    ride?.let {
-                        LocationData(latitude = it.pickupLatitude, longitude = it.pickupLongitude)
-                    }
-                } else {
-                    ride?.let {
-                        LocationData(latitude = it.dropoffLatitude, longitude = it.dropoffLongitude)
-                    }
-                }
-
-                GoogleMapView(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    initialLatitude = targetLocation?.latitude ?: LocationService.DEFAULT_LATITUDE,
-                    initialLongitude = targetLocation?.longitude ?: LocationService.DEFAULT_LONGITUDE,
-                    initialZoom = 15.0,
-                    pickupLocation = ride?.let {
-                        LocationData(latitude = it.pickupLatitude, longitude = it.pickupLongitude)
-                    },
-                    dropoffLocation = ride?.let {
-                        LocationData(latitude = it.dropoffLatitude, longitude = it.dropoffLongitude)
-                    },
-                    onMapTap = null
+        // Layer 3: Bottom overlay (status + rider card + action button)
+        if (!uiState.isLoading && ride != null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                // Status banner
+                StatusBanner(
+                    phase = uiState.phase,
+                    rideDurationMinutes = uiState.rideDurationMinutes,
+                    rideDistanceKm = uiState.rideDistanceKm,
+                    dropoffAddress = ride.dropoffAddress
                 )
 
-                // Ride info card
+                // Rider info + action card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        // Addresses
-                        Text(
-                            text = "Pickup",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = ride?.pickupAddress ?: "---",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Dropoff",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = ride?.dropoffAddress ?: "---",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Fare
+                        // Rider info row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Avatar circle
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4CAF50)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = uiState.riderName.initials(),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = uiState.riderName.ifEmpty { "Customer" },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = paymentLabel(uiState.paymentMethod),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
                             Text(
-                                text = "Fare",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "PHP ${ride?.estimatedFare?.let { "%.0f".format(it) } ?: "---"}",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "₱${"%.0f".format(ride.estimatedFare ?: 0.0)}",
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = Color(0xFF4CAF50)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Phase-specific action button
+                        // Message button stub
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Chat feature coming soon")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Message")
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Phase action button
                         when (uiState.phase) {
                             DriverRidePhase.EN_ROUTE_PICKUP -> {
                                 Button(
                                     onClick = { viewModel.markArrived() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
                                     enabled = !uiState.isUpdatingStatus,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFFF9800)
-                                    )
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                                 ) {
                                     if (uiState.isUpdatingStatus) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(22.dp),
                                             color = Color.White,
                                             strokeWidth = 2.dp
                                         )
                                     } else {
-                                        Text("I've Arrived", color = Color.White)
+                                        Text("I've Arrived", color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                             DriverRidePhase.AT_PICKUP -> {
                                 Button(
                                     onClick = { viewModel.startRide() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
                                     enabled = !uiState.isUpdatingStatus,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF4CAF50)
-                                    )
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                                 ) {
                                     if (uiState.isUpdatingStatus) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(22.dp),
                                             color = Color.White,
                                             strokeWidth = 2.dp
                                         )
                                     } else {
-                                        Text("Start Ride", color = Color.White)
+                                        Text("Start Ride", color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                             DriverRidePhase.EN_ROUTE_DROPOFF -> {
                                 Button(
                                     onClick = { viewModel.completeRide() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().height(52.dp),
                                     enabled = !uiState.isUpdatingStatus,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary
-                                    )
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                                 ) {
                                     if (uiState.isUpdatingStatus) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(22.dp),
                                             color = Color.White,
                                             strokeWidth = 2.dp
                                         )
                                     } else {
-                                        Text("Complete Ride", color = Color.White)
+                                        Text("Complete Ride", color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -263,5 +290,76 @@ fun DriverActiveRideScreen(
                 }
             }
         }
+
+        // Snackbar host
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 280.dp)
+        )
     }
+}
+
+@Composable
+private fun StatusBanner(
+    phase: DriverRidePhase,
+    rideDurationMinutes: Int,
+    rideDistanceKm: Double,
+    dropoffAddress: String
+) {
+    val (text, subText) = when (phase) {
+        DriverRidePhase.EN_ROUTE_PICKUP -> "You are on the way" to null
+        DriverRidePhase.AT_PICKUP -> "You have arrived" to null
+        DriverRidePhase.EN_ROUTE_DROPOFF ->
+            "$rideDurationMinutes min  ·  ${"%.1f".format(rideDistanceKm)} km" to dropoffAddress
+        DriverRidePhase.COMPLETED -> null to null
+    }
+
+    if (text != null) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(0.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF388E3C))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                if (subText != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun String.initials(): String {
+    val parts = trim().split(" ")
+    return when {
+        parts.size >= 2 -> "${parts[0].firstOrNull() ?: ""}${parts[1].firstOrNull() ?: ""}".uppercase()
+        parts.size == 1 -> parts[0].take(2).uppercase()
+        else -> "?"
+    }
+}
+
+private fun paymentLabel(method: String): String = when (method.uppercase()) {
+    "GCASH" -> "GCash"
+    "CARD" -> "Card"
+    else -> "Cash"
 }

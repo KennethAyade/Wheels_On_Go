@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,13 +27,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -51,7 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -67,6 +64,7 @@ fun DriverHomeScreen(
     drawerState: DrawerState = rememberDrawerState(initialValue = DrawerValue.Closed),
     drawerContent: @Composable () -> Unit = {},
     onNavigateToActiveRide: (String) -> Unit,
+    onNavigateToDriveRequests: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DriverHomeViewModel = viewModel()
 ) {
@@ -91,11 +89,27 @@ fun DriverHomeScreen(
         }
     }
 
-    // Navigate to active ride when accepted
+    // Navigate to DriveRequests when flag is set
+    LaunchedEffect(uiState.navigateToDriveRequests) {
+        if (uiState.navigateToDriveRequests) {
+            viewModel.onDriveRequestsNavigated()
+            onNavigateToDriveRequests()
+        }
+    }
+
+    // Navigate to active ride when dispatch was accepted
+    LaunchedEffect(uiState.acceptedRideId) {
+        val rideId = uiState.acceptedRideId
+        if (rideId != null) {
+            viewModel.onActiveRideNavigated()
+            onNavigateToActiveRide(rideId)
+        }
+    }
+
+    // Navigate to existing active ride from checkForActiveRide
     LaunchedEffect(uiState.activeRideId) {
         val rideId = uiState.activeRideId
-        if (rideId != null && uiState.isAccepting) {
-            viewModel.onActiveRideNavigated()
+        if (rideId != null && uiState.acceptedRideId == null) {
             onNavigateToActiveRide(rideId)
         }
     }
@@ -112,7 +126,7 @@ fun DriverHomeScreen(
         drawerContent = drawerContent
     ) {
         Box(modifier = modifier.fillMaxSize()) {
-            // Google Maps
+            // Full-screen Google Maps
             GoogleMapView(
                 modifier = Modifier.fillMaxSize(),
                 initialLatitude = LocationService.DEFAULT_LATITUDE,
@@ -135,7 +149,6 @@ fun DriverHomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Hamburger menu
                     IconButton(
                         onClick = onMenuClick,
                         modifier = Modifier
@@ -149,7 +162,6 @@ fun DriverHomeScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Online/Offline toggle
                     DriverStatusToggle(
                         isOnline = uiState.isOnline,
                         isLoading = uiState.isTogglingStatus,
@@ -158,49 +170,81 @@ fun DriverHomeScreen(
                 }
             }
 
-            // Active ride banner (bottom)
-            if (uiState.activeRideId != null && uiState.incomingRequest == null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .align(Alignment.BottomCenter),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    onClick = { onNavigateToActiveRide(uiState.activeRideId!!) }
+            // Bottom section: location + CTA
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
+                    // Current location row
                     Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Your current location",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (uiState.currentLocationAddress.isNotEmpty())
+                                    uiState.currentLocationAddress
+                                else if (uiState.isLoadingLocation) "Getting location..."
+                                else "Location unavailable",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // "Find Drive Requests" CTA
+                    Button(
+                        onClick = { viewModel.goOnlineAndFindRides() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(52.dp),
+                        enabled = !uiState.isTogglingStatus,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50),
+                            disabledContainerColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                        )
                     ) {
-                        Text(
-                            text = "Active Ride",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Tap to view",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        if (uiState.isTogglingStatus) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Find Drive Requests",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
-            }
-
-            // Incoming ride request overlay
-            if (uiState.incomingRequest != null) {
-                IncomingRideRequestCard(
-                    request = uiState.incomingRequest!!,
-                    countdown = uiState.requestCountdownSeconds,
-                    isAccepting = uiState.isAccepting,
-                    onAccept = { viewModel.acceptRide() },
-                    onDecline = { viewModel.declineRide() },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
             }
 
             // Error snackbar
@@ -266,130 +310,6 @@ private fun DriverStatusToggle(
                         uncheckedTrackColor = Color(0xFF9E9E9E)
                     )
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun IncomingRideRequestCard(
-    request: IncomingRideRequestUiData,
-    countdown: Int,
-    isAccepting: Boolean,
-    onAccept: () -> Unit,
-    onDecline: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            // Header with countdown
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "New Ride Request",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                // Countdown circle
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        progress = { countdown / 30f },
-                        modifier = Modifier.size(48.dp),
-                        color = if (countdown <= 10) Color.Red else MaterialTheme.colorScheme.primary,
-                        strokeWidth = 4.dp
-                    )
-                    Text(
-                        text = "${countdown}s",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Pickup
-            Text(
-                text = "Pickup",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = request.pickupAddress,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Dropoff
-            Text(
-                text = "Dropoff",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = request.dropoffAddress,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Fare
-            if (request.estimatedFare.isNotBlank() && request.estimatedFare != "---") {
-                Text(
-                    text = "Est. Fare: PHP ${request.estimatedFare}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Accept / Decline buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onDecline,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isAccepting,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Decline")
-                }
-
-                Button(
-                    onClick = onAccept,
-                    modifier = Modifier.weight(1f),
-                    enabled = !isAccepting,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50)
-                    )
-                ) {
-                    if (isAccepting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("Accept", color = Color.White)
-                    }
-                }
             }
         }
     }

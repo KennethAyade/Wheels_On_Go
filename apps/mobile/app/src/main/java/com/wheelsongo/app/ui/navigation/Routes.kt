@@ -142,11 +142,36 @@ sealed class Route(val value: String) {
     /**
      * Driver active ride screen — driver managing an accepted ride
      * @param rideId The ride ID
+     * @param riderName Rider display name (optional, URL-encoded)
      */
-    data object DriverActiveRide : Route("driver_active_ride/{rideId}") {
+    data object DriverActiveRide : Route("driver_active_ride/{rideId}?riderName={riderName}") {
         const val ARG_RIDE_ID = "rideId"
+        const val ARG_RIDER_NAME = "riderName"
 
-        fun createRoute(rideId: String): String = "driver_active_ride/$rideId"
+        fun createRoute(rideId: String, riderName: String = ""): String {
+            val encName = URLEncoder.encode(riderName, StandardCharsets.UTF_8.toString())
+            return "driver_active_ride/$rideId?riderName=$encName"
+        }
+    }
+
+    /**
+     * Drive requests screen — driver sees incoming ride requests while online
+     */
+    data object DriveRequests : Route("driver/drive_requests")
+
+    /**
+     * Driver trip completion summary screen
+     * @param rideId The completed ride ID
+     * @param riderName Rider display name (URL-encoded)
+     */
+    data object DriverTripCompletion : Route("driver/trip_completion/{rideId}/{riderName}") {
+        const val ARG_RIDE_ID = "rideId"
+        const val ARG_RIDER_NAME = "riderName"
+
+        fun createRoute(rideId: String, riderName: String = "Customer"): String {
+            val encName = URLEncoder.encode(riderName.ifEmpty { "Customer" }, StandardCharsets.UTF_8.toString())
+            return "driver/trip_completion/$rideId/$encName"
+        }
     }
 
     // ==========================================

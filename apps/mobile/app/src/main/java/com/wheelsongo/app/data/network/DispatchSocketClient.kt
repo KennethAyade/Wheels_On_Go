@@ -176,7 +176,10 @@ class DispatchSocketClient(
         try {
             val data = args.getOrNull(0) as? JSONObject ?: return@Listener
             val dispatchAttemptId = data.optString("dispatchAttemptId", "")
-            val dataMap = jsonToMap(data)
+            // Backend sends { dispatchAttemptId, ride: { id, pickupAddress, ... } }
+            // Extract the nested ride object; fall back to top-level for backwards compat
+            val rideJson = data.optJSONObject("ride") ?: data
+            val dataMap = jsonToMap(rideJson)
             _events.tryEmit(
                 DispatchEvent.IncomingRideRequest(
                     dispatchAttemptId = dispatchAttemptId,
@@ -191,7 +194,9 @@ class DispatchSocketClient(
     private val onDispatchAccepted = Emitter.Listener { args ->
         try {
             val data = args.getOrNull(0) as? JSONObject
-            val dataMap = data?.let { jsonToMap(it) }
+            // Backend sends { ride: { id, ... } } - extract the nested ride object
+            val rideJson = data?.optJSONObject("ride") ?: data
+            val dataMap = rideJson?.let { jsonToMap(it) }
             _events.tryEmit(DispatchEvent.DispatchAccepted(dataMap))
         } catch (e: Exception) {
             // Ignore parse errors

@@ -25,6 +25,10 @@ import com.wheelsongo.app.ui.screens.auth.SessionResumeScreen
 import com.wheelsongo.app.ui.screens.driver.DocumentUploadScreen
 import com.wheelsongo.app.ui.screens.driver.DriverActiveRideScreen
 import com.wheelsongo.app.ui.screens.driver.DriverHomeScreen
+import com.wheelsongo.app.ui.screens.driver.DriverHomeViewModel
+import com.wheelsongo.app.ui.screens.driver.DriveRequestsScreen
+import com.wheelsongo.app.ui.screens.driver.DriverTripCompletionScreen
+import com.wheelsongo.app.ui.screens.driver.DriverTripCompletionViewModel
 import com.wheelsongo.app.ui.screens.home.HomeScreen
 import com.wheelsongo.app.ui.screens.home.HomeViewModel
 import com.wheelsongo.app.ui.screens.vehicle.VehicleListScreen
@@ -234,8 +238,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         // ==========================================
         // Home Screen (Role-Conditional: Rider vs Driver)
         // ==========================================
-        composable(Route.Home.value) { backStackEntry ->
+        composable(Route.Home.value) {
             val homeViewModel: HomeViewModel = viewModel()
+            val driverHomeViewModel: DriverHomeViewModel = viewModel()
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val scope = rememberCoroutineScope()
 
@@ -275,8 +280,13 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         drawerContent = drawerContent,
                         onMenuClick = { scope.launch { drawerState.open() } },
                         onNavigateToActiveRide = { rideId ->
-                            navController.navigate(Route.DriverActiveRide.createRoute(rideId))
-                        }
+                            val riderName = driverHomeViewModel.uiState.value.acceptedRiderName
+                            navController.navigate(Route.DriverActiveRide.createRoute(rideId, riderName))
+                        },
+                        onNavigateToDriveRequests = {
+                            navController.navigate(Route.DriveRequests.value)
+                        },
+                        viewModel = driverHomeViewModel
                     )
                 }
                 else -> {
@@ -444,17 +454,69 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             arguments = listOf(
                 navArgument(Route.DriverActiveRide.ARG_RIDE_ID) {
                     type = NavType.StringType
+                },
+                navArgument(Route.DriverActiveRide.ARG_RIDER_NAME) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
                 }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString(Route.DriverActiveRide.ARG_RIDE_ID) ?: ""
+            val riderName = backStackEntry.arguments?.getString(Route.DriverActiveRide.ARG_RIDER_NAME) ?: ""
 
             DriverActiveRideScreen(
                 rideId = rideId,
+                riderName = riderName,
                 onBack = { navController.popBackStack() },
-                onRideCompleted = {
+                onNavigateToCompletion = { completedRideId, completedRiderName ->
+                    navController.navigate(
+                        Route.DriverTripCompletion.createRoute(completedRideId, completedRiderName)
+                    ) {
+                        popUpTo(Route.Home.value) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Drive Requests Screen
+        // ==========================================
+        composable(Route.DriveRequests.value) {
+            val parentEntry = navController.getBackStackEntry(Route.Home.value)
+            val driverHomeViewModel: DriverHomeViewModel = viewModel(parentEntry)
+
+            DriveRequestsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToActiveRide = { rideId ->
+                    val riderName = driverHomeViewModel.uiState.value.acceptedRiderName
+                    navController.navigate(Route.DriverActiveRide.createRoute(rideId, riderName)) {
+                        popUpTo(Route.Home.value) { inclusive = false }
+                    }
+                },
+                viewModel = driverHomeViewModel
+            )
+        }
+
+        // ==========================================
+        // Driver Trip Completion Screen
+        // ==========================================
+        composable(
+            route = Route.DriverTripCompletion.value,
+            arguments = listOf(
+                navArgument(Route.DriverTripCompletion.ARG_RIDE_ID) { type = NavType.StringType },
+                navArgument(Route.DriverTripCompletion.ARG_RIDER_NAME) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.DriverTripCompletion.ARG_RIDE_ID) ?: ""
+            val riderName = backStackEntry.arguments?.getString(Route.DriverTripCompletion.ARG_RIDER_NAME) ?: "Customer"
+
+            DriverTripCompletionScreen(
+                rideId = rideId,
+                riderName = riderName,
+                onGoHome = {
                     navController.navigate(Route.Home.value) {
-                        popUpTo(Route.Home.value) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
