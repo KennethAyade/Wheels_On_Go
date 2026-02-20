@@ -54,6 +54,23 @@ export class RideController {
       this.dispatchGateway.notifySelectedDriver(ride.id, dto.selectedDriverId).catch((err) => {
         console.error(`Selected driver notification failed for ride ${ride.id}:`, err);
       });
+
+      // Fallback: if selected driver doesn't respond in 30s, auto-dispatch
+      setTimeout(async () => {
+        try {
+          const currentRide = await this.rideService['prisma'].ride.findUnique({
+            where: { id: ride.id },
+            select: { status: true },
+          });
+          if (currentRide?.status === 'PENDING') {
+            this.dispatchGateway.initiateDispatch(ride.id).catch((err) => {
+              console.error(`Fallback dispatch failed for ride ${ride.id}:`, err);
+            });
+          }
+        } catch (err) {
+          console.error(`Fallback dispatch check failed for ride ${ride.id}:`, err);
+        }
+      }, 30_000);
     } else if (dto.rideType === 'INSTANT') {
       // Auto-dispatch for INSTANT rides (fire-and-forget)
       this.dispatchGateway.initiateDispatch(ride.id).catch((err) => {

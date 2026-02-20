@@ -81,7 +81,7 @@ class ActiveRideViewModel(
                     }
                     is DispatchEvent.RideStatusChanged -> {
                         _uiState.update { it.copy(rideStatus = event.status) }
-                        if (event.status == "COMPLETED" || event.status.startsWith("CANCELLED")) {
+                        if (event.status == "COMPLETED" || event.status.startsWith("CANCELLED") || event.status == "EXPIRED") {
                             _uiState.update { it.copy(isCompleted = true) }
                         }
                         // Re-fetch ride for updated details
@@ -111,7 +111,7 @@ class ActiveRideViewModel(
                         it.copy(
                             ride = ride,
                             rideStatus = ride.status,
-                            isCompleted = ride.status == "COMPLETED" || ride.status.startsWith("CANCELLED")
+                            isCompleted = ride.status == "COMPLETED" || ride.status.startsWith("CANCELLED") || ride.status == "EXPIRED"
                         )
                     }
                 },

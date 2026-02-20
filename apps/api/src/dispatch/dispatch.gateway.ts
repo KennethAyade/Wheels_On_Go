@@ -120,16 +120,20 @@ export class DispatchGateway implements OnGatewayConnection, OnGatewayDisconnect
         true,
       );
 
+      // Normalize ride data for mobile-compatible flat structure
+      const fullRide = await this.fetchFullRide(result.ride.id);
+      const rideData = fullRide ? this.buildRideData(fullRide) : { id: result.ride.id };
+
       // Notify driver of acceptance confirmation
       client.emit('dispatch:accepted', {
-        ride: result.ride,
+        ride: rideData,
       });
 
       // Notify rider that driver has been assigned
-      const riderId = result.ride?.rider?.userId;
+      const riderId = result.ride?.riderId;
       if (riderId) {
         this.server.to(`user:${riderId}`).emit('ride:driver_assigned', {
-          ride: result.ride,
+          ride: rideData,
         });
       }
 

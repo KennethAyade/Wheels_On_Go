@@ -302,7 +302,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { s ->
             s.copy(
                 pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId },
-                acceptedRiderName = request?.riderName ?: s.acceptedRiderName
+                acceptedRiderName = request?.riderName ?: s.acceptedRiderName,
+                acceptedRideId = request?.rideId ?: s.acceptedRideId
             )
         }
     }
@@ -373,7 +374,10 @@ class DriverHomeViewModel @JvmOverloads constructor(
                 _uiState.update { it.copy(pendingRequests = emptyList()) }
             }
             is DispatchEvent.Error -> {
-                _uiState.update { it.copy(errorMessage = event.message) }
+                _uiState.update { it.copy(
+                    errorMessage = event.message,
+                    acceptedRideId = null
+                ) }
             }
             else -> { /* Rider-side events — ignore for driver */ }
         }

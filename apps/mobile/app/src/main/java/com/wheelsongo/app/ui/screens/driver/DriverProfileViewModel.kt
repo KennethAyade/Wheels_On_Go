@@ -91,8 +91,23 @@ class DriverProfileViewModel(
                     }
                 },
                 onFailure = { error ->
-                    _uiState.update {
-                        it.copy(isBooking = false, errorMessage = error.message ?: "Failed to book driver")
+                    if (error.message?.contains("already have an active ride", ignoreCase = true) == true) {
+                        rideRepository.getActiveRide().fold(
+                            onSuccess = { ride ->
+                                if (ride != null) {
+                                    _uiState.update { it.copy(isBooking = false, createdRideId = ride.id) }
+                                } else {
+                                    _uiState.update { it.copy(isBooking = false, errorMessage = error.message) }
+                                }
+                            },
+                            onFailure = {
+                                _uiState.update { it.copy(isBooking = false, errorMessage = error.message) }
+                            }
+                        )
+                    } else {
+                        _uiState.update {
+                            it.copy(isBooking = false, errorMessage = error.message ?: "Failed to book driver")
+                        }
                     }
                 }
             )

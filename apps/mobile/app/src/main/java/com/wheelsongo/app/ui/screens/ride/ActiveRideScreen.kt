@@ -55,8 +55,8 @@ fun ActiveRideScreen(
 
     LaunchedEffect(uiState.isCompleted) {
         if (uiState.isCompleted) {
-            // Small delay to show completion status before navigating
-            kotlinx.coroutines.delay(2000)
+            // Brief delay to show completion status before navigating
+            kotlinx.coroutines.delay(500)
             val driverName = uiState.ride?.driver?.phoneNumber ?: "your driver"
             onRideCompleted(driverName)
         }
