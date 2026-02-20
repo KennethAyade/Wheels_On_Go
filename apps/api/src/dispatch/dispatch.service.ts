@@ -4,6 +4,8 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.constants';
@@ -49,6 +51,8 @@ export class DispatchService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly locationService: LocationService,
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
   ) {}
 
   /**
@@ -287,6 +291,9 @@ export class DispatchService {
         `Driver ${dispatchAttempt.driverProfileId} accepted ride ${dispatchAttempt.rideId}`,
       );
 
+      // Store route polyline (async, non-blocking)
+      this.storeRideRoute(dispatchAttempt.rideId).catch(() => {});
+
       return { accepted: true, ride: updatedRide };
     } else {
       // Decline - try to dispatch to next driver
@@ -388,5 +395,44 @@ export class DispatchService {
       where: { id: rideId },
       select: { id: true, riderId: true, driverId: true, status: true },
     });
+  }
+
+  /**
+   * Fetch and store route polyline for an accepted ride
+   */
+  private async storeRideRoute(rideId: string): Promise<void> {
+    try {
+      const ride = await this.prisma.ride.findUnique({ where: { id: rideId } });
+      if (!ride) return;
+
+      const apiKey = this.configService.get<string>('GOOGLE_MAPS_API_KEY', '');
+      if (!apiKey) {
+        this.logger.warn('No Google Maps API key configured, skipping route storage');
+        return;
+      }
+
+      const origin = `${ride.pickupLatitude},${ride.pickupLongitude}`;
+      const destination = `${ride.dropoffLatitude},${ride.dropoffLongitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&mode=driving&key=${apiKey}`;
+
+      const response = await this.httpService.axiosRef.get(url);
+      const route = response.data?.routes?.[0];
+      if (!route) return;
+
+      await this.prisma.rideRoute.create({
+        data: {
+          rideId,
+          encodedPolyline: route.overview_polyline?.points || '',
+          distanceMeters: Math.round(route.legs?.[0]?.distance?.value || 0),
+          durationSeconds: Math.round(route.legs?.[0]?.duration?.value || 0),
+          currentEta: Math.round(route.legs?.[0]?.duration?.value || 0),
+          etaUpdatedAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Route stored for ride ${rideId}`);
+    } catch (error) {
+      this.logger.error(`Failed to store route for ride ${rideId}: ${error.message}`);
+    }
   }
 }

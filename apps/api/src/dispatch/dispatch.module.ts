@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DispatchService } from './dispatch.service';
@@ -26,6 +27,7 @@ import { LocationModule } from '../location/location.module';
       inject: [ConfigService],
     }),
     ConfigModule,
+    HttpModule,
   ],
   providers: [DispatchService, DispatchGateway],
   exports: [DispatchService, DispatchGateway],

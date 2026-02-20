@@ -9,6 +9,7 @@ import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.ride.RideResponse
 import com.wheelsongo.app.data.network.DirectionsApi
+import com.wheelsongo.app.data.network.TrackingSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,13 +43,15 @@ data class DriverActiveRideUiState(
 
 class DriverActiveRideViewModel @JvmOverloads constructor(
     application: Application,
-    private val rideRepository: RideRepository = RideRepository()
+    private val rideRepository: RideRepository = RideRepository(),
+    private val trackingSocketClient: TrackingSocketClient = TrackingSocketClient()
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
     private val directionsApi = DirectionsApi.instance
     private val mapsApiKey: String
     private var routeFetchJob: Job? = null
+    private var locationBroadcastJob: Job? = null
 
     init {
         val appInfo = application.packageManager.getApplicationInfo(
@@ -79,6 +82,7 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
                         )
                     }
                     fetchRouteForPhase(phase, ride)
+                    startLocationBroadcasting()
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -186,6 +190,39 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
                     }
                 }
         }
+    }
+
+    fun getNavigationTarget(): Pair<Double, Double>? {
+        val ride = _uiState.value.ride ?: return null
+        return when (_uiState.value.phase) {
+            DriverRidePhase.EN_ROUTE_PICKUP -> Pair(ride.pickupLatitude, ride.pickupLongitude)
+            DriverRidePhase.EN_ROUTE_DROPOFF -> Pair(ride.dropoffLatitude, ride.dropoffLongitude)
+            else -> null
+        }
+    }
+
+    private fun startLocationBroadcasting() {
+        trackingSocketClient.connect()
+        locationBroadcastJob?.cancel()
+        locationBroadcastJob = viewModelScope.launch {
+            locationService.getLocationUpdates(3_000L).collect { location ->
+                trackingSocketClient.sendLocationUpdate(
+                    lat = location.latitude,
+                    lng = location.longitude,
+                    heading = location.heading,
+                    speed = location.speed,
+                    accuracy = location.accuracy,
+                    altitude = location.altitude
+                )
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        routeFetchJob?.cancel()
+        locationBroadcastJob?.cancel()
+        trackingSocketClient.disconnect()
     }
 
     private fun statusToPhase(status: String): DriverRidePhase {

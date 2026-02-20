@@ -42,7 +42,20 @@ data class DirectionsResponse(
 
 @JsonClass(generateAdapter = true)
 data class DirectionsRoute(
-    @Json(name = "overview_polyline") val overviewPolyline: OverviewPolyline? = null
+    @Json(name = "overview_polyline") val overviewPolyline: OverviewPolyline? = null,
+    @Json(name = "legs") val legs: List<DirectionsLeg> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class DirectionsLeg(
+    @Json(name = "duration") val duration: DirectionsValue? = null,
+    @Json(name = "distance") val distance: DirectionsValue? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DirectionsValue(
+    @Json(name = "text") val text: String = "",
+    @Json(name = "value") val value: Int = 0  // seconds for duration, meters for distance
 )
 
 @JsonClass(generateAdapter = true)

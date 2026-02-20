@@ -359,7 +359,75 @@ export class RideService {
         break;
       case RideStatus.COMPLETED:
         updateData.completedAt = new Date();
-        // Calculate actual fare if needed
+
+        // Calculate actual ride metrics from GPS location history
+        try {
+          const rideData = await this.prisma.ride.findUnique({
+            where: { id: rideId },
+            select: {
+              driverProfileId: true,
+              startedAt: true,
+              baseFare: true,
+              costPerKm: true,
+              costPerMin: true,
+              surgePricing: true,
+              promoDiscount: true,
+              estimatedFare: true,
+            },
+          });
+
+          if (rideData?.driverProfileId && rideData?.startedAt) {
+            const locationHistory = await this.prisma.driverLocationHistory.findMany({
+              where: {
+                driverProfileId: rideData.driverProfileId,
+                recordedAt: {
+                  gte: rideData.startedAt,
+                  lte: new Date(),
+                },
+              },
+              orderBy: { recordedAt: 'asc' },
+            });
+
+            if (locationHistory.length >= 2) {
+              let actualDistanceKm = 0;
+              for (let i = 1; i < locationHistory.length; i++) {
+                actualDistanceKm += this.locationService.calculateHaversineDistance(
+                  Number(locationHistory[i - 1].latitude),
+                  Number(locationHistory[i - 1].longitude),
+                  Number(locationHistory[i].latitude),
+                  Number(locationHistory[i].longitude),
+                );
+              }
+
+              const actualDistanceMeters = Math.round(actualDistanceKm * 1000);
+              const actualDurationSeconds = Math.round(
+                (new Date().getTime() - rideData.startedAt.getTime()) / 1000,
+              );
+
+              const baseFare = Number(rideData.baseFare);
+              const costPerKm = Number(rideData.costPerKm);
+              const costPerMin = Number(rideData.costPerMin);
+              const surgePricing = Number(rideData.surgePricing || 0);
+              const promoDiscount = Number(rideData.promoDiscount || 0);
+
+              let actualFare = baseFare + (actualDistanceKm * costPerKm) +
+                ((actualDurationSeconds / 60) * costPerMin) + surgePricing - promoDiscount;
+              actualFare = Math.max(actualFare, PRICING_CONFIG.minimumFare);
+              actualFare = Math.round(actualFare);
+
+              updateData.actualDistance = actualDistanceMeters;
+              updateData.actualDuration = actualDurationSeconds;
+              updateData.actualFare = actualFare;
+              updateData.totalFare = actualFare;
+
+              this.logger.log(
+                `Ride ${rideId} completed: ${actualDistanceKm.toFixed(1)}km, ${Math.round(actualDurationSeconds / 60)}min, PHP${actualFare}`,
+              );
+            }
+          }
+        } catch (error) {
+          this.logger.error(`Failed to calculate actual ride data for ${rideId}: ${error.message}`);
+        }
         break;
     }
 

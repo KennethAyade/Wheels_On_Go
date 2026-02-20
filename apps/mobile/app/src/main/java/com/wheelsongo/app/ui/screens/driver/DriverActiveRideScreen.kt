@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +48,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.location.LocationData
 import com.wheelsongo.app.ui.components.map.GoogleMapView
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
 @Composable
@@ -221,7 +225,43 @@ fun DriverActiveRideScreen(
                             Text("Message")
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        // Navigate button (EN_ROUTE phases only)
+                        if (uiState.phase == DriverRidePhase.EN_ROUTE_PICKUP || uiState.phase == DriverRidePhase.EN_ROUTE_DROPOFF) {
+                            val context = LocalContext.current
+                            OutlinedButton(
+                                onClick = {
+                                    val target = viewModel.getNavigationTarget()
+                                    if (target != null) {
+                                        val uri = Uri.parse("google.navigation:q=${target.first},${target.second}&mode=d")
+                                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                            setPackage("com.google.android.apps.maps")
+                                        }
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {
+                                            val browserUri = Uri.parse(
+                                                "https://www.google.com/maps/dir/?api=1&destination=${target.first},${target.second}&travelmode=driving"
+                                            )
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Navigation,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Navigate")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Phase action button
                         when (uiState.phase) {
