@@ -14,12 +14,10 @@ import com.wheelsongo.app.data.repository.RideRepository
 import com.wheelsongo.app.data.network.TrackingApi
 import com.wheelsongo.app.data.network.UpdateLocationRequest
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -93,16 +91,18 @@ class DriverHomeViewModel @JvmOverloads constructor(
     private fun startLocationUpdates() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingLocation = true)
-            val location = locationService.getCurrentLocation()
+            val location = locationService.getReliableCurrentLocation()
             if (location != null) {
-                _uiState.value = _uiState.value.copy(
-                    currentLatitude = location.latitude,
-                    currentLongitude = location.longitude,
-                    isLoadingLocation = false
-                )
+                _uiState.update {
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude,
+                        isLoadingLocation = false
+                    )
+                }
                 loadAddressForLocation(location.latitude, location.longitude)
             } else {
-                _uiState.value = _uiState.value.copy(isLoadingLocation = false)
+                _uiState.update { it.copy(isLoadingLocation = false) }
             }
         }
     }
@@ -135,12 +135,24 @@ class DriverHomeViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             // Get fresh GPS coordinates before going online so we never send Manila defaults
             val (lat, lng) = if (newStatus) {
-                val location = locationService.getCurrentLocation()
+                if (!locationService.isLocationEnabled()) {
+                    _uiState.update {
+                        it.copy(
+                            isTogglingStatus = false,
+                            errorMessage = "Location services are disabled. Please enable GPS in your device settings."
+                        )
+                    }
+                    return@launch
+                }
+
+                val location = locationService.getReliableCurrentLocation()
                 if (location == null) {
-                    _uiState.value = _uiState.value.copy(
-                        isTogglingStatus = false,
-                        errorMessage = "Cannot go online: location unavailable. Enable GPS and try again."
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isTogglingStatus = false,
+                            errorMessage = "Unable to get GPS fix. Please move to an open area and try again."
+                        )
+                    }
                     return@launch
                 }
                 _uiState.update {
@@ -193,12 +205,22 @@ class DriverHomeViewModel @JvmOverloads constructor(
                 val newStatus = true
                 _uiState.update { it.copy(isTogglingStatus = true) }
 
-                val location = locationService.getCurrentLocation()
+                if (!locationService.isLocationEnabled()) {
+                    _uiState.update {
+                        it.copy(
+                            isTogglingStatus = false,
+                            errorMessage = "Location services are disabled. Please enable GPS in your device settings."
+                        )
+                    }
+                    return@launch
+                }
+
+                val location = locationService.getReliableCurrentLocation()
                 if (location == null) {
                     _uiState.update {
                         it.copy(
                             isTogglingStatus = false,
-                            errorMessage = "Cannot go online: location unavailable. Enable GPS and try again."
+                            errorMessage = "Unable to get GPS fix. Please move to an open area and try again."
                         )
                     }
                     return@launch
@@ -247,29 +269,24 @@ class DriverHomeViewModel @JvmOverloads constructor(
     private fun startLocationTracking() {
         locationTrackingJob?.cancel()
         locationTrackingJob = viewModelScope.launch {
-            while (isActive) {
-                val location = locationService.getCurrentLocation()
-                if (location != null) {
-                    _uiState.update {
-                        it.copy(
-                            currentLatitude = location.latitude,
-                            currentLongitude = location.longitude
-                        )
-                    }
-                    try {
-                        trackingApi.updateLocation(
-                            UpdateLocationRequest(
-                                latitude = location.latitude,
-                                longitude = location.longitude
-                            )
-                        )
-                        android.util.Log.d("DriverHomeVM", "Location update sent: ${location.latitude}, ${location.longitude}")
-                    } catch (e: Exception) {
-                        android.util.Log.w("DriverHomeVM", "Location update failed: ${e.message}")
-                        // Non-fatal — keep looping
-                    }
+            locationService.getLocationUpdates(5_000L).collect { location ->
+                _uiState.update {
+                    it.copy(
+                        currentLatitude = location.latitude,
+                        currentLongitude = location.longitude
+                    )
                 }
-                delay(5_000L)
+                try {
+                    trackingApi.updateLocation(
+                        UpdateLocationRequest(
+                            latitude = location.latitude,
+                            longitude = location.longitude
+                        )
+                    )
+                    android.util.Log.d("DriverHomeVM", "Location update sent: ${location.latitude}, ${location.longitude}")
+                } catch (e: Exception) {
+                    android.util.Log.w("DriverHomeVM", "Location update failed: ${e.message}")
+                }
             }
         }
     }

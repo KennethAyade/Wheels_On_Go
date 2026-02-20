@@ -9,14 +9,16 @@ import com.wheelsongo.app.data.models.location.LocationData
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
  * Service for getting device location using Google Play Services FusedLocationProvider
  */
-class LocationService(context: Context) {
+class LocationService(private val context: Context) {
 
     private val fusedLocationClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
@@ -32,6 +34,16 @@ class LocationService(context: Context) {
         setMaxUpdateDelayMillis(5000L) // 5 second max delay for batching
         setWaitForAccurateLocation(false)
     }.build()
+
+    /**
+     * Check if GPS or network location provider is enabled on the device.
+     * Returns false if the user has disabled location in system settings.
+     */
+    fun isLocationEnabled(): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        return locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+               locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+    }
 
     /**
      * Get current location once
@@ -65,6 +77,30 @@ class LocationService(context: Context) {
             if (cont.isActive) {
                 cont.resumeWithException(e)
             }
+        }
+    }
+
+    /**
+     * Reliably get current location with active GPS search and timeout.
+     *
+     * Strategy:
+     * 1. Try fast path: getCurrentLocation() for cached/recent fix
+     * 2. If null, actively request GPS updates and take the first result
+     * 3. Times out after [timeoutMs] (default 10 seconds) and returns null
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun getReliableCurrentLocation(timeoutMs: Long = 10_000L): LocationData? {
+        // Fast path: try cached location first (instant)
+        try {
+            val cached = getCurrentLocation()
+            if (cached != null) return cached
+        } catch (_: Exception) {
+            // Fall through to active search
+        }
+
+        // Slow path: actively request GPS updates, take first result
+        return withTimeoutOrNull(timeoutMs) {
+            getLocationUpdates().first()
         }
     }
 
