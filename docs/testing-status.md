@@ -1,7 +1,7 @@
-# Testing Status - Phase 1 + Phase 2 Week 4
+# Testing Status - Phase 1 + Phase 2 Week 5
 
-**Last Updated:** 2026-02-17 13:00 PHT
-**Status:** Phase 1 Complete + Phase 2 Week 4 Complete — 121 Backend Tests, 87 Mobile Tests (compile verified)
+**Last Updated:** 2026-02-20 14:00 PHT
+**Status:** Phase 1 Complete + Phase 2 Week 4 + Week 5 Complete — 122 Backend Tests, 87 Mobile Tests (compile verified)
 
 ---
 
@@ -14,6 +14,8 @@
 **Week 4 (Booking Engine):** Core booking engine delivered — RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, BookingConfirm + ActiveRide mobile screens. 35 new tests added (10 backend, 27 mobile — 5 new files). Mobile test execution blocked by JBR-21 JVM GC crash; APK builds and runs fine.
 
 **Feb 17 Fixes:** Firebase App Check integrated (DebugAppCheckProvider for debug, PlayIntegrity for release), resend OTP device-aware routing, vehicle 409 idempotency, improved error messages.
+
+**Week 5 (Driver Booking Flow):** Full driver-side flow implemented — DriveRequestsScreen, DriverActiveRideScreen (overhauled), DriverTripCompletionScreen, backend dispatch payload normalization (riderName, pickupLat/Lng, buildRideData), DispatchSocketClient nested-JSON fix. Two bugs fixed: activeRideId navigation loop (critical), fare format ₱1500.0→₱1500 (UX). 1 new backend test. APK builds successfully.
 
 ### Quick Status
 
@@ -35,7 +37,7 @@
 - ✅ **KYC Upload:** Presign → R2 upload → confirm flow implemented (2026-02-06)
 
 **Week 4 (Booking Engine):**
-- ✅ **Backend Unit Tests:** 121/121 passing across 13 test suites (2026-02-17)
+- ✅ **Backend Unit Tests:** 122/122 passing across 13 test suites (2026-02-20)
 - ✅ **Mobile Tests:** 87 tests (12 files) — compile verified; blocked by JBR-21 JVM crash at runtime
 - ✅ **RiderVehicle CRUD:** 10 unit tests including idempotency
 - ✅ **Surge Pricing + Promo Codes:** Validated
@@ -52,6 +54,22 @@
 - ✅ **Session Resume:** Token refresh on app restart (2026-02-07)
 - ✅ **Mobile Build:** `./gradlew assembleDebug` — BUILD SUCCESSFUL (2026-02-07)
 - ✅ **API Build:** `npm run build:api` — BUILD SUCCESSFUL (2026-02-07)
+- ⚠️ **API Contract Tests:** Not yet implemented
+- ⚠️ **Automated Integration Tests:** Not yet implemented
+
+**Week 5 (Driver Booking Flow):**
+- ✅ **Backend Unit Tests:** 122/122 passing across 13 test suites (2026-02-20)
+- ✅ **DriveRequestsScreen:** Waiting spinner + ride request cards (rider name, fare, addresses, distance, walk time, payment)
+- ✅ **DriverActiveRideScreen:** Overhauled — map-centered, status banner, I've Arrived/Start Ride/Complete Ride CTAs
+- ✅ **DriverActiveRideViewModel:** Status progression (PENDING→ARRIVED_AT_PICKUP→IN_PROGRESS→COMPLETED), location tracking
+- ✅ **DriverTripCompletionScreen:** Post-trip summary (route, duration, rider, fare, payment, Go to Home)
+- ✅ **Dispatch Normalization:** Backend buildRideData() maps riderName, pickupLat/Lng for all dispatch paths
+- ✅ **DispatchSocketClient Fix:** Reads ride fields from nested `ride` object (not flat top-level)
+- ✅ **Bug Fix — activeRideId Loop:** clearActiveRideState() prevents re-navigation to completed ride
+- ✅ **Bug Fix — Fare Format:** ₱1500.0 → ₱1500 via %.0f format
+- ✅ **APK Build:** Compiles and packages successfully (2026-02-20)
+- ✅ **Mobile Tests:** 87 tests across 12 files — compile verified; blocked by JBR-21 JVM crash at runtime
+- ⚠️ **Driver Flow — Manual Testing:** Not yet verified on physical device
 - ⚠️ **API Contract Tests:** Not yet implemented
 - ⚠️ **Automated Integration Tests:** Not yet implemented
 
@@ -1094,5 +1112,5 @@ npx tsx scripts/backfill-encrypt-pii.ts
 
 ---
 
-**Last Updated:** 2026-02-07 23:00 PHT
+**Last Updated:** 2026-02-20 14:00 PHT
 **Next Review:** Before production deployment

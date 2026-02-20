@@ -511,10 +511,15 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val rideId = backStackEntry.arguments?.getString(Route.DriverTripCompletion.ARG_RIDE_ID) ?: ""
             val riderName = backStackEntry.arguments?.getString(Route.DriverTripCompletion.ARG_RIDER_NAME) ?: "Customer"
 
+            // Get shared DriverHomeViewModel to clear active ride state before going home
+            val homeEntry = try { navController.getBackStackEntry(Route.Home.value) } catch (e: Exception) { null }
+            val driverHomeViewModel: DriverHomeViewModel? = homeEntry?.let { viewModel(it) }
+
             DriverTripCompletionScreen(
                 rideId = rideId,
                 riderName = riderName,
                 onGoHome = {
+                    driverHomeViewModel?.clearActiveRideState()
                     navController.navigate(Route.Home.value) {
                         popUpTo(0) { inclusive = true }
                     }

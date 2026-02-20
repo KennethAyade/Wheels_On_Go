@@ -110,6 +110,7 @@ fun DriverHomeScreen(
     LaunchedEffect(uiState.activeRideId) {
         val rideId = uiState.activeRideId
         if (rideId != null && uiState.acceptedRideId == null) {
+            viewModel.clearActiveRideState()
             onNavigateToActiveRide(rideId)
         }
     }

@@ -318,6 +318,14 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(acceptedRideId = null) }
     }
 
+    fun clearActiveRideState() {
+        _uiState.update { it.copy(
+            activeRideId = null,
+            acceptedRideId = null,
+            acceptedRiderName = ""
+        ) }
+    }
+
     private fun handleDispatchEvent(event: DispatchEvent) {
         when (event) {
             is DispatchEvent.IncomingRideRequest -> {
@@ -328,7 +336,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     riderName = data["riderName"] ?: "Customer",
                     pickupAddress = data["pickupAddress"] ?: "Unknown pickup",
                     dropoffAddress = data["dropoffAddress"] ?: "Unknown dropoff",
-                    estimatedFare = data["estimatedFare"] ?: "---",
+                    estimatedFare = data["estimatedFare"]?.toDoubleOrNull()?.let { "%.0f".format(it) } ?: "---",
                     paymentMethod = data["paymentMethod"] ?: "CASH",
                     rideDurationMinutes = data["estimatedDuration"]?.toIntOrNull()?.div(60) ?: 0,
                     rideDistanceKm = data["estimatedDistance"]?.toDoubleOrNull()?.div(1000.0) ?: 0.0,

@@ -18,6 +18,22 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-20 14:00 PHT
+Summary: Week 5 driver-side booking flow complete — DriveRequestsScreen, DriverActiveRideScreen overhaul, DriverTripCompletionScreen, dispatch payload normalization, DispatchSocketClient nested-JSON fix; two bug fixes (activeRideId navigation loop, fare format ₱1500.0→₱1500); deprecated icon warning cleanup.
+Changes:
+- apps/mobile/.../ui/screens/driver/DriveRequestsScreen.kt: NEW — waiting spinner, ride-request cards (rider name, fare, pickup/dropoff, distance-to-pickup, walk time, payment method), Apply/Dismiss buttons, CurrentLocationBar
+- apps/mobile/.../ui/screens/driver/DriverActiveRideScreen.kt: OVERHAULED — map-centered layout with route polyline, status banner (en-route/arrived/riding), I've Arrived/Start Ride/Complete Ride CTAs, message stub; Icons.Default.Chat → Icons.AutoMirrored.Filled.Chat
+- apps/mobile/.../ui/screens/driver/DriverActiveRideViewModel.kt: NEW — ride fetch, status progression (PENDING→ARRIVED_AT_PICKUP→IN_PROGRESS→COMPLETED), continuous location-tracking loop, REST calls (arriveAtPickup, startRide, completeRide)
+- apps/mobile/.../ui/screens/driver/DriverTripCompletionScreen.kt: NEW — post-trip summary (route, duration/distance banner, rider avatar, fare, payment method, Go to Home CTA); unused imports removed; Icons.AutoMirrored fix applied
+- apps/mobile/.../ui/screens/driver/DriverTripCompletionViewModel.kt: NEW — loads ride details via RideRepository.getRideById
+- apps/mobile/.../ui/screens/driver/DriverHomeScreen.kt: BUG FIX — call viewModel.clearActiveRideState() in LaunchedEffect(activeRideId) before navigating to prevent re-navigation loop after trip completion
+- apps/mobile/.../ui/screens/driver/DriverHomeViewModel.kt: Added clearActiveRideState() method; fixed fare format (%.0f.format) so ₱1500.0 → ₱1500
+- apps/mobile/app/src/main/java/com/wheelsongo/app/AppNav.kt: Added DriverTripCompletion route; get shared DriverHomeViewModel from Home back-stack entry; call clearActiveRideState() on Go to Home; removed unused backStackEntry param in Home composable
+- apps/api/src/dispatch/dispatch.gateway.ts: Added fetchFullRide() + buildRideData() to normalize dispatch payload (riderName, pickupLat/Lng, estimatedFare, estimatedDistance, estimatedDuration, paymentMethod, rideType); applied to initiateDispatch, handleDispatchDecline, handleConnection, notifySelectedDriver paths
+- apps/mobile/.../data/network/DispatchSocketClient.kt: Fixed nested-JSON parsing — reads ride fields from event.ride object instead of flat top-level keys
+- Tests: 122 backend tests (13 suites) passing — 1 new test vs previous 121
+Details: `changes/2026-02-20-1400-pht.md`
+
 ## 2026-02-17 13:00 PHT
 Summary: Firebase App Check integration to fix "missing valid app identifier" error; resend OTP device-aware fix; vehicle 409 idempotency fix with error parsing and lifecycle refresh.
 Changes:
