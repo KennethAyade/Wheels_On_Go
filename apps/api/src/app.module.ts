@@ -17,6 +17,7 @@ import { TrackingModule } from './tracking/tracking.module';
 import { GeofenceModule } from './geofence/geofence.module';
 import { RiderVehicleModule } from './rider-vehicle/rider-vehicle.module';
 import { RatingModule } from './rating/rating.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { RatingModule } from './rating/rating.module';
     GeofenceModule,
     RiderVehicleModule,
     RatingModule,
+    AdminModule,
   ],
   providers: [
     {

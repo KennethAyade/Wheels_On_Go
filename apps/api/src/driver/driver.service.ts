@@ -19,6 +19,7 @@ import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 import { AvailableDriversQueryDto, AvailableDriverDto } from './dto/available-drivers.dto';
 import { DriverPublicProfileDto } from './dto/driver-public-profile.dto';
+import { AdminDriverListQueryDto } from './dto/admin-driver-list.dto';
 
 @Injectable()
 export class DriverService {
@@ -190,10 +191,96 @@ export class DriverService {
   }
 
   async listPendingDrivers() {
-    return this.prisma.driverProfile.findMany({
+    const drivers = await this.prisma.driverProfile.findMany({
       where: { status: DriverStatus.PENDING },
       include: { documents: true, user: true },
     });
+
+    // Enrich documents with presigned download URLs for admin review
+    return Promise.all(
+      drivers.map(async (driver) => ({
+        ...driver,
+        documents: await this.enrichDocumentsWithUrls(driver.documents),
+      })),
+    );
+  }
+
+  async listAllDrivers(query: AdminDriverListQueryDto) {
+    const page = query.page || 1;
+    const limit = Math.min(query.limit || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.search) {
+      where.user = {
+        OR: [
+          { firstName: { contains: query.search, mode: 'insensitive' } },
+          { lastName: { contains: query.search, mode: 'insensitive' } },
+          { phoneNumber: { contains: query.search } },
+        ],
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.driverProfile.findMany({
+        where,
+        include: { documents: true, user: true, vehicle: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.driverProfile.count({ where }),
+    ]);
+
+    // Enrich documents with presigned download URLs
+    const enrichedData = await Promise.all(
+      data.map(async (driver) => ({
+        ...driver,
+        documents: await this.enrichDocumentsWithUrls(driver.documents),
+      })),
+    );
+
+    return {
+      data: enrichedData,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getDriverDetailForAdmin(driverId: string) {
+    const driver = await this.prisma.driverProfile.findUnique({
+      where: { id: driverId },
+      include: { documents: true, user: true, vehicle: true },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('Driver profile not found');
+    }
+
+    return {
+      ...driver,
+      documents: await this.enrichDocumentsWithUrls(driver.documents),
+    };
+  }
+
+  private async enrichDocumentsWithUrls(documents: any[]) {
+    return Promise.all(
+      documents.map(async (doc) => {
+        if (doc.status === DocumentStatus.UPLOADED && doc.storageKey) {
+          const downloadUrl = await this.storageService.getDownloadUrl(
+            doc.storageKey,
+            900,
+          );
+          return { ...doc, downloadUrl };
+        }
+        return { ...doc, downloadUrl: null };
+      }),
+    );
   }
 
   async approveDriver(driverId: string, adminUserId: string) {

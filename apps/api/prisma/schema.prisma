@@ -210,6 +210,7 @@ model User {
   lastName         String?
   email            String?   @unique
   emailHash        String?  @unique // HMAC-SHA256 hash for encrypted email lookup
+  passwordHash     String?           // bcrypt hash for admin email/password login
   profilePhotoUrl  String?
   isActive         Boolean   @default(true)
   isSuspended      Boolean   @default(false)

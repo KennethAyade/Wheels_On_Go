@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "apps/api",
+    "apps/web",
     "packages/shared"
   ],
   "scripts": {
@@ -14,6 +15,8 @@
     "prisma:generate": "npm --prefix apps/api run prisma:generate",
     "prisma:migrate": "npm --prefix apps/api run prisma:migrate",
     "prisma:studio": "npm --prefix apps/api run prisma:studio",
-    "test:api": "npm --prefix apps/api test"
+    "test:api": "npm --prefix apps/api test",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:web": "npm --prefix apps/web run build"
   }
 }

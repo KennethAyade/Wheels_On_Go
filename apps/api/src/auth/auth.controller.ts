@@ -6,6 +6,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { VerifyFirebaseDto } from './dto/verify-firebase.dto';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import { BiometricGuard } from './guards/biometric.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -16,6 +17,12 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly authService: AuthService) {}
+
+  @Post('admin/login')
+  @Throttle({ default: { limit: 5, ttl: 60 } })
+  adminLogin(@Body() dto: AdminLoginDto) {
+    return this.authService.adminLogin(dto);
+  }
 
   @Post('request-otp')
   @Throttle({ default: { limit: 3, ttl: 60 } })

@@ -13,7 +13,8 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "seed:admin": "ts-node prisma/seed-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.637.0",

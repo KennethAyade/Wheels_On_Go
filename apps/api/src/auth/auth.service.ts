@@ -8,12 +8,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { DriverStatus, User, UserRole } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from './otp.service';
 import { FirebaseService } from './firebase.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { VerifyFirebaseDto } from './dto/verify-firebase.dto';
+import { AdminLoginDto } from './dto/admin-login.dto';
 import { JwtUser } from '../common/types/jwt-user.type';
 import { BiometricService } from '../biometric/biometric.service';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
@@ -32,6 +34,43 @@ export class AuthService {
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
   ) {}
+
+  async adminLogin(dto: AdminLoginDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { email: dto.email, role: UserRole.ADMIN },
+    });
+
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const accessToken = await this.buildAccessToken(user);
+    const refreshToken = await this.buildRefreshToken(user);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    await this.auditService.log(user.id, 'ADMIN_LOGIN', 'user', user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    };
+  }
 
   async requestOtp(dto: RequestOtpDto) {
     await this.ensureRoleConsistency(dto.phoneNumber, dto.role);
