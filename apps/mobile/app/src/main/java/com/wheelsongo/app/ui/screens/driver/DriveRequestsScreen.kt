@@ -77,11 +77,8 @@ fun DriveRequestsScreen(
         }
     }
 
-    // Back goes offline then pops
+    // Back navigates home; driver stays online (toggle is on DriverHomeScreen)
     BackHandler {
-        if (uiState.isOnline) {
-            viewModel.toggleOnlineStatus()
-        }
         onNavigateBack()
     }
 

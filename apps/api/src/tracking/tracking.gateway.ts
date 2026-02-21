@@ -60,7 +60,7 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
         secret: this.configService.get<string>('JWT_SECRET'),
       });
 
-      const userId = payload.userId;
+      const userId = payload.sub;
 
       // Store mappings
       this.userSocketMap.set(userId, client.id);

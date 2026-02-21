@@ -3,9 +3,7 @@ package com.wheelsongo.app
 import com.wheelsongo.app.utils.DeviceUtils
 
 object AppConfig {
-    val BASE_URL: String = if (DeviceUtils.isEmulator()) {
-        "http://10.0.2.2:3000/"
-    } else {
-        BuildConfig.API_BASE_URL
-    }
+    // Temporarily pointing both emulator and real device to Render for cross-device testing.
+    // Revert this when done: restore the isEmulator() check.
+    val BASE_URL: String = BuildConfig.API_BASE_URL
 }
