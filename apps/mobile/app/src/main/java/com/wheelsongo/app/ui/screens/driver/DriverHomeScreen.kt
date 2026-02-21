@@ -35,6 +35,8 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -50,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -113,6 +116,71 @@ fun DriverHomeScreen(
             viewModel.clearActiveRideState()
             onNavigateToActiveRide(rideId)
         }
+    }
+
+    // Show incoming ride request dialog when a dispatch:request arrives
+    val incomingRequest = uiState.pendingRequests.firstOrNull()
+    if (incomingRequest != null && uiState.isOnline) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text("New Ride Request", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Rider: ${incomingRequest.riderName}",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "\u20B1${incomingRequest.estimatedFare}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                    Row {
+                        Icon(
+                            Icons.Default.LocationOn, null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(incomingRequest.pickupAddress, fontSize = 14.sp, maxLines = 2)
+                    }
+                    Row {
+                        Icon(
+                            Icons.Default.LocationOn, null,
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(incomingRequest.dropoffAddress, fontSize = 14.sp, maxLines = 2)
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("%.1f km".format(incomingRequest.rideDistanceKm), fontSize = 13.sp)
+                        Text(incomingRequest.paymentMethod, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.acceptRide(incomingRequest.dispatchAttemptId) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text("Accept")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { viewModel.declineRide(incomingRequest.dispatchAttemptId) }
+                ) {
+                    Text("Decline")
+                }
+            }
+        )
     }
 
     val currentLocationData = remember(uiState.currentLatitude, uiState.currentLongitude) {

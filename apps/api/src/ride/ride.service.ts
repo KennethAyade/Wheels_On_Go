@@ -417,7 +417,6 @@ export class RideService {
 
               updateData.actualDistance = actualDistanceMeters;
               updateData.actualDuration = actualDurationSeconds;
-              updateData.actualFare = actualFare;
               updateData.totalFare = actualFare;
 
               this.logger.log(
@@ -722,7 +721,7 @@ export class RideService {
       estimatedFare: ride.estimatedFare?.toNumber?.() || ride.estimatedFare,
       actualDistance: ride.actualDistance,
       actualDuration: ride.actualDuration,
-      actualFare: ride.actualFare?.toNumber?.() || ride.actualFare,
+      actualFare: ride.totalFare?.toNumber?.() || ride.totalFare,
       baseFare: ride.baseFare?.toNumber?.() || ride.baseFare,
       costPerKm: ride.costPerKm?.toNumber?.() || ride.costPerKm,
       costPerMin: ride.costPerMin?.toNumber?.() || ride.costPerMin,

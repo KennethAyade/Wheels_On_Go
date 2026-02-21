@@ -87,10 +87,7 @@ fun DriveRequestsScreen(
             TopAppBar(
                 title = { Text("Drive Requests", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (uiState.isOnline) viewModel.toggleOnlineStatus()
-                        onNavigateBack()
-                    }) {
+                    IconButton(onClick = { onNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
