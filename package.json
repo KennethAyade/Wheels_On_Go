@@ -16,6 +16,7 @@
     "prisma:migrate": "npm --prefix apps/api run prisma:migrate",
     "prisma:studio": "npm --prefix apps/api run prisma:studio",
     "test:api": "npm --prefix apps/api test",
+    "seed:admin": "npm --prefix apps/api run seed:admin",
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build"
   }

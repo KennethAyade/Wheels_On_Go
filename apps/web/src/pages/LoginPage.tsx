@@ -31,7 +31,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-emerald-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img
@@ -42,6 +42,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-xl p-6">
+          <div className="h-1 bg-emerald-600 rounded-t-lg -mt-6 -mx-6 mb-6" />
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
