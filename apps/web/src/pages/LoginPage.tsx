@@ -1,18 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Use <Navigate> component instead of navigate() during render —
+  // calling navigate() as a side effect in the render body is a React anti-pattern.
   if (isAuthenticated) {
-    navigate('/', { replace: true });
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -21,7 +21,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/', { replace: true });
+      // No navigate() here — when login() sets the user, isAuthenticated
+      // becomes true and the <Navigate> above handles the redirect.
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid email or password');
     } finally {
@@ -33,10 +34,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-emerald-700 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-white rounded-full mx-auto mb-4 flex items-center justify-center">
-            <span className="text-emerald-700 font-bold text-2xl">W</span>
-          </div>
-          <h1 className="text-white text-xl font-bold">WHEELS ON GO</h1>
+          <img
+            src="/logo.jpg"
+            alt="Wheels On Go"
+            className="w-28 h-28 object-contain mx-auto mb-2"
+          />
         </div>
 
         <div className="bg-white rounded-lg shadow-xl p-6">

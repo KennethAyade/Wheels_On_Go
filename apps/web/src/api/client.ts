@@ -21,11 +21,20 @@ client.interceptors.response.use(
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
-      const refreshToken = localStorage.getItem('wog_refresh_token');
-      if (refreshToken) {
+      const accessToken = localStorage.getItem('wog_access_token');
+      const storedRefresh = localStorage.getItem('wog_refresh_token');
+
+      // If no tokens are stored, this is an unauthenticated request (e.g. the
+      // login endpoint itself). Let the error propagate so the caller's catch
+      // block can display it — do NOT redirect to /login.
+      if (!accessToken && !storedRefresh) {
+        return Promise.reject(error);
+      }
+
+      if (storedRefresh) {
         try {
           const { data } = await axios.post(`${API_BASE}/auth/refresh`, {
-            refreshToken,
+            refreshToken: storedRefresh,
           });
           localStorage.setItem('wog_access_token', data.accessToken);
           localStorage.setItem('wog_refresh_token', data.refreshToken);
@@ -37,6 +46,8 @@ client.interceptors.response.use(
           window.location.href = '/login';
         }
       } else {
+        localStorage.removeItem('wog_access_token');
+        localStorage.removeItem('wog_refresh_token');
         window.location.href = '/login';
       }
     }

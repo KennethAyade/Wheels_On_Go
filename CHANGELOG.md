@@ -18,6 +18,54 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-21 12:00 PHT
+Summary: Phase 3 Week 7 — Admin web dashboard complete. Vite + React + Tailwind web app (`apps/web`) added to monorepo. Admin email/password auth, driver verification UI, bookings table, dashboard stats. 122 backend tests still passing.
+Changes:
+- apps/api/prisma/schema.prisma: Added `passwordHash String?` to User model for admin email/password login
+- apps/api/prisma/migrations/20260221120000_add_admin_password_hash/migration.sql: NEW — `ALTER TABLE "User" ADD COLUMN "passwordHash" TEXT`
+- apps/api/src/auth/dto/admin-login.dto.ts: NEW — AdminLoginDto with @IsEmail() + @IsString() @MinLength(8)
+- apps/api/src/auth/auth.service.ts: Added adminLogin() — finds ADMIN user by email, bcrypt.compare(), reuses buildAccessToken/buildRefreshToken, audit logs ADMIN_LOGIN
+- apps/api/src/auth/auth.controller.ts: Added POST /auth/admin/login with @Throttle({ default: { limit: 5, ttl: 60 } })
+- apps/api/prisma/seed-admin.ts: NEW — seeds admin user (admin@wheelsongo.com / Admin123! / role ADMIN) via prisma.user.upsert
+- apps/api/package.json: Added "seed:admin" script
+- apps/api/src/driver/dto/admin-driver-list.dto.ts: NEW — AdminDriverListQueryDto (status, search, page, limit)
+- apps/api/src/driver/driver.service.ts: Added listAllDrivers(query), getDriverDetailForAdmin(driverId), enrichDocumentsWithUrls(); enhanced listPendingDrivers() with presigned download URLs
+- apps/api/src/driver/admin-driver.controller.ts: Added GET /admin/drivers (all, paginated, filterable) + GET /admin/drivers/:driverId; kept existing pending/approve/reject
+- apps/api/src/admin/admin-stats.controller.ts: NEW — GET /admin/stats (activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue via Promise.all)
+- apps/api/src/admin/dto/admin-bookings-query.dto.ts: NEW — AdminBookingsQueryDto (status, dateFrom, dateTo, fareMin, fareMax, search, page, limit)
+- apps/api/src/admin/admin-bookings.controller.ts: NEW — GET /admin/bookings with pagination, filters, rider/driver relations
+- apps/api/src/admin/admin.module.ts: NEW — AdminModule registering stats + bookings controllers, imports PrismaModule
+- apps/api/src/app.module.ts: Registered AdminModule
+- apps/web/: NEW — Complete Vite + React + TypeScript + Tailwind CSS 4 web admin app
+- apps/web/src/api/client.ts: Axios instance with JWT interceptors (auto-refresh on 401, redirect on failure)
+- apps/web/src/api/{auth,drivers,bookings,dashboard}.ts: API layer for all admin endpoints
+- apps/web/src/context/AuthContext.tsx: AuthProvider (JWT localStorage, login/logout, ADMIN role guard on init)
+- apps/web/src/components/{Sidebar,TopBar,Layout,ProtectedRoute,StatusBadge}.tsx: Layout shell matching Figma wireframes
+- apps/web/src/pages/LoginPage.tsx: Email + password form on emerald-700 green background
+- apps/web/src/pages/DashboardPage.tsx: Stat cards grid fetching GET /admin/stats
+- apps/web/src/pages/DriversPage.tsx: Applicants accordion (status mapping: For Admin Approval / Uploading Documents / Lacking Documents / Denied) + Registered section
+- apps/web/src/pages/DriverDetailPage.tsx: Document gallery with presigned image viewer modal (zoom), approve/reject with reason dialog
+- apps/web/src/pages/BookingsPage.tsx: Paginated table with status/date filters, search, color-coded status badges
+- package.json (root): Added apps/web to workspaces; added dev:web + build:web scripts
+- Tests: 122 backend tests (13 suites) passing unchanged
+Details: `changes/2026-02-21-1200-pht.md`
+
+## 2026-02-20 20:00 PHT
+Summary: Week 5 (Tracking & Navigation) — TrackingSocketClient, driver real-time location broadcast, full rider ActiveRideScreen (live driver marker + route polyline), ETA dual-strategy (Haversine + Directions API), geofence events, turn-by-turn navigation, backend RideRoute storage, actual ride data calculation on COMPLETED. Dispatch fixes: normalized accepted payload, 30s selected-driver timeout, EXPIRED handling.
+Changes:
+- apps/mobile/.../data/websocket/TrackingSocketClient.kt: NEW — Socket.IO client for /tracking namespace; broadcasts LOCATION_UPDATE every 3s; receives APPROACHING_PICKUP, ARRIVED_AT_PICKUP, APPROACHING_DROPOFF, ARRIVED_AT_DROPOFF geofence events
+- apps/mobile/.../ui/screens/driver/DriverActiveRideViewModel.kt: Added TrackingSocketClient; broadcasts driver location every 3s during active ride via LocationService
+- apps/mobile/.../ui/screens/ride/ActiveRideScreen.kt: REWRITTEN — full-screen GoogleMapView with live driver Marker, route PolylineOptions, overlay cards (status, ETA, pickup/dropoff addresses, geofence message banner)
+- apps/mobile/.../ui/screens/ride/ActiveRideViewModel.kt: Upgraded to AndroidViewModel; added TrackingSocketClient for geofence events; dual ETA (Haversine instant + Directions API every 30s); geofence message → user-facing string mapping
+- apps/mobile/.../data/network/DirectionsApi.kt: Added DirectionsLeg + DirectionsValue models for ETA parsing
+- apps/mobile/.../ui/screens/driver/DriverActiveRideScreen.kt: Added "Navigate" FAB — launches Google Maps turn-by-turn intent; browser deeplink fallback
+- apps/api/src/dispatch/dispatch.service.ts: Added storeRideRoute() — calls Google Directions API on ride acceptance, stores encoded polyline in RideRoute table
+- apps/api/src/rides/ride.service.ts: On COMPLETED, sums Haversine distances across DriverLocationHistory GPS trail for actual distance/duration/fare; falls back to estimated values
+- apps/api/src/dispatch/dispatch.gateway.ts: Normalized dispatch:accepted payload (rideId, driverId, full ride data); added 30s timeout for SELECTED state → auto-decline + re-dispatch; emits EXPIRED to driver on timeout
+- apps/api/src/tracking/tracking.gateway.ts: Receives LOCATION_UPDATE from driver; emits to rider room; triggers geofence checks (200m APPROACHING, 50m ARRIVED) for pickup and dropoff
+- Tests: 122 backend tests (13 suites) passing; APK BUILD SUCCESSFUL
+Details: `changes/2026-02-20-2000-pht.md`
+
 ## 2026-02-20 14:00 PHT
 Summary: Week 5 driver-side booking flow complete — DriveRequestsScreen, DriverActiveRideScreen overhaul, DriverTripCompletionScreen, dispatch payload normalization, DispatchSocketClient nested-JSON fix; two bug fixes (activeRideId navigation loop, fare format ₱1500.0→₱1500); deprecated icon warning cleanup.
 Changes:

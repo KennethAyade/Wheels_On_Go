@@ -1,7 +1,7 @@
-# Testing Status - Phase 1 + Phase 2 Week 5
+# Testing Status - Phase 1 + Phase 2 Weeks 4–5 + Phase 3 Week 7
 
-**Last Updated:** 2026-02-20 14:00 PHT
-**Status:** Phase 1 Complete + Phase 2 Week 4 + Week 5 Complete — 122 Backend Tests, 87 Mobile Tests (compile verified)
+**Last Updated:** 2026-02-21 PHT
+**Status:** Phase 1 Complete + Phase 2 Weeks 4–5 Complete + Phase 3 Admin Dashboard Complete — 122 Backend Tests, 87 Mobile Tests (compile verified), Web Admin Build Clean
 
 ---
 
@@ -16,6 +16,10 @@
 **Feb 17 Fixes:** Firebase App Check integrated (DebugAppCheckProvider for debug, PlayIntegrity for release), resend OTP device-aware routing, vehicle 409 idempotency, improved error messages.
 
 **Week 5 (Driver Booking Flow):** Full driver-side flow implemented — DriveRequestsScreen, DriverActiveRideScreen (overhauled), DriverTripCompletionScreen, backend dispatch payload normalization (riderName, pickupLat/Lng, buildRideData), DispatchSocketClient nested-JSON fix. Two bugs fixed: activeRideId navigation loop (critical), fare format ₱1500.0→₱1500 (UX). 1 new backend test. APK builds successfully.
+
+**Week 5 (Real-time Tracking & Navigation):** TrackingSocketClient (new `/tracking` namespace Socket.IO client), driver GPS broadcast every 3s, rider ActiveRideScreen with live driver marker + route polyline, ETA dual-strategy (Haversine instant + Directions API every 30s), geofence events at 200m/50m thresholds, turn-by-turn navigation FAB, backend RideRoute storage on acceptance, actual fare calculation from GPS trail on COMPLETED. Dispatch: 30s SELECTED timeout, EXPIRED event, normalized accepted payload.
+
+**Phase 3 Week 7 (Admin Dashboard):** Complete admin web app at `apps/web/`. React 18 + Vite + Tailwind CSS 4. Email/password admin login, driver verification UI (document image viewer with zoom, approve/reject), bookings table with filters, dashboard stat cards. Backend: `GET /admin/drivers` (all, paginated), `GET /admin/drivers/:id` (presigned URLs), `GET /admin/stats`, `GET /admin/bookings`, `POST /auth/admin/login`. Web TypeScript build clean, Vite build 302KB JS + 19KB CSS. 122 backend tests unchanged.
 
 ### Quick Status
 
@@ -72,6 +76,39 @@
 - ⚠️ **Driver Flow — Manual Testing:** Not yet verified on physical device
 - ⚠️ **API Contract Tests:** Not yet implemented
 - ⚠️ **Automated Integration Tests:** Not yet implemented
+
+**Week 5 (Real-time Tracking & Navigation):**
+- ✅ **Backend Unit Tests:** 122/122 passing across 13 test suites (2026-02-20)
+- ✅ **TrackingSocketClient:** New Socket.IO client for `/tracking` namespace — sends LOCATION_UPDATE every 3s, receives geofence events
+- ✅ **Driver GPS Broadcast:** DriverActiveRideViewModel sends location every 3s via TrackingSocketClient
+- ✅ **Rider ActiveRideScreen:** Full-screen GoogleMapView, live driver Marker, route PolylineOptions, ETA card, geofence message banner
+- ✅ **Rider ActiveRideViewModel:** Upgraded to AndroidViewModel; dual ETA (Haversine instant + Directions API 30s); geofence message mapping
+- ✅ **Geofence Events:** APPROACHING_PICKUP (200m), ARRIVED_AT_PICKUP (50m), APPROACHING_DROPOFF (200m), ARRIVED_AT_DROPOFF (50m)
+- ✅ **Turn-by-turn Navigation:** "Navigate" FAB on DriverActiveRideScreen → Google Maps intent + browser fallback
+- ✅ **Backend RideRoute:** storeRideRoute() on ride acceptance via Google Directions API
+- ✅ **Actual Fare Calculation:** GPS trail Haversine sum on COMPLETED, falls back to estimated fare on failure
+- ✅ **Dispatch Fixes:** 30s SELECTED timeout → auto-decline + re-dispatch; EXPIRED event to driver; normalized accepted payload
+- ✅ **APK Build:** BUILD SUCCESSFUL
+- ⚠️ **Rider Tracking — Manual Testing:** Not yet verified end-to-end on device
+- ⚠️ **Automated Integration Tests:** Not yet implemented
+
+**Phase 3 Week 7 (Admin Dashboard):**
+- ✅ **Backend Unit Tests:** 122/122 passing across 13 test suites (2026-02-21 — unchanged)
+- ✅ **Admin Login:** POST /auth/admin/login with bcrypt + JWT; seeded admin@wheelsongo.com / Admin123!
+- ✅ **Admin Driver Endpoints:** GET /admin/drivers (all, paginated), GET /admin/drivers/:id (presigned doc URLs)
+- ✅ **Admin Stats:** GET /admin/stats (activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue)
+- ✅ **Admin Bookings:** GET /admin/bookings (paginated, status/date/fare/search filters)
+- ✅ **Web Scaffold:** apps/web/ — Vite + React + Tailwind CSS 4, port 3001, proxy /api to localhost:3000
+- ✅ **Auth Layer:** Axios JWT interceptors, AuthContext (localStorage), ProtectedRoute
+- ✅ **Login Page:** Email/password on emerald-700 green background (matches Figma wireframe)
+- ✅ **Dashboard Page:** Dynamic stat cards from GET /admin/stats
+- ✅ **Drivers Page:** Applicants accordion (For Admin Approval / Uploading Documents / Lacking Documents / Denied / Approved) + Registered section
+- ✅ **Driver Detail Page:** Document image viewer modal with zoom, approve/reject with reason dialog
+- ✅ **Bookings Page:** Paginated table, status/date range filters, search, color-coded status badges
+- ✅ **TypeScript Build:** npx tsc -b — no errors
+- ✅ **Vite Build:** SUCCESS — 302KB JS + 19KB CSS
+- ⚠️ **Web E2E Tests:** Not yet implemented
+- ⚠️ **Admin Endpoint Integration Tests:** Not yet implemented
 
 ---
 

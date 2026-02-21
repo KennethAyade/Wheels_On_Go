@@ -24,9 +24,7 @@ export default function Sidebar() {
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col min-h-screen">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">W</span>
-          </div>
+          <img src="/logo.jpg" alt="Wheels On Go" className="w-10 h-10 object-contain" />
           <span className="font-bold text-emerald-800 text-sm">WHEELS ON GO</span>
         </div>
       </div>
