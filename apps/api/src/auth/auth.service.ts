@@ -175,6 +175,11 @@ export class AuthService {
         this.logger.log(`[PERF] buildAccessToken took ${Date.now() - step6Start}ms`);
       }
 
+      const driverIsProfileComplete = !!(
+        user.firstName && user.lastName &&
+        driverProfile.licenseNumber && driverProfile.licenseExpiryDate
+      );
+
       return {
         accessToken,
         refreshToken,
@@ -184,6 +189,9 @@ export class AuthService {
           role: user.role,
           isActive: user.isActive,
           createdAt: user.createdAt?.toISOString(),
+          firstName: user.firstName ?? null,
+          lastName: user.lastName ?? null,
+          isProfileComplete: driverIsProfileComplete,
         },
         // Driver-specific fields
         biometricRequired: hasProfilePhoto,
@@ -202,6 +210,11 @@ export class AuthService {
     const refreshToken = await this.buildRefreshToken(user);
     this.logger.log(`[PERF] buildRefreshToken (rider) took ${Date.now() - step4Start}ms`);
 
+    const riderIsProfileComplete = !!(
+      (user as any).firstName && (user as any).lastName &&
+      (user as any).age && (user as any).address
+    );
+
     return {
       accessToken,
       refreshToken,
@@ -211,6 +224,9 @@ export class AuthService {
         role: user.role,
         isActive: user.isActive,
         createdAt: user.createdAt?.toISOString(),
+        firstName: (user as any).firstName ?? null,
+        lastName: (user as any).lastName ?? null,
+        isProfileComplete: riderIsProfileComplete,
       },
     };
   }
@@ -324,7 +340,34 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return found;
+    let isProfileComplete: boolean;
+    if (found.role === UserRole.DRIVER) {
+      isProfileComplete = !!(
+        found.firstName && found.lastName &&
+        (found as any).driverProfile?.licenseNumber &&
+        (found as any).driverProfile?.licenseExpiryDate
+      );
+    } else {
+      isProfileComplete = !!(
+        found.firstName && found.lastName &&
+        (found as any).age && (found as any).address
+      );
+    }
+
+    return { ...found, isProfileComplete };
+  }
+
+  async updateRiderProfile(userId: string, dto: { firstName: string; lastName: string; age: number; address: string }) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        age: dto.age,
+        address: dto.address,
+      } as any,
+    });
+    return { firstName: dto.firstName, lastName: dto.lastName, age: dto.age, address: dto.address, isProfileComplete: true };
   }
 
   private async findOrCreateUser(phoneNumber: string, role: UserRole): Promise<User> {

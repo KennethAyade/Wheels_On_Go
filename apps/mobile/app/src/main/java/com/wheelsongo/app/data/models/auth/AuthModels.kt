@@ -94,7 +94,10 @@ data class UserDto(
     @Json(name = "phoneNumber") val phoneNumber: String,
     @Json(name = "role") val role: String,
     @Json(name = "isActive") val isActive: Boolean = true,
-    @Json(name = "createdAt") val createdAt: String? = null
+    @Json(name = "createdAt") val createdAt: String? = null,
+    @Json(name = "firstName") val firstName: String? = null,
+    @Json(name = "lastName") val lastName: String? = null,
+    @Json(name = "isProfileComplete") val isProfileComplete: Boolean = false
 )
 
 // ==========================================

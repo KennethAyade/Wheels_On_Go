@@ -10,6 +10,7 @@ import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 import { AvailableDriversQueryDto } from './dto/available-drivers.dto';
+import { DriverProfileSetupDto } from './dto/driver-profile-setup.dto';
 
 @Controller('drivers')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,6 +49,12 @@ export class DriverController {
   @Roles(UserRole.DRIVER)
   confirmUpload(@CurrentUser() user: JwtUser, @Body() dto: ConfirmKycUploadDto) {
     return this.driverService.confirmKycUpload(user.sub, dto);
+  }
+
+  @Patch('profile-setup')
+  @Roles(UserRole.DRIVER)
+  setupProfile(@CurrentUser() user: JwtUser, @Body() dto: DriverProfileSetupDto) {
+    return this.driverService.setupDriverProfile(user.sub, dto);
   }
 
   @Patch('me/status')

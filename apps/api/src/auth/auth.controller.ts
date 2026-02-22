@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Patch, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -11,6 +11,7 @@ import { BiometricGuard } from './guards/biometric.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtUser } from '../common/types/jwt-user.type';
+import { UpdateRiderProfileDto } from './dto/update-rider-profile.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -63,5 +64,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: JwtUser) {
     return this.authService.me(user);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@CurrentUser() user: JwtUser, @Body() dto: UpdateRiderProfileDto) {
+    return this.authService.updateRiderProfile(user.sub, dto);
   }
 }

@@ -48,7 +48,7 @@ fun OtpVerificationScreen(
     role: String,
     verificationId: String? = null,
     onBack: () -> Unit,
-    onVerified: (needsKyc: Boolean) -> Unit,
+    onVerified: (needsKyc: Boolean, isProfileComplete: Boolean) -> Unit,
     onBiometricRequired: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: OtpVerificationViewModel = viewModel()
@@ -71,7 +71,7 @@ fun OtpVerificationScreen(
             } else {
                 // Not required — OTP is sufficient
                 val needsKyc = uiState.userRole == "DRIVER" && !uiState.biometricEnrolled
-                onVerified(needsKyc)
+                onVerified(needsKyc, uiState.isProfileComplete)
             }
         }
     }
@@ -257,7 +257,7 @@ private fun OtpVerificationScreenPreview() {
             phoneNumber = "+639761337834",
             role = "RIDER",
             onBack = {},
-            onVerified = { _ -> }
+            onVerified = { _, _ -> }
         )
     }
 }

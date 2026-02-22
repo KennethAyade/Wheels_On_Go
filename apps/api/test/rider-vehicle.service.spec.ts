@@ -6,6 +6,7 @@ import {
 import { RiderVehicleService } from '../src/rider-vehicle/rider-vehicle.service';
 import { AuditService } from '../src/audit/audit.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { StorageService } from '../src/storage/storage.service';
 
 const prismaMock = () =>
   ({
@@ -29,6 +30,7 @@ describe('RiderVehicleService', () => {
   let service: RiderVehicleService;
   let prisma: PrismaService;
   let audit: AuditService;
+  let storage: StorageService;
 
   const userId = 'user-1';
   const riderProfileId = 'profile-1';
@@ -56,7 +58,8 @@ describe('RiderVehicleService', () => {
   beforeEach(() => {
     prisma = prismaMock();
     audit = { log: jest.fn() } as unknown as AuditService;
-    service = new RiderVehicleService(prisma, audit);
+    storage = { putBuffer: jest.fn().mockResolvedValue(undefined) } as unknown as StorageService;
+    service = new RiderVehicleService(prisma, audit, storage);
 
     // Default: rider profile exists
     (prisma.riderProfile.findUnique as jest.Mock).mockResolvedValue(

@@ -9,6 +9,8 @@ import com.wheelsongo.app.data.models.driver.KycStatusResponse
 import com.wheelsongo.app.data.models.driver.PresignUrlRequest
 import com.wheelsongo.app.data.models.driver.PresignUrlResponse
 import com.wheelsongo.app.data.models.driver.UpdateDriverStatusRequest
+import com.wheelsongo.app.data.models.profile.DriverProfileSetupRequest
+import com.wheelsongo.app.data.models.profile.ProfileSetupResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -47,4 +49,7 @@ interface DriverApi {
     suspend fun getPublicProfile(
         @Path("id") driverProfileId: String
     ): Response<DriverPublicProfileResponse>
+
+    @PATCH("drivers/profile-setup")
+    suspend fun setupProfile(@Body request: DriverProfileSetupRequest): Response<ProfileSetupResponse>
 }

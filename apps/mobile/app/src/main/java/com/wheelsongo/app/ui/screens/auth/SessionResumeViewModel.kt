@@ -77,7 +77,17 @@ class SessionResumeViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             val result = authRepository.refreshSession()
             if (result.isSuccess) {
-                _uiState.value = UiState(isChecking = false, navigateTo = "home")
+                val tokenManager = ApiClient.getTokenManager()
+                if (!tokenManager.isProfileComplete()) {
+                    val role = tokenManager.getUserRole() ?: "RIDER"
+                    val dest = if (role == "DRIVER")
+                        com.wheelsongo.app.ui.navigation.Route.DriverProfileSetup.createRoute(needsKyc = false, returnToHome = false)
+                    else
+                        com.wheelsongo.app.ui.navigation.Route.RiderProfileSetup.createRoute(returnToHome = false)
+                    _uiState.value = UiState(isChecking = false, navigateTo = dest)
+                } else {
+                    _uiState.value = UiState(isChecking = false, navigateTo = "home")
+                }
             } else {
                 _uiState.value = UiState(isChecking = false, navigateTo = "welcome")
             }

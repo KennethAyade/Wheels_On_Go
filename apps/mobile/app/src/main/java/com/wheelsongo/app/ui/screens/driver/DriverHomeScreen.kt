@@ -68,6 +68,7 @@ fun DriverHomeScreen(
     drawerContent: @Composable () -> Unit = {},
     onNavigateToActiveRide: (String) -> Unit,
     onNavigateToDriveRequests: () -> Unit,
+    onNavigateToProfileSetup: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DriverHomeViewModel = viewModel()
 ) {
@@ -313,6 +314,30 @@ fun DriverHomeScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Profile setup prompt snackbar
+            if (uiState.showProfileSetupPrompt) {
+                Snackbar(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.BottomCenter),
+                    action = {
+                        TextButton(onClick = {
+                            viewModel.clearProfileSetupPrompt()
+                            onNavigateToProfileSetup()
+                        }) {
+                            Text("Set Up")
+                        }
+                    },
+                    dismissAction = {
+                        TextButton(onClick = { viewModel.clearProfileSetupPrompt() }) {
+                            Text("Later")
+                        }
+                    }
+                ) {
+                    Text("Complete your profile to start accepting rides.")
                 }
             }
 

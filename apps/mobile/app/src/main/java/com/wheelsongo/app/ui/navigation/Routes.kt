@@ -95,6 +95,27 @@ sealed class Route(val value: String) {
     data object BiometricVerification : Route("biometric_verification")
 
     /**
+     * Driver profile setup screen — collect name, license info
+     * @param needsKyc whether to continue to DocumentUpload after LocationConfirm
+     * @param returnToHome if true, pop back to Home after setup instead of going to LocationConfirm
+     */
+    data object DriverProfileSetup : Route("driver_profile_setup/{needsKyc}/{returnToHome}") {
+        const val ARG_NEEDS_KYC = "needsKyc"
+        const val ARG_RETURN_TO_HOME = "returnToHome"
+        fun createRoute(needsKyc: Boolean = false, returnToHome: Boolean = false): String =
+            "driver_profile_setup/$needsKyc/$returnToHome"
+    }
+
+    /**
+     * Rider profile setup screen — collect name, age, address
+     * @param returnToHome if true, pop back to Home after setup instead of going to LocationConfirm
+     */
+    data object RiderProfileSetup : Route("rider_profile_setup/{returnToHome}") {
+        const val ARG_RETURN_TO_HOME = "returnToHome"
+        fun createRoute(returnToHome: Boolean = false): String = "rider_profile_setup/$returnToHome"
+    }
+
+    /**
      * Driver document upload screen (KYC)
      * For uploading license, ORCR, ID, and profile photo
      */

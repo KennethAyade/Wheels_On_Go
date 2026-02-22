@@ -4,10 +4,12 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.constants';
+import { StorageService } from '../storage/storage.service';
 import {
   CreateRiderVehicleDto,
   UpdateRiderVehicleDto,
@@ -21,6 +23,7 @@ export class RiderVehicleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly storageService: StorageService,
   ) {}
 
   /**
@@ -182,6 +185,35 @@ export class RiderVehicleService {
     });
 
     return this.mapToResponse(updated);
+  }
+
+  /**
+   * Upload OR or CR document for a rider vehicle
+   */
+  async uploadVehicleDocument(
+    userId: string,
+    vehicleId: string,
+    type: 'OR' | 'CR',
+    file: Express.Multer.File,
+  ): Promise<{ message: string }> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const vehicle = await this.getOwnedVehicle(userId, vehicleId);
+
+    const key = `rider-vehicles/${vehicle.id}/${type.toLowerCase()}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+    await this.storageService.putBuffer(key, file.buffer, file.mimetype);
+
+    const updateData: any =
+      type === 'OR' ? { orStorageKey: key } : { crStorageKey: key };
+
+    await this.prisma.riderVehicle.update({
+      where: { id: vehicleId },
+      data: updateData,
+    });
+
+    this.logger.log(`Vehicle ${vehicleId} ${type} document uploaded: ${key}`);
+    return { message: `${type} uploaded successfully` };
   }
 
   /**

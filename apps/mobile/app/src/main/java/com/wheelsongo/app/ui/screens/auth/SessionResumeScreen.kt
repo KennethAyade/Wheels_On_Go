@@ -34,6 +34,7 @@ import com.wheelsongo.app.data.auth.BiometricPromptHelper
 fun SessionResumeScreen(
     onNavigateToHome: () -> Unit,
     onNavigateToWelcome: () -> Unit,
+    onNavigateToProfileSetup: (destination: String) -> Unit = {},
     viewModel: SessionResumeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -44,6 +45,8 @@ fun SessionResumeScreen(
         when (uiState.navigateTo) {
             "home" -> onNavigateToHome()
             "welcome" -> onNavigateToWelcome()
+            null -> {}
+            else -> onNavigateToProfileSetup(uiState.navigateTo!!)
         }
     }
 

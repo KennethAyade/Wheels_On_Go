@@ -18,6 +18,7 @@ import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
 import { AvailableDriversQueryDto, AvailableDriverDto } from './dto/available-drivers.dto';
+import { DriverProfileSetupDto } from './dto/driver-profile-setup.dto';
 import { DriverPublicProfileDto } from './dto/driver-public-profile.dto';
 import { AdminDriverListQueryDto } from './dto/admin-driver-list.dto';
 
@@ -164,8 +165,51 @@ export class DriverService {
     return updated;
   }
 
+  async setupDriverProfile(userId: string, dto: DriverProfileSetupDto) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { firstName: dto.firstName, lastName: dto.lastName } as any,
+    });
+    await this.prisma.driverProfile.update({
+      where: { userId },
+      data: {
+        licenseNumber: dto.licenseNumber,
+        licenseExpiryDate: new Date(dto.licenseExpiryDate),
+      },
+    });
+    return {
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      licenseNumber: dto.licenseNumber,
+      isProfileComplete: true,
+    };
+  }
+
   async updateOnlineStatus(userId: string, dto: UpdateDriverStatusDto) {
     const profile = await this.ensureProfile(userId);
+
+    if (dto.isOnline) {
+      const [user, driverProfile] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { firstName: true, lastName: true },
+        }),
+        this.prisma.driverProfile.findUnique({
+          where: { userId },
+          select: { licenseNumber: true, licenseExpiryDate: true },
+        }),
+      ]);
+      if (
+        !user?.firstName ||
+        !user?.lastName ||
+        !driverProfile?.licenseNumber ||
+        !driverProfile?.licenseExpiryDate
+      ) {
+        throw new BadRequestException(
+          'Please complete your profile setup before going online.',
+        );
+      }
+    }
 
     const data: any = {
       isOnline: dto.isOnline,

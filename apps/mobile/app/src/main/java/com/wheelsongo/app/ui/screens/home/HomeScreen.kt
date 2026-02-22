@@ -14,9 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -30,6 +34,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,6 +71,8 @@ fun HomeScreen(
     onToFieldClick: () -> Unit = {},
     onConfirmBooking: () -> Unit = {},
     onNavigateToActiveRide: (String) -> Unit = {},
+    onNavigateToProfileSetup: () -> Unit = {},
+    isProfileComplete: Boolean = true,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
@@ -183,6 +190,46 @@ fun HomeScreen(
                     imageVector = Icons.Default.MyLocation,
                     contentDescription = "My Location"
                 )
+            }
+        }
+
+        // Profile incomplete banner
+        if (!isProfileComplete) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .statusBarsPadding()
+                    .align(Alignment.TopCenter)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9800),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)) {
+                        Text(
+                            "Profile Incomplete",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Complete your profile to book rides.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    TextButton(onClick = onNavigateToProfileSetup) {
+                        Text("Set Up", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
             }
         }
 

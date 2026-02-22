@@ -24,6 +24,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 
@@ -234,4 +235,11 @@ interface AuthApi {
      */
     @POST("auth/logout")
     suspend fun logout(@Body request: LogoutRequest): Response<Unit>
+
+    /**
+     * Update rider profile (firstName, lastName, age, address)
+     * PATCH /auth/profile
+     */
+    @PATCH("auth/profile")
+    suspend fun updateRiderProfile(@Body request: com.wheelsongo.app.data.models.profile.RiderProfileSetupRequest): Response<com.wheelsongo.app.data.models.profile.ProfileSetupResponse>
 }

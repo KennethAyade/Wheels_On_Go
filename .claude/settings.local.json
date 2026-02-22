@@ -90,7 +90,8 @@
       "Bash(\"/c/Users/Kenneth Ayade/.jdks/jbr-21.0.10/bin/java\" -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain dependencies --configuration debugRuntimeClasspath)",
       "Bash(npx ts-node:*)",
       "Bash(npm create vite:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")"
     ]
   }
 }

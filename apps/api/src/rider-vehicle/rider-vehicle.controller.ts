@@ -6,10 +6,15 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -108,6 +113,30 @@ export class RiderVehicleController {
     return this.riderVehicleService.setDefaultVehicle(
       user.sub,
       vehicleId,
+    );
+  }
+
+  /**
+   * Upload OR or CR document for a vehicle
+   * POST /rider-vehicles/:id/documents?type=OR
+   * POST /rider-vehicles/:id/documents?type=CR
+   */
+  @Post(':id/documents')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @CurrentUser() user: JwtUser,
+    @Param('id') vehicleId: string,
+    @Query('type') type: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (type !== 'OR' && type !== 'CR') {
+      throw new BadRequestException('type must be OR or CR');
+    }
+    return this.riderVehicleService.uploadVehicleDocument(
+      user.sub,
+      vehicleId,
+      type as 'OR' | 'CR',
+      file,
     );
   }
 }

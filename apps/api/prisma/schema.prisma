@@ -208,6 +208,8 @@ model User {
 
   firstName        String?
   lastName         String?
+  age              Int?
+  address          String?
   email            String?   @unique
   emailHash        String?  @unique // HMAC-SHA256 hash for encrypted email lookup
   passwordHash     String?           // bcrypt hash for admin email/password login
@@ -478,6 +480,9 @@ model RiderVehicle {
   vehicleType VehicleType @default(SEDAN)
 
   isDefault Boolean @default(false)
+
+  orStorageKey String?
+  crStorageKey String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

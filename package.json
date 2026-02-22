@@ -19,5 +19,8 @@
     "seed:admin": "npm --prefix apps/api run seed:admin",
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.0.0"
   }
 }

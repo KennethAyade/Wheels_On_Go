@@ -64,6 +64,23 @@ export class RideService {
       throw new BadRequestException('Rider profile not found');
     }
 
+    // Enforce profile completion before booking
+    const riderUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, age: true, address: true } as any,
+    });
+    const riderUserAny = riderUser as any;
+    if (
+      !riderUserAny?.firstName ||
+      !riderUserAny?.lastName ||
+      !riderUserAny?.age ||
+      !riderUserAny?.address
+    ) {
+      throw new BadRequestException(
+        'Please complete your profile setup before booking a ride.',
+      );
+    }
+
     // Check for existing active ride
     const activeRide = await this.getActiveRide(userId);
     if (activeRide) {

@@ -1,15 +1,22 @@
 package com.wheelsongo.app.ui.screens.vehicle
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheelsongo.app.data.models.ride.CreateRiderVehicleRequest
 import com.wheelsongo.app.data.models.ride.VehicleType
+import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.repository.VehicleRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 data class VehicleRegistrationUiState(
     val make: String = "",
@@ -18,6 +25,10 @@ data class VehicleRegistrationUiState(
     val color: String = "",
     val plateNumber: String = "",
     val vehicleType: VehicleType = VehicleType.SEDAN,
+    val orUri: Uri? = null,
+    val orFileName: String? = null,
+    val crUri: Uri? = null,
+    val crFileName: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isSuccess: Boolean = false
@@ -27,9 +38,13 @@ data class VehicleRegistrationUiState(
                 color.isNotBlank() && plateNumber.isNotBlank()
 }
 
-class VehicleRegistrationViewModel(
+class VehicleRegistrationViewModel @JvmOverloads constructor(
+    application: Application,
     private val vehicleRepository: VehicleRepository = VehicleRepository()
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    private val riderVehicleApi = ApiClient.riderVehicleApi
+    private val contentResolver = application.contentResolver
 
     private val _uiState = MutableStateFlow(VehicleRegistrationUiState())
     val uiState: StateFlow<VehicleRegistrationUiState> = _uiState.asStateFlow()
@@ -40,6 +55,27 @@ class VehicleRegistrationViewModel(
     fun onColorChange(value: String) { _uiState.update { it.copy(color = value) } }
     fun onPlateNumberChange(value: String) { _uiState.update { it.copy(plateNumber = value.uppercase()) } }
     fun onVehicleTypeChange(type: VehicleType) { _uiState.update { it.copy(vehicleType = type) } }
+
+    fun onOrDocumentSelected(uri: Uri?) {
+        val fileName = uri?.let { resolveFileName(it) }
+        _uiState.update { it.copy(orUri = uri, orFileName = fileName) }
+    }
+
+    fun onCrDocumentSelected(uri: Uri?) {
+        val fileName = uri?.let { resolveFileName(it) }
+        _uiState.update { it.copy(crUri = uri, crFileName = fileName) }
+    }
+
+    private fun resolveFileName(uri: Uri): String? {
+        return try {
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                it.moveToFirst()
+                if (nameIndex >= 0) it.getString(nameIndex) else null
+            }
+        } catch (e: Exception) { null }
+    }
 
     fun registerVehicle() {
         val state = _uiState.value
@@ -60,7 +96,10 @@ class VehicleRegistrationViewModel(
             )
 
             result.fold(
-                onSuccess = {
+                onSuccess = { vehicle ->
+                    // Upload OR/CR documents if selected
+                    state.orUri?.let { uploadDocument(vehicle.id, "OR", it) }
+                    state.crUri?.let { uploadDocument(vehicle.id, "CR", it) }
                     _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                 },
                 onFailure = { error ->
@@ -69,6 +108,19 @@ class VehicleRegistrationViewModel(
                     }
                 }
             )
+        }
+    }
+
+    private suspend fun uploadDocument(vehicleId: String, type: String, uri: Uri) {
+        try {
+            val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: return
+            val mimeType = contentResolver.getType(uri) ?: "image/*"
+            val fileName = resolveFileName(uri) ?: "document"
+            val requestBody = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+            val part = MultipartBody.Part.createFormData("file", fileName, requestBody)
+            riderVehicleApi.uploadVehicleDocument(vehicleId, part, type)
+        } catch (e: Exception) {
+            android.util.Log.w("VehicleRegistrationVM", "Failed to upload $type document: ${e.message}")
         }
     }
 

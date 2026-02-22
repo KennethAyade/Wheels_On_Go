@@ -51,7 +51,8 @@ data class DriverHomeUiState(
     val activeRideId: String? = null,
     val activeRide: RideResponse? = null,
     val navigateToDriveRequests: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showProfileSetupPrompt: Boolean = false
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -63,6 +64,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
+    private val tokenManager = ApiClient.getTokenManager()
 
     private val _uiState = MutableStateFlow(DriverHomeUiState())
     val uiState: StateFlow<DriverHomeUiState> = _uiState.asStateFlow()
@@ -128,7 +130,15 @@ class DriverHomeViewModel @JvmOverloads constructor(
         }
     }
 
+    fun clearProfileSetupPrompt() {
+        _uiState.update { it.copy(showProfileSetupPrompt = false) }
+    }
+
     fun toggleOnlineStatus() {
+        if (!tokenManager.isProfileComplete()) {
+            _uiState.update { it.copy(showProfileSetupPrompt = true) }
+            return
+        }
         val newStatus = !_uiState.value.isOnline
         _uiState.value = _uiState.value.copy(isTogglingStatus = true)
 
@@ -199,6 +209,10 @@ class DriverHomeViewModel @JvmOverloads constructor(
      * Goes online (if not already) and triggers navigation to DriveRequestsScreen.
      */
     fun goOnlineAndFindRides() {
+        if (!tokenManager.isProfileComplete()) {
+            _uiState.update { it.copy(showProfileSetupPrompt = true) }
+            return
+        }
         if (!_uiState.value.isOnline) {
             // toggleOnlineStatus sets navigateToDriveRequests after going online
             viewModelScope.launch {

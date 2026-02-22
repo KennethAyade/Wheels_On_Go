@@ -27,7 +27,8 @@ data class OtpVerificationUiState(
     val errorMessage: String? = null,
     val countdownSeconds: Int = 60,
     val userRole: String? = null,
-    val verificationId: String? = null
+    val verificationId: String? = null,
+    val isProfileComplete: Boolean = false
 ) {
     val canResend: Boolean
         get() = countdownSeconds <= 0 && !isLoading
@@ -122,7 +123,8 @@ class OtpVerificationViewModel(
                             isLoading = false,
                             userRole = response.user.role,
                             biometricRequired = response.biometricRequired == true,
-                            biometricEnrolled = response.biometricEnrolled == true
+                            biometricEnrolled = response.biometricEnrolled == true,
+                            isProfileComplete = response.user.isProfileComplete
                         )
                     }
                 },
@@ -221,7 +223,8 @@ class OtpVerificationViewModel(
                                     isLoading = false,
                                     userRole = response.user.role,
                                     biometricRequired = response.biometricRequired == true,
-                                    biometricEnrolled = response.biometricEnrolled == true
+                                    biometricEnrolled = response.biometricEnrolled == true,
+                                    isProfileComplete = response.user.isProfileComplete
                                 )
                             }
                         },

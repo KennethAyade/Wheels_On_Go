@@ -86,6 +86,19 @@ export class StorageService {
     return Buffer.concat(chunks);
   }
 
+  async putBuffer(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    if (!this.bucket) {
+      throw new Error('Storage bucket not configured');
+    }
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+    await this.client.send(command);
+  }
+
   public urlForKey(key: string) {
     const endpoint = this.configService.get<string>('STORAGE_ENDPOINT');
     if (endpoint) {

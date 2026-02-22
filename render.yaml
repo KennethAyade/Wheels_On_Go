@@ -3,7 +3,7 @@ services:
     name: wheels-on-go-api
     env: node
     plan: starter
-    buildCommand: npm install --production=false && npm run prisma:generate && npm run build:prod
+    buildCommand: npm install --production=false && npm run prisma:generate && npm run prisma:migrate && npm run build:prod
     startCommand: npm run start:prod
     autoDeploy: true
     envVars:

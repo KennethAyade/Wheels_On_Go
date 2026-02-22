@@ -3,6 +3,7 @@ package com.wheelsongo.app.data.auth
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -30,6 +31,7 @@ class TokenManager(private val context: Context) {
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val PHONE_NUMBER_KEY = stringPreferencesKey("phone_number")
+        private val PROFILE_COMPLETE_KEY = booleanPreferencesKey("profile_complete")
     }
 
     /**
@@ -43,6 +45,7 @@ class TokenManager(private val context: Context) {
             prefs[USER_ID_KEY] = response.user.id
             prefs[USER_ROLE_KEY] = response.user.role
             prefs[PHONE_NUMBER_KEY] = response.user.phoneNumber
+            prefs[PROFILE_COMPLETE_KEY] = response.user.isProfileComplete
         }
     }
 
@@ -160,6 +163,24 @@ class TokenManager(private val context: Context) {
     fun getBiometricToken(): String? {
         return runBlocking {
             context.authDataStore.data.first()[BIOMETRIC_TOKEN_KEY]
+        }
+    }
+
+    /**
+     * Save profile completeness flag
+     */
+    suspend fun saveProfileComplete(isComplete: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[PROFILE_COMPLETE_KEY] = isComplete
+        }
+    }
+
+    /**
+     * Get profile completeness synchronously
+     */
+    fun isProfileComplete(): Boolean {
+        return runBlocking {
+            context.authDataStore.data.first()[PROFILE_COMPLETE_KEY] ?: false
         }
     }
 

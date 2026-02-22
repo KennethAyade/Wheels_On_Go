@@ -3,13 +3,17 @@ package com.wheelsongo.app.data.network
 import com.wheelsongo.app.data.models.ride.CreateRiderVehicleRequest
 import com.wheelsongo.app.data.models.ride.RiderVehicleResponse
 import com.wheelsongo.app.data.models.ride.UpdateRiderVehicleRequest
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Rider vehicle management API interface
@@ -61,4 +65,16 @@ interface RiderVehicleApi {
      */
     @PATCH("rider-vehicles/{id}/default")
     suspend fun setDefaultVehicle(@Path("id") vehicleId: String): Response<RiderVehicleResponse>
+
+    /**
+     * Upload OR or CR document for a vehicle
+     * POST /rider-vehicles/{vehicleId}/documents?type=OR|CR
+     */
+    @Multipart
+    @POST("rider-vehicles/{vehicleId}/documents")
+    suspend fun uploadVehicleDocument(
+        @Path("vehicleId") vehicleId: String,
+        @Part file: MultipartBody.Part,
+        @Query("type") type: String
+    ): Response<Unit>
 }

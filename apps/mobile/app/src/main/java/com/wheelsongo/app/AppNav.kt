@@ -23,6 +23,8 @@ import com.wheelsongo.app.ui.screens.auth.OtpVerificationScreen
 import com.wheelsongo.app.ui.screens.auth.PhoneInputScreen
 import com.wheelsongo.app.ui.screens.auth.SessionResumeScreen
 import com.wheelsongo.app.ui.screens.driver.DocumentUploadScreen
+import com.wheelsongo.app.ui.screens.profile.DriverProfileSetupScreen
+import com.wheelsongo.app.ui.screens.profile.RiderProfileSetupScreen
 import com.wheelsongo.app.ui.screens.driver.DriverActiveRideScreen
 import com.wheelsongo.app.ui.screens.driver.DriverHomeScreen
 import com.wheelsongo.app.ui.screens.driver.DriverHomeViewModel
@@ -74,6 +76,11 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 },
                 onNavigateToWelcome = {
                     navController.navigate(Route.Welcome.value) {
+                        popUpTo(Route.SessionResume.value) { inclusive = true }
+                    }
+                },
+                onNavigateToProfileSetup = { destination ->
+                    navController.navigate(destination) {
                         popUpTo(Route.SessionResume.value) { inclusive = true }
                     }
                 }
@@ -151,9 +158,19 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 role = role,
                 verificationId = verificationId,
                 onBack = { navController.popBackStack() },
-                onVerified = { needsKyc ->
-                    navController.navigate(Route.LocationConfirm.createRoute(role, needsKyc)) {
-                        popUpTo(Route.Welcome.value) { inclusive = false }
+                onVerified = { needsKyc, isProfileComplete ->
+                    if (!isProfileComplete) {
+                        val dest = if (role == UserRole.DRIVER)
+                            Route.DriverProfileSetup.createRoute(needsKyc = needsKyc, returnToHome = false)
+                        else
+                            Route.RiderProfileSetup.createRoute(returnToHome = false)
+                        navController.navigate(dest) {
+                            popUpTo(Route.Welcome.value) { inclusive = false }
+                        }
+                    } else {
+                        navController.navigate(Route.LocationConfirm.createRoute(role, needsKyc)) {
+                            popUpTo(Route.Welcome.value) { inclusive = false }
+                        }
                     }
                 },
                 onBiometricRequired = {
@@ -175,6 +192,60 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     // Returning driver — KYC already done, no need for document upload
                     navController.navigate(Route.LocationConfirm.createRoute(UserRole.DRIVER, needsKyc = false)) {
                         popUpTo(Route.Welcome.value) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Driver Profile Setup Screen
+        // ==========================================
+        composable(
+            route = Route.DriverProfileSetup.value,
+            arguments = listOf(
+                navArgument(Route.DriverProfileSetup.ARG_NEEDS_KYC) { type = NavType.BoolType },
+                navArgument(Route.DriverProfileSetup.ARG_RETURN_TO_HOME) { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
+            val needsKyc = backStackEntry.arguments?.getBoolean(Route.DriverProfileSetup.ARG_NEEDS_KYC) ?: false
+            val returnToHome = backStackEntry.arguments?.getBoolean(Route.DriverProfileSetup.ARG_RETURN_TO_HOME) ?: false
+
+            DriverProfileSetupScreen(
+                onProfileComplete = {
+                    if (returnToHome) {
+                        navController.navigate(Route.Home.value) {
+                            popUpTo(Route.DriverProfileSetup.createRoute(needsKyc, returnToHome)) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Route.LocationConfirm.createRoute(UserRole.DRIVER, needsKyc)) {
+                            popUpTo(Route.DriverProfileSetup.createRoute(needsKyc, returnToHome)) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Rider Profile Setup Screen
+        // ==========================================
+        composable(
+            route = Route.RiderProfileSetup.value,
+            arguments = listOf(
+                navArgument(Route.RiderProfileSetup.ARG_RETURN_TO_HOME) { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
+            val returnToHome = backStackEntry.arguments?.getBoolean(Route.RiderProfileSetup.ARG_RETURN_TO_HOME) ?: false
+
+            RiderProfileSetupScreen(
+                onProfileComplete = {
+                    if (returnToHome) {
+                        navController.navigate(Route.Home.value) {
+                            popUpTo(Route.RiderProfileSetup.createRoute(returnToHome)) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Route.LocationConfirm.createRoute(UserRole.RIDER, false)) {
+                            popUpTo(Route.RiderProfileSetup.createRoute(returnToHome)) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -286,6 +357,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         onNavigateToDriveRequests = {
                             navController.navigate(Route.DriveRequests.value)
                         },
+                        onNavigateToProfileSetup = {
+                            navController.navigate(Route.DriverProfileSetup.createRoute(needsKyc = false, returnToHome = true))
+                        },
                         viewModel = driverHomeViewModel
                     )
                 }
@@ -309,6 +383,10 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                                 popUpTo(Route.Home.value) { inclusive = false }
                             }
                         },
+                        onNavigateToProfileSetup = {
+                            navController.navigate(Route.RiderProfileSetup.createRoute(returnToHome = true))
+                        },
+                        isProfileComplete = tokenManager.isProfileComplete(),
                         viewModel = homeViewModel
                     )
                 }
