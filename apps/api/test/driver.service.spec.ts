@@ -218,10 +218,18 @@ describe('DriverService', () => {
 
   describe('status transitions', () => {
     it('approves a pending driver', async () => {
-      (prisma.driverProfile.findUnique as jest.Mock).mockResolvedValue({
-        id: 'driver-1',
-        status: DriverStatus.PENDING,
-      });
+      (prisma.driverProfile.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'driver-1',
+          status: DriverStatus.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'driver-1',
+          status: DriverStatus.APPROVED,
+          documents: [],
+          user: { id: 'user-1', phoneNumber: '+639000000001' },
+          vehicle: null,
+        });
       (prisma.driverProfile.update as jest.Mock).mockResolvedValue({
         id: 'driver-1',
         status: DriverStatus.APPROVED,
@@ -232,10 +240,19 @@ describe('DriverService', () => {
     });
 
     it('rejects a driver with reason', async () => {
-      (prisma.driverProfile.findUnique as jest.Mock).mockResolvedValue({
-        id: 'driver-2',
-        status: DriverStatus.PENDING,
-      });
+      (prisma.driverProfile.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'driver-2',
+          status: DriverStatus.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'driver-2',
+          status: DriverStatus.REJECTED,
+          rejectionReason: 'Invalid docs',
+          documents: [],
+          user: { id: 'user-2', phoneNumber: '+639000000002' },
+          vehicle: null,
+        });
       (prisma.driverProfile.update as jest.Mock).mockResolvedValue({
         id: 'driver-2',
         status: DriverStatus.REJECTED,

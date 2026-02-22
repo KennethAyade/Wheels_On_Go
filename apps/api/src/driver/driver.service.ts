@@ -292,13 +292,13 @@ export class DriverService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    const updated = await this.prisma.driverProfile.update({
+    await this.prisma.driverProfile.update({
       where: { id: driverId },
       data: { status: DriverStatus.APPROVED, rejectionReason: null },
     });
 
     await this.auditService.log(adminUserId, 'DRIVER_APPROVED', 'driver', driverId);
-    return updated;
+    return this.getDriverDetailForAdmin(driverId);
   }
 
   async rejectDriver(driverId: string, adminUserId: string, reason: string) {
@@ -310,7 +310,7 @@ export class DriverService {
       throw new NotFoundException('Driver profile not found');
     }
 
-    const updated = await this.prisma.driverProfile.update({
+    await this.prisma.driverProfile.update({
       where: { id: driverId },
       data: { status: DriverStatus.REJECTED, rejectionReason: reason },
     });
@@ -318,7 +318,7 @@ export class DriverService {
     await this.auditService.log(adminUserId, 'DRIVER_REJECTED', 'driver', driverId, {
       reason,
     });
-    return updated;
+    return this.getDriverDetailForAdmin(driverId);
   }
 
   async findAvailableDrivers(dto: AvailableDriversQueryDto): Promise<AvailableDriverDto[]> {

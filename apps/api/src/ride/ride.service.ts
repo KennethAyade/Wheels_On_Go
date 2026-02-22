@@ -412,7 +412,8 @@ export class RideService {
 
               let actualFare = baseFare + (actualDistanceKm * costPerKm) +
                 ((actualDurationSeconds / 60) * costPerMin) + surgePricing - promoDiscount;
-              actualFare = Math.max(actualFare, PRICING_CONFIG.minimumFare);
+              const estimatedFareNum = Number(rideData.estimatedFare) || PRICING_CONFIG.minimumFare;
+              actualFare = Math.max(actualFare, estimatedFareNum);
               actualFare = Math.round(actualFare);
 
               updateData.actualDistance = actualDistanceMeters;

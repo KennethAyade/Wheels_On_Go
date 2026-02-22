@@ -166,6 +166,12 @@ fun BookingConfirmScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Note: This is an estimated fare. The actual fare may vary based on the actual transit distance.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
