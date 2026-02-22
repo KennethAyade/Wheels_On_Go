@@ -20,7 +20,5 @@
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build"
   },
-  "devDependencies": {
-    "@types/multer": "^2.0.0"
-  }
+  "devDependencies": {}
 }
