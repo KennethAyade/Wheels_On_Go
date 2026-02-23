@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +8,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!loading) { setElapsed(0); return; }
+    const interval = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // Use <Navigate> component instead of navigate() during render —
   // calling navigate() as a side effect in the render body is a React anti-pattern.
@@ -24,7 +31,7 @@ export default function LoginPage() {
       // No navigate() here — when login() sets the user, isAuthenticated
       // becomes true and the <Navigate> above handles the redirect.
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid email or password');
+      setError(err.message || err.response?.data?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -79,6 +86,14 @@ export default function LoginPage() {
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
+
+            {loading && elapsed >= 4 && (
+              <p className="text-xs text-gray-500 italic mt-3 text-center">
+                {elapsed >= 15
+                  ? 'This is taking longer than usual. The server may be waking up from sleep — it can take up to 60s on first login.'
+                  : 'Server is starting up, please wait...'}
+              </p>
+            )}
           </form>
         </div>
       </div>

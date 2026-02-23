@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const client = axios.create({
   baseURL: API_BASE,
+  timeout: 90000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,6 +19,11 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.code === 'ECONNABORTED') {
+      return Promise.reject(
+        new Error('Request timed out. The server may be starting up — please try again.'),
+      );
+    }
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
