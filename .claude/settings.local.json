@@ -91,7 +91,10 @@
       "Bash(npx ts-node:*)",
       "Bash(npm create vite:*)",
       "Bash(npx vite build)",
-      "Bash(cmd //c \"taskkill /F /IM node.exe\")"
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(git -C \"D:\\\\FREELANCE\\\\Wheels-On-Go_Platform\\\\Wheels_On_Go\" ls-files apps/web --error-unmatch)",
+      "Bash(git -C \"D:\\\\FREELANCE\\\\Wheels-On-Go_Platform\\\\Wheels_On_Go\" ls-files:*)",
+      "Bash(git -C:*)"
     ]
   }
 }
