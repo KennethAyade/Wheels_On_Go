@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M100,100m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
+
+    <!-- Stylized "W" for Wheels -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M55,70 L70,130 L85,95 L100,130 L115,95 L130,130 L145,70 L135,70 L125,110 L110,75 L100,100 L90,75 L75,110 L65,70 Z" />
+
+    <!-- Small wheel/circle accent -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M100,145m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
+
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M100,145m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+
+</vector>

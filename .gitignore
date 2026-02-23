@@ -3,14 +3,12 @@ node_modules/
 apps/api/dist/
 apps/api/.env
 
-# Prisma
-apps/api/prisma/migrations/
-
 # Android/Gradle
 apps/mobile/.gradle/
 apps/mobile/app/build/
 apps/mobile/build/
 apps/mobile/local.properties
+apps/mobile/app/google-services.json
 
 # IDE
 .idea/

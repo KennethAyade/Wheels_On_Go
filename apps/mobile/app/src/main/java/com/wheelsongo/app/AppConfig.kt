@@ -1,6 +1,9 @@
 package com.wheelsongo.app
 
+import com.wheelsongo.app.utils.DeviceUtils
+
 object AppConfig {
-  // TODO: Replace with environment-specific base URL or build config.
-  const val BASE_URL = "http://10.0.2.2:3000/"
+    // Temporarily pointing both emulator and real device to Render for cross-device testing.
+    // Revert this when done: restore the isEmulator() check.
+    val BASE_URL: String = BuildConfig.API_BASE_URL
 }

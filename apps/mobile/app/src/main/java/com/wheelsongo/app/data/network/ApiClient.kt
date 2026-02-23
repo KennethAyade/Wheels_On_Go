@@ -1,35 +1,245 @@
 package com.wheelsongo.app.data.network
 
+import android.content.Context
 import com.wheelsongo.app.AppConfig
+import com.wheelsongo.app.data.auth.TokenManager
+import com.wheelsongo.app.data.models.auth.BiometricVerifyRequest
+import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
+import com.wheelsongo.app.data.models.auth.CurrentUserResponse
+import com.wheelsongo.app.data.models.auth.LogoutRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenRequest
+import com.wheelsongo.app.data.models.auth.RefreshTokenResponse
+import com.wheelsongo.app.data.models.auth.RequestOtpRequest
+import com.wheelsongo.app.data.models.auth.RequestOtpResponse
+import com.wheelsongo.app.data.models.auth.VerifyFirebaseRequest
+import com.wheelsongo.app.data.models.auth.VerifyOtpRequest
+import com.wheelsongo.app.data.models.auth.VerifyOtpResponse
+import com.wheelsongo.app.BuildConfig
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
+import java.util.concurrent.TimeUnit
 
+/**
+ * Centralized API client using Retrofit
+ *
+ * Must be initialized with context before use via [initialize]
+ */
 object ApiClient {
-  private val moshi = Moshi.Builder().build()
-  private val client = OkHttpClient.Builder().build()
 
-  private val retrofit = Retrofit.Builder()
-    .baseUrl(AppConfig.BASE_URL)
-    .addConverterFactory(MoshiConverterFactory.create(moshi))
-    .client(client)
-    .build()
+    private lateinit var tokenManager: TokenManager
+    private var isInitialized = false
 
-  val authApi: AuthApi = retrofit.create(AuthApi::class.java)
+    /**
+     * Initialize the API client with application context
+     * Call this from Application.onCreate()
+     */
+    fun initialize(context: Context) {
+        if (isInitialized) return
+        tokenManager = TokenManager(context.applicationContext)
+        isInitialized = true
+    }
+
+    /**
+     * Get the TokenManager instance
+     * @throws IllegalStateException if not initialized
+     */
+    fun getTokenManager(): TokenManager {
+        check(isInitialized) { "ApiClient must be initialized before use. Call ApiClient.initialize(context) in Application.onCreate()" }
+        return tokenManager
+    }
+
+    private val moshi: Moshi by lazy {
+        Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
+
+    private val loggingInterceptor: HttpLoggingInterceptor by lazy {
+        HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                    else HttpLoggingInterceptor.Level.BASIC
+        }
+    }
+
+    private val client: OkHttpClient by lazy {
+        check(isInitialized) { "ApiClient must be initialized before use" }
+        OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(tokenManager))
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /**
+     * OkHttp client with extended timeout for Firebase verification
+     * Handles Render free tier cold start (30-60s) + processing time
+     */
+    private val firebaseClient: OkHttpClient by lazy {
+        check(isInitialized) { "ApiClient must be initialized before use" }
+        OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(tokenManager))
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(60, TimeUnit.SECONDS)   // Increased from 30s
+            .readTimeout(60, TimeUnit.SECONDS)      // Increased from 30s
+            .writeTimeout(30, TimeUnit.SECONDS)     // Keep same
+            .build()
+    }
+
+    private val retrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(AppConfig.BASE_URL)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .client(client)
+            .build()
+    }
+
+    /**
+     * Retrofit instance with extended timeout for Firebase operations
+     */
+    private val firebaseRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl(AppConfig.BASE_URL)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .client(firebaseClient)  // Use longer timeout client
+            .build()
+    }
+
+    /**
+     * Authentication API endpoints (standard timeout)
+     */
+    val authApi: AuthApi by lazy {
+        retrofit.create(AuthApi::class.java)
+    }
+
+    /**
+     * Authentication API endpoints with extended timeout for Firebase verification
+     * Use this for /auth/verify-firebase to handle Render cold start
+     */
+    val firebaseAuthApi: AuthApi by lazy {
+        firebaseRetrofit.create(AuthApi::class.java)
+    }
+
+    /**
+     * Driver management API endpoints
+     */
+    val driverApi: DriverApi by lazy {
+        retrofit.create(DriverApi::class.java)
+    }
+
+    /**
+     * Location/maps API endpoints
+     */
+    val locationApi: LocationApi by lazy {
+        retrofit.create(LocationApi::class.java)
+    }
+
+    /**
+     * Ride management API endpoints
+     */
+    val rideApi: RideApi by lazy {
+        retrofit.create(RideApi::class.java)
+    }
+
+    /**
+     * Rider vehicle management API endpoints
+     */
+    val riderVehicleApi: RiderVehicleApi by lazy {
+        retrofit.create(RiderVehicleApi::class.java)
+    }
+
+    val ratingApi: RatingApi by lazy {
+        retrofit.create(RatingApi::class.java)
+    }
+
+    /**
+     * Driver location tracking API endpoints
+     */
+    val trackingApi: TrackingApi by lazy {
+        retrofit.create(TrackingApi::class.java)
+    }
 }
 
+/**
+ * Authentication API interface
+ * Matches backend auth.controller.ts endpoints
+ */
 interface AuthApi {
-  @POST("auth/register")
-  suspend fun register(@Body body: Map<String, String>): Response<Unit>
 
-  @POST("auth/login")
-  suspend fun login(@Body body: Map<String, String>): Response<Unit>
+    /**
+     * Request OTP code to be sent to phone
+     * POST /auth/request-otp
+     *
+     * @param request Phone number and role
+     * @return Success message with expiry time
+     */
+    @POST("auth/request-otp")
+    suspend fun requestOtp(@Body request: RequestOtpRequest): Response<RequestOtpResponse>
 
-  @GET("auth/me")
-  suspend fun me(): Response<Unit>
+    /**
+     * Verify OTP code and receive JWT tokens
+     * POST /auth/verify-otp
+     *
+     * @param request Phone number, OTP code, and role
+     * @return JWT tokens and user info on success
+     */
+    @POST("auth/verify-otp")
+    suspend fun verifyOtp(@Body request: VerifyOtpRequest): Response<VerifyOtpResponse>
+
+    /**
+     * Verify Firebase Phone Auth token and receive JWT tokens
+     * POST /auth/verify-firebase
+     * Used on real phones (Firebase handles SMS delivery + OTP verification)
+     */
+    @POST("auth/verify-firebase")
+    suspend fun verifyFirebase(@Body request: VerifyFirebaseRequest): Response<VerifyOtpResponse>
+
+    /**
+     * Get current authenticated user's profile
+     * GET /auth/me
+     * Requires: JWT token in Authorization header
+     *
+     * @return Current user info
+     */
+    @GET("auth/me")
+    suspend fun getCurrentUser(): Response<CurrentUserResponse>
+
+    /**
+     * Verify biometric (face) for driver login
+     * POST /auth/biometric/verify
+     * Requires: Biometric JWT token in Authorization header
+     */
+    @POST("auth/biometric/verify")
+    suspend fun verifyBiometric(@Body request: BiometricVerifyRequest): Response<BiometricVerifyResponse>
+
+    /**
+     * Refresh access token using refresh token
+     * POST /auth/refresh
+     */
+    @POST("auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<RefreshTokenResponse>
+
+    /**
+     * Logout — revokes refresh token family on server
+     * POST /auth/logout
+     */
+    @POST("auth/logout")
+    suspend fun logout(@Body request: LogoutRequest): Response<Unit>
+
+    /**
+     * Update rider profile (firstName, lastName, age, address)
+     * PATCH /auth/profile
+     */
+    @PATCH("auth/profile")
+    suspend fun updateRiderProfile(@Body request: com.wheelsongo.app.data.models.profile.RiderProfileSetupRequest): Response<com.wheelsongo.app.data.models.profile.ProfileSetupResponse>
 }
