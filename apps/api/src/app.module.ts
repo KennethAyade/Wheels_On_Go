@@ -18,6 +18,7 @@ import { GeofenceModule } from './geofence/geofence.module';
 import { RiderVehicleModule } from './rider-vehicle/rider-vehicle.module';
 import { RatingModule } from './rating/rating.module';
 import { AdminModule } from './admin/admin.module';
+import { FatigueModule } from './fatigue/fatigue.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AdminModule } from './admin/admin.module';
     RiderVehicleModule,
     RatingModule,
     AdminModule,
+    FatigueModule,
   ],
   providers: [
     {

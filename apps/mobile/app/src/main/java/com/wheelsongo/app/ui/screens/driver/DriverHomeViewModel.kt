@@ -52,7 +52,9 @@ data class DriverHomeUiState(
     val activeRide: RideResponse? = null,
     val navigateToDriveRequests: Boolean = false,
     val errorMessage: String? = null,
-    val showProfileSetupPrompt: Boolean = false
+    val showProfileSetupPrompt: Boolean = false,
+    val needsFatigueCheck: Boolean = false,
+    val needsFaceEnrollment: Boolean = false
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -134,6 +136,56 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(showProfileSetupPrompt = false) }
     }
 
+    fun clearFatigueCheckFlag() {
+        _uiState.update { it.copy(needsFatigueCheck = false) }
+    }
+
+    fun clearFaceEnrollmentFlag() {
+        _uiState.update { it.copy(needsFaceEnrollment = false) }
+    }
+
+    /**
+     * Check fatigue status before going online.
+     * Returns true if the driver is allowed to go online, false if blocked.
+     */
+    private suspend fun checkFatigueGate(): Boolean {
+        try {
+            val statusResp = ApiClient.fatigueApi.getFatigueStatus()
+            if (statusResp.isSuccessful) {
+                val body = statusResp.body()
+                if (body != null && !body.allowed) {
+                    when (body.reason) {
+                        "Face enrollment required" -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, needsFaceEnrollment = true) }
+                            return false
+                        }
+                        "Fatigue check required" -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, needsFatigueCheck = true) }
+                            return false
+                        }
+                        "Fatigue cooldown active" -> {
+                            val cooldownMsg = if (body.cooldownUntil != null) {
+                                "You need to rest before going online. Cooldown active."
+                            } else {
+                                "Fatigue cooldown is active. Please rest before driving."
+                            }
+                            _uiState.update { it.copy(isTogglingStatus = false, errorMessage = cooldownMsg) }
+                            return false
+                        }
+                        else -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, errorMessage = body.reason ?: "Cannot go online") }
+                            return false
+                        }
+                    }
+                }
+            }
+            // If API fails, fail-open (allow going online)
+        } catch (_: Exception) {
+            // Fail-open: if fatigue API is unreachable, don't block the driver
+        }
+        return true
+    }
+
     fun toggleOnlineStatus() {
         if (!tokenManager.isProfileComplete()) {
             _uiState.update { it.copy(showProfileSetupPrompt = true) }
@@ -177,6 +229,9 @@ class DriverHomeViewModel @JvmOverloads constructor(
             } else {
                 Pair(_uiState.value.currentLatitude, _uiState.value.currentLongitude)
             }
+
+            // Fatigue safety gate — check before going online
+            if (newStatus && !checkFatigueGate()) return@launch
 
             try {
                 val response = driverApi.updateStatus(
@@ -246,6 +301,9 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     )
                 }
                 loadAddressForLocation(location.latitude, location.longitude)
+
+                // Fatigue safety gate
+                if (!checkFatigueGate()) return@launch
 
                 try {
                     val response = driverApi.updateStatus(

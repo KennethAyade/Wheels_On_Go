@@ -168,6 +168,10 @@ object ApiClient {
     val trackingApi: TrackingApi by lazy {
         retrofit.create(TrackingApi::class.java)
     }
+
+    val fatigueApi: FatigueApi by lazy {
+        retrofit.create(FatigueApi::class.java)
+    }
 }
 
 /**

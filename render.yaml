@@ -59,5 +59,9 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: FATIGUE_MODE
+        value: mock
+      - key: GEMINI_API_KEY
+        sync: false
       - key: PORT
         value: 3000

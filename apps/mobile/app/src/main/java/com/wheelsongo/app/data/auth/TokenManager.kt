@@ -32,6 +32,8 @@ class TokenManager(private val context: Context) {
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val PHONE_NUMBER_KEY = stringPreferencesKey("phone_number")
         private val PROFILE_COMPLETE_KEY = booleanPreferencesKey("profile_complete")
+        private val FACE_ENROLLED_KEY = booleanPreferencesKey("face_enrolled")
+        private val LAST_FATIGUE_CHECK_KEY = stringPreferencesKey("last_fatigue_check")
     }
 
     /**
@@ -190,6 +192,42 @@ class TokenManager(private val context: Context) {
     suspend fun clearBiometricToken() {
         context.authDataStore.edit { prefs ->
             prefs.remove(BIOMETRIC_TOKEN_KEY)
+        }
+    }
+
+    /**
+     * Save face enrollment status
+     */
+    suspend fun saveFaceEnrolled(enrolled: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[FACE_ENROLLED_KEY] = enrolled
+        }
+    }
+
+    /**
+     * Check if face is enrolled
+     */
+    fun isFaceEnrolled(): Boolean {
+        return runBlocking {
+            context.authDataStore.data.first()[FACE_ENROLLED_KEY] ?: false
+        }
+    }
+
+    /**
+     * Save last fatigue check timestamp (ISO string)
+     */
+    suspend fun saveLastFatigueCheck(timestamp: String) {
+        context.authDataStore.edit { prefs ->
+            prefs[LAST_FATIGUE_CHECK_KEY] = timestamp
+        }
+    }
+
+    /**
+     * Get last fatigue check timestamp
+     */
+    fun getLastFatigueCheck(): String? {
+        return runBlocking {
+            context.authDataStore.data.first()[LAST_FATIGUE_CHECK_KEY]
         }
     }
 }

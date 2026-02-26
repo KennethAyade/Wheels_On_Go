@@ -69,6 +69,8 @@ fun DriverHomeScreen(
     onNavigateToActiveRide: (String) -> Unit,
     onNavigateToDriveRequests: () -> Unit,
     onNavigateToProfileSetup: () -> Unit = {},
+    onNavigateToFatigueCheck: () -> Unit = {},
+    onNavigateToFaceEnrollment: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DriverHomeViewModel = viewModel()
 ) {
@@ -116,6 +118,22 @@ fun DriverHomeScreen(
         if (rideId != null && uiState.acceptedRideId == null) {
             viewModel.clearActiveRideState()
             onNavigateToActiveRide(rideId)
+        }
+    }
+
+    // Navigate to fatigue check when required
+    LaunchedEffect(uiState.needsFatigueCheck) {
+        if (uiState.needsFatigueCheck) {
+            viewModel.clearFatigueCheckFlag()
+            onNavigateToFatigueCheck()
+        }
+    }
+
+    // Navigate to face enrollment when required
+    LaunchedEffect(uiState.needsFaceEnrollment) {
+        if (uiState.needsFaceEnrollment) {
+            viewModel.clearFaceEnrollmentFlag()
+            onNavigateToFaceEnrollment()
         }
     }
 

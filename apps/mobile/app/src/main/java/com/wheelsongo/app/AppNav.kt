@@ -43,6 +43,8 @@ import com.wheelsongo.app.ui.screens.driver.DriverProfileScreen
 import com.wheelsongo.app.ui.screens.ride.ActiveRideScreen
 import com.wheelsongo.app.ui.screens.ride.RideCompletionScreen
 import com.wheelsongo.app.ui.screens.vehicle.VehicleRegistrationScreen
+import com.wheelsongo.app.ui.screens.fatigue.FaceEnrollmentScreen
+import com.wheelsongo.app.ui.screens.fatigue.FatigueCheckScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -298,10 +300,34 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             DocumentUploadScreen(
                 onBack = { navController.popBackStack() },
                 onComplete = {
-                    // Navigate to home after KYC complete
+                    // Navigate to face enrollment after KYC complete
+                    navController.navigate(Route.FaceEnrollment.value) {
+                        popUpTo(Route.Welcome.value) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Face Enrollment Screen (Driver Safety)
+        // ==========================================
+        composable(Route.FaceEnrollment.value) {
+            FaceEnrollmentScreen(
+                onEnrolled = {
                     navController.navigate(Route.Home.value) {
                         popUpTo(Route.Welcome.value) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        // ==========================================
+        // Fatigue Check Screen (Driver Safety)
+        // ==========================================
+        composable(Route.FatigueCheck.value) {
+            FatigueCheckScreen(
+                onPassed = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -359,6 +385,12 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         },
                         onNavigateToProfileSetup = {
                             navController.navigate(Route.DriverProfileSetup.createRoute(needsKyc = false, returnToHome = true))
+                        },
+                        onNavigateToFatigueCheck = {
+                            navController.navigate(Route.FatigueCheck.value)
+                        },
+                        onNavigateToFaceEnrollment = {
+                            navController.navigate(Route.FaceEnrollment.value)
                         },
                         viewModel = driverHomeViewModel
                     )

@@ -14,6 +14,7 @@ import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { LocationService } from '../location/location.service';
+import { FatigueService } from '../fatigue/fatigue.service';
 import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
@@ -29,6 +30,7 @@ export class DriverService {
     private readonly storageService: StorageService,
     private readonly auditService: AuditService,
     private readonly locationService: LocationService,
+    private readonly fatigueService: FatigueService,
   ) {}
 
   async getKycStatus(userId: string) {
@@ -208,6 +210,12 @@ export class DriverService {
         throw new BadRequestException(
           'Please complete your profile setup before going online.',
         );
+      }
+
+      // Fatigue safety gate — face enrollment + fatigue check required
+      const fatigueStatus = await this.fatigueService.canGoOnline(profile.id);
+      if (!fatigueStatus.allowed) {
+        throw new BadRequestException(fatigueStatus.reason);
       }
     }
 
@@ -519,7 +527,7 @@ export class DriverService {
       drugTest: true,
       healthCertificate: true,
       idVerified,
-      fatigueDetection: false, // Coming Soon — Phase 3
+      fatigueDetection: !!profile.faceEnrolledAt,
       // Activity Summary
       totalRides: profile.totalRides,
       averageRating: profile.user.averageRating,
