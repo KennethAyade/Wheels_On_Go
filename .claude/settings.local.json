@@ -98,7 +98,8 @@
       "Bash(printf:*)",
       "Bash(node:*)",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(npm run seed:admin)"
     ]
   }
 }
