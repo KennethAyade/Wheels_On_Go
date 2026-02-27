@@ -307,7 +307,15 @@ export class DriverService {
   async getDriverDetailForAdmin(driverId: string) {
     const driver = await this.prisma.driverProfile.findUnique({
       where: { id: driverId },
-      include: { documents: true, user: true, vehicle: true },
+      include: {
+        documents: true,
+        user: true,
+        vehicle: true,
+        fatigueDetectionLogs: {
+          orderBy: { detectedAt: 'desc' },
+          take: 10,
+        },
+      },
     });
 
     if (!driver) {

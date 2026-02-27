@@ -3,12 +3,31 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, X, ZoomIn, ZoomOut, Check, XCircle } from 'lucide-react';
 import { getDriverDetail, approveDriver, rejectDriver } from '../api/drivers';
 import StatusBadge from '../components/StatusBadge';
-import type { DriverProfile, DriverDocument } from '../types';
+import type { DriverProfile, DriverDocument, FatigueLevel } from '../types';
 
 const docTypeLabels: Record<string, string> = {
   LICENSE: "Driver's License",
   GOVERNMENT_ID: 'Government ID',
   PROFILE_PHOTO: 'Profile Photo',
+};
+
+const fatigueLevelColor = (level: FatigueLevel | null | undefined) => {
+  switch (level) {
+    case 'NORMAL':   return 'bg-green-100 text-green-800';
+    case 'MILD':     return 'bg-yellow-100 text-yellow-800';
+    case 'MODERATE': return 'bg-orange-100 text-orange-800';
+    case 'SEVERE':   return 'bg-red-100 text-red-800';
+    default:         return 'bg-gray-100 text-gray-600';
+  }
+};
+
+const cooldownRemaining = (until: string | null | undefined): string => {
+  if (!until) return 'None';
+  const diff = new Date(until).getTime() - Date.now();
+  if (diff <= 0) return 'None';
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  return h > 0 ? `Active — ${h}h ${m}m remaining` : `Active — ${m}m remaining`;
 };
 
 export default function DriverDetailPage() {
@@ -155,6 +174,110 @@ export default function DriverDetailPage() {
                 <span className="text-gray-500">Type</span>
                 <span className="text-gray-900">{driver.vehicle.vehicleType}</span>
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* AI Safety Status */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <h2 className="font-semibold text-gray-900 mb-4">AI Safety Status</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+          {/* Left — Enrollment & Last Check */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Face Enrollment</span>
+              {driver.faceEnrolledAt ? (
+                <span className="flex items-center gap-1 text-green-700 font-medium">
+                  <Check size={14} />
+                  Enrolled &middot; {new Date(driver.faceEnrolledAt).toLocaleString()}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-gray-400">
+                  <X size={14} />
+                  Not Enrolled
+                </span>
+              )}
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Last Fatigue Check</span>
+              <span className="text-gray-900">
+                {driver.lastFatigueCheckAt
+                  ? new Date(driver.lastFatigueCheckAt).toLocaleString()
+                  : 'Never'}
+              </span>
+            </div>
+          </div>
+          {/* Right — Level & Cooldown */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Fatigue Level</span>
+              {driver.lastFatigueLevel ? (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${fatigueLevelColor(driver.lastFatigueLevel)}`}>
+                  {driver.lastFatigueLevel}
+                </span>
+              ) : (
+                <span className="text-gray-400">—</span>
+              )}
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Cooldown</span>
+              <span className={
+                cooldownRemaining(driver.fatigueCooldownUntil) !== 'None'
+                  ? 'text-orange-700 font-medium'
+                  : 'text-gray-900'
+              }>
+                {cooldownRemaining(driver.fatigueCooldownUntil)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fatigue Detection History */}
+        {driver.fatigueDetectionLogs && driver.fatigueDetectionLogs.length > 0 && (
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Detection History (Last 10)</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-100">
+                    <th className="pb-2 pr-4 font-medium">Date / Time</th>
+                    <th className="pb-2 pr-4 font-medium">Level</th>
+                    <th className="pb-2 pr-4 font-medium">Eye Score</th>
+                    <th className="pb-2 pr-4 font-medium">Confidence</th>
+                    <th className="pb-2 pr-4 font-medium">Reasons</th>
+                    <th className="pb-2 font-medium">On Ride</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {driver.fatigueDetectionLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="py-2 pr-4 text-gray-600">
+                        {new Date(log.detectedAt).toLocaleString()}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <span className={`px-2 py-0.5 rounded-full font-semibold ${fatigueLevelColor(log.fatigueLevel)}`}>
+                          {log.fatigueLevel}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4 text-gray-600">
+                        {(log.avgEyeProbability * 100).toFixed(0)}%
+                      </td>
+                      <td className="py-2 pr-4 text-gray-600">
+                        {log.confidence != null ? `${(log.confidence * 100).toFixed(0)}%` : '—'}
+                      </td>
+                      <td className="py-2 pr-4 text-gray-600 max-w-[200px]">
+                        {log.reasons.length > 0 ? log.reasons.join(', ') : '—'}
+                      </td>
+                      <td className="py-2 text-gray-600">
+                        {log.isOnRide ? (
+                          <span className="text-orange-600 font-medium">Yes</span>
+                        ) : 'No'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

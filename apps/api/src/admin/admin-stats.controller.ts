@@ -16,8 +16,15 @@ export class AdminStatsController {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue] =
-      await Promise.all([
+    const [
+      activeRides,
+      onlineDrivers,
+      totalRiders,
+      pendingVerifications,
+      todayRevenue,
+      driversFaceEnrolled,
+      driversOnCooldown,
+    ] = await Promise.all([
         this.prisma.ride.count({
           where: { status: { in: ['ACCEPTED', 'DRIVER_ARRIVED', 'STARTED'] } },
         }),
@@ -37,6 +44,12 @@ export class AdminStatsController {
           },
           _sum: { totalFare: true },
         }),
+        this.prisma.driverProfile.count({
+          where: { faceEnrolledAt: { not: null } },
+        }),
+        this.prisma.driverProfile.count({
+          where: { fatigueCooldownUntil: { gt: new Date() } },
+        }),
       ]);
 
     return {
@@ -45,6 +58,8 @@ export class AdminStatsController {
       totalRiders,
       pendingVerifications,
       todayRevenue: Number(todayRevenue._sum.totalFare || 0),
+      driversFaceEnrolled,
+      driversOnCooldown,
     };
   }
 }
