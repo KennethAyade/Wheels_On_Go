@@ -11,6 +11,7 @@ import { FirebaseService } from './firebase.service';
 import { JwtStrategy } from './jwt.strategy';
 import { BiometricModule } from '../biometric/biometric.module';
 import { AuditModule } from '../audit/audit.module';
+import { StorageModule } from '../storage/storage.module';
 import { BiometricGuard } from './guards/biometric.guard';
 
 @Module({
@@ -20,6 +21,7 @@ import { BiometricGuard } from './guards/biometric.guard';
     PrismaModule,
     AuditModule,
     BiometricModule,
+    StorageModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -260,6 +260,15 @@ sealed class Route(val value: String) {
     }
 
     // ==========================================
+    // Settings
+    // ==========================================
+
+    /**
+     * Settings screen — profile, preferences, account management
+     */
+    data object Settings : Route("settings")
+
+    // ==========================================
     // Place Search
     // ==========================================
 

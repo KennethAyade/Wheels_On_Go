@@ -34,6 +34,7 @@ class TokenManager(private val context: Context) {
         private val PROFILE_COMPLETE_KEY = booleanPreferencesKey("profile_complete")
         private val FACE_ENROLLED_KEY = booleanPreferencesKey("face_enrolled")
         private val LAST_FATIGUE_CHECK_KEY = stringPreferencesKey("last_fatigue_check")
+        private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
     }
 
     /**
@@ -228,6 +229,23 @@ class TokenManager(private val context: Context) {
     fun getLastFatigueCheck(): String? {
         return runBlocking {
             context.authDataStore.data.first()[LAST_FATIGUE_CHECK_KEY]
+        }
+    }
+
+    /**
+     * Check if device biometric login is enabled (driver preference).
+     * Default: true (biometric prompt shown on session resume).
+     */
+    suspend fun isBiometricEnabled(): Boolean {
+        return context.authDataStore.data.first()[BIOMETRIC_ENABLED_KEY] ?: true
+    }
+
+    /**
+     * Save biometric login preference
+     */
+    suspend fun saveBiometricEnabled(enabled: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[BIOMETRIC_ENABLED_KEY] = enabled
         }
     }
 }

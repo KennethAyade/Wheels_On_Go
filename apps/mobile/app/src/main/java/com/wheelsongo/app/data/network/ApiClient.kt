@@ -23,6 +23,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -246,4 +247,32 @@ interface AuthApi {
      */
     @PATCH("auth/profile")
     suspend fun updateRiderProfile(@Body request: com.wheelsongo.app.data.models.profile.RiderProfileSetupRequest): Response<com.wheelsongo.app.data.models.profile.ProfileSetupResponse>
+
+    /**
+     * Update profile (partial — any subset of firstName, lastName, age, address)
+     * PATCH /auth/profile
+     */
+    @PATCH("auth/profile")
+    suspend fun updateProfile(@Body request: com.wheelsongo.app.data.models.profile.UpdateProfileRequest): Response<com.wheelsongo.app.data.models.profile.ProfileSetupResponse>
+
+    /**
+     * Get current user profile (flat response, no wrapper)
+     * GET /auth/me
+     */
+    @GET("auth/me")
+    suspend fun me(): Response<com.wheelsongo.app.data.models.profile.MeResponse>
+
+    /**
+     * Upload profile photo (base64)
+     * POST /auth/profile-photo
+     */
+    @POST("auth/profile-photo")
+    suspend fun uploadProfilePhoto(@Body request: com.wheelsongo.app.data.models.profile.UploadProfilePhotoRequest): Response<com.wheelsongo.app.data.models.profile.ProfilePhotoResponse>
+
+    /**
+     * Delete (deactivate) account
+     * DELETE /auth/me
+     */
+    @DELETE("auth/me")
+    suspend fun deleteAccount(): Response<com.wheelsongo.app.data.models.profile.DeleteAccountResponse>
 }

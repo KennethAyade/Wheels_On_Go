@@ -333,6 +333,20 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         }
 
         // ==========================================
+        // Settings
+        // ==========================================
+        composable(Route.Settings.value) {
+            com.wheelsongo.app.ui.screens.settings.SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onLoggedOut = {
+                    navController.navigate(Route.Welcome.value) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
         // Home Screen (Role-Conditional: Rider vs Driver)
         // ==========================================
         composable(Route.Home.value) {
@@ -357,6 +371,10 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     onMyVehicles = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.VehicleList.value)
+                    },
+                    onSettings = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.Settings.value)
                     },
                     onLogout = {
                         scope.launch {

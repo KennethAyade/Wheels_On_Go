@@ -49,8 +49,17 @@ class SessionResumeViewModel @JvmOverloads constructor(
 
         val role = authRepository.getUserRole()
         if (role == "DRIVER") {
-            // Driver needs biometric verification before refreshing
-            _uiState.value = UiState(isChecking = false, needsBiometric = true)
+            // Check if driver has biometric login enabled (default: true)
+            viewModelScope.launch {
+                val tokenManager = ApiClient.getTokenManager()
+                val biometricEnabled = tokenManager.isBiometricEnabled()
+                if (biometricEnabled) {
+                    _uiState.value = UiState(isChecking = false, needsBiometric = true)
+                } else {
+                    // Biometric disabled — skip prompt, refresh directly
+                    refreshAndNavigate()
+                }
+            }
         } else {
             // Rider — refresh silently
             refreshAndNavigate()
