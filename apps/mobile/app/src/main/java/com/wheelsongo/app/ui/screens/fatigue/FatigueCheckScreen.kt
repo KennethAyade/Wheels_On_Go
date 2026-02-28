@@ -1,11 +1,5 @@
 package com.wheelsongo.app.ui.screens.fatigue
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,18 +28,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wheelsongo.app.ui.components.buttons.PrimaryButton
+import com.wheelsongo.app.ui.components.camera.FaceCameraCapture
 import com.wheelsongo.app.ui.theme.WheelsOnGoTextSecondary
 import kotlinx.coroutines.delay
 
@@ -57,25 +51,7 @@ fun FatigueCheckScreen(
     viewModel: FatigueCheckViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        if (bitmap != null) {
-            viewModel.onPhotoCaptured(bitmap)
-        }
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            cameraLauncher.launch(null)
-        } else {
-            viewModel.onPermissionDenied()
-        }
-    }
+    var showCamera by remember { mutableStateOf(false) }
 
     // Auto-navigate after passed
     LaunchedEffect(uiState.isPassed) {
@@ -85,44 +61,53 @@ fun FatigueCheckScreen(
         }
     }
 
-    Scaffold(modifier = modifier) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            when {
-                uiState.isDenied -> FatigueDenialContent(
-                    uiState = uiState,
-                    onRetry = {
-                        viewModel.resetForRetry()
-                        val hasPermission = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.CAMERA
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPermission) {
-                            cameraLauncher.launch(null)
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
+    // Exit camera on error so user sees error message and can retry
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage != null && showCamera) {
+            showCamera = false
+        }
+    }
+
+    if (showCamera && !uiState.isDenied) {
+        // Embedded camera screen
+        FaceCameraCapture(
+            title = "Quick Safety Check",
+            subtitle = "Please look into the camera and hold still",
+            statusText = when {
+                uiState.isPassed -> "Safety Check Passed"
+                uiState.isChecking -> "Analyzing your face...."
+                else -> "Hold your face steady"
+            },
+            isProcessing = uiState.isChecking,
+            isSuccess = uiState.isPassed,
+            errorMessage = uiState.errorMessage,
+            onImageCaptured = { bitmap -> viewModel.onPhotoCaptured(bitmap) },
+            onBack = { showCamera = false }
+        )
+    } else {
+        Scaffold(modifier = modifier) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                when {
+                    uiState.isDenied -> FatigueDenialContent(
+                        uiState = uiState,
+                        onRetry = {
+                            viewModel.resetForRetry()
+                            showCamera = true
                         }
-                    }
-                )
-                uiState.isPassed -> PassedContent()
-                else -> ReadyContent(
-                    uiState = uiState,
-                    onTakeSelfie = {
-                        val hasPermission = ContextCompat.checkSelfPermission(
-                            context, Manifest.permission.CAMERA
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (hasPermission) {
-                            cameraLauncher.launch(null)
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        }
-                    }
-                )
+                    )
+                    uiState.isPassed -> PassedContent()
+                    else -> ReadyContent(
+                        uiState = uiState,
+                        onBeginCheck = { showCamera = true }
+                    )
+                }
             }
         }
     }
@@ -131,7 +116,7 @@ fun FatigueCheckScreen(
 @Composable
 private fun ColumnScope.ReadyContent(
     uiState: FatigueCheckUiState,
-    onTakeSelfie: () -> Unit
+    onBeginCheck: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -140,20 +125,12 @@ private fun ColumnScope.ReadyContent(
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
-        if (uiState.isChecking) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(56.dp),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 4.dp
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = "Camera",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(72.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.CameraAlt,
+            contentDescription = "Camera",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(72.dp)
+        )
     }
 
     Spacer(modifier = Modifier.height(32.dp))
@@ -199,10 +176,10 @@ private fun ColumnScope.ReadyContent(
     Spacer(modifier = Modifier.weight(1f))
 
     PrimaryButton(
-        text = if (uiState.errorMessage != null) "Try Again" else "Take Selfie",
-        onClick = onTakeSelfie,
+        text = if (uiState.errorMessage != null) "Try Again" else "Begin Check",
+        onClick = onBeginCheck,
         enabled = !uiState.isChecking,
-        isLoading = uiState.isChecking
+        isLoading = false
     )
 
     Spacer(modifier = Modifier.height(24.dp))

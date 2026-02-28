@@ -3,6 +3,8 @@ package com.wheelsongo.app.data.network
 import com.wheelsongo.app.data.models.ride.CancelRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideResponse
+import com.wheelsongo.app.data.models.ride.SosResponse
+import com.wheelsongo.app.data.models.ride.TriggerSosRequest
 import com.wheelsongo.app.data.models.ride.RideEstimateRequest
 import com.wheelsongo.app.data.models.ride.RideEstimateResponse
 import com.wheelsongo.app.data.models.ride.RideResponse
@@ -67,4 +69,14 @@ interface RideApi {
         @Path("id") rideId: String,
         @Body request: CancelRideRequest
     ): Response<RideResponse>
+
+    /**
+     * Trigger SOS emergency for an active ride
+     * POST /rides/{id}/sos
+     */
+    @POST("rides/{id}/sos")
+    suspend fun triggerSos(
+        @Path("id") rideId: String,
+        @Body request: TriggerSosRequest
+    ): Response<SosResponse>
 }

@@ -38,6 +38,10 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
+  // Increase JSON body size limit for base64 image endpoints
+  // (biometric verify, face enrollment, fatigue check send ~100-800KB payloads)
+  app.useBodyParser('json', { limit: '5mb' });
+
   // Global validation pipes
   app.useGlobalPipes(
     new ValidationPipe({

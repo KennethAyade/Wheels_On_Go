@@ -23,6 +23,7 @@ import {
   UpdateRideStatusDto,
   CancelRideDto,
   RideResponseDto,
+  TriggerSosDto,
 } from './dto';
 
 /**
@@ -127,6 +128,20 @@ export class RideController {
     @Body() dto: UpdateRideStatusDto,
   ): Promise<RideResponseDto> {
     return this.rideService.updateRideStatus(rideId, user.sub, dto);
+  }
+
+  /**
+   * Trigger SOS emergency for an active ride
+   * POST /rides/:id/sos
+   * Available to both riders and drivers
+   */
+  @Post(':id/sos')
+  async triggerSos(
+    @CurrentUser() user: JwtUser,
+    @Param('id') rideId: string,
+    @Body() dto: TriggerSosDto,
+  ) {
+    return this.rideService.triggerSos(rideId, user.sub, dto);
   }
 
   /**

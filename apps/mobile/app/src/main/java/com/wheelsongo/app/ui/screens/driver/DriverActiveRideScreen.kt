@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,12 +32,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +69,7 @@ fun DriverActiveRideScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showSosDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(rideId) {
         viewModel.initialize(rideId, riderName)
@@ -134,6 +140,21 @@ fun DriverActiveRideScreen(
                 .size(48.dp)
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+
+        // Layer 2b: SOS button (top-right)
+        IconButton(
+            onClick = { showSosDialog = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(16.dp)
+                .shadow(4.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.Red)
+                .size(48.dp)
+        ) {
+            Icon(Icons.Default.Warning, contentDescription = "SOS", tint = Color.White)
         }
 
         // Layer 3: Bottom overlay (status + rider card + action button)
@@ -337,6 +358,34 @@ fun DriverActiveRideScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 280.dp)
+        )
+    }
+
+    // SOS confirmation dialog
+    if (showSosDialog) {
+        val sosContext = LocalContext.current
+        AlertDialog(
+            onDismissRequest = { showSosDialog = false },
+            title = { Text("Emergency SOS", fontWeight = FontWeight.Bold) },
+            text = { Text("This will open the phone dialer to call emergency services (911). Are you sure?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSosDialog = false
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
+                        sosContext.startActivity(intent)
+                        viewModel.triggerSos()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Call 911", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSosDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

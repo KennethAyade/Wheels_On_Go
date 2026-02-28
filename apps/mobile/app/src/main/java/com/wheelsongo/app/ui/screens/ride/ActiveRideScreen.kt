@@ -1,5 +1,7 @@
 package com.wheelsongo.app.ui.screens.ride
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,16 +34,20 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +64,8 @@ fun ActiveRideScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    var showSosDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(rideId) {
         viewModel.initialize(rideId)
@@ -115,7 +125,7 @@ fun ActiveRideScreen(
 
         // Layer 3: SOS button (top-right)
         IconButton(
-            onClick = { /* TODO: SOS functionality */ },
+            onClick = { showSosDialog = true },
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
@@ -324,6 +334,52 @@ fun ActiveRideScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Share Ride button (visible when driver is assigned)
+                    if (ride?.driver != null && uiState.rideStatus in listOf("ACCEPTED", "DRIVER_ARRIVED", "STARTED")) {
+                        OutlinedButton(
+                            onClick = {
+                                val vehicle = ride.driver?.driverProfile?.vehicle
+                                val driverInfo = if (vehicle != null) {
+                                    "Driver: ${vehicle.make} ${vehicle.model}, Plate: ${vehicle.plateNumber}"
+                                } else "Driver assigned"
+
+                                val location = uiState.driverLocation ?: uiState.pickupLocation
+                                val mapLink = location?.let {
+                                    "https://maps.google.com/?q=${it.latitude},${it.longitude}"
+                                } ?: ""
+
+                                val shareText = buildString {
+                                    append("I'm on a ride with Wheels On Go.\n")
+                                    append("$driverInfo\n")
+                                    append("From: ${ride.pickupAddress}\n")
+                                    append("To: ${ride.dropoffAddress}\n")
+                                    if (mapLink.isNotEmpty()) {
+                                        append("Track me: $mapLink")
+                                    }
+                                }
+
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    putExtra(Intent.EXTRA_SUBJECT, "My Wheels On Go Ride")
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Share Ride Details"))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Share Ride")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     // Cancel button
                     if (uiState.canCancel) {
                         OutlinedButton(
@@ -349,6 +405,35 @@ fun ActiveRideScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 280.dp)
+        )
+    }
+
+    // SOS confirmation dialog
+    if (showSosDialog) {
+        AlertDialog(
+            onDismissRequest = { showSosDialog = false },
+            title = { Text("Emergency SOS", fontWeight = FontWeight.Bold) },
+            text = { Text("This will open the phone dialer to call emergency services (911). Are you sure?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSosDialog = false
+                        // Dial emergency number
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
+                        context.startActivity(intent)
+                        // Log SOS to backend (best-effort)
+                        viewModel.triggerSos()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Call 911", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSosDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

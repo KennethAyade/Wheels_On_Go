@@ -8,6 +8,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.ride.RideResponse
+import com.wheelsongo.app.data.models.ride.TriggerSosRequest
+import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DirectionsApi
 import com.wheelsongo.app.data.network.TrackingSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
@@ -214,6 +216,29 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
                     accuracy = location.accuracy,
                     altitude = location.altitude
                 )
+            }
+        }
+    }
+
+    /**
+     * Trigger SOS — logs the emergency to the backend (fire-and-forget).
+     */
+    fun triggerSos() {
+        viewModelScope.launch {
+            try {
+                val rideId = _uiState.value.rideId
+                val ride = _uiState.value.ride
+                if (rideId.isNotBlank() && ride != null) {
+                    ApiClient.rideApi.triggerSos(
+                        rideId,
+                        TriggerSosRequest(
+                            latitude = ride.pickupLatitude,
+                            longitude = ride.pickupLongitude
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // SOS logging is best-effort
             }
         }
     }

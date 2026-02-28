@@ -56,10 +56,19 @@ class FaceEnrollmentViewModel @JvmOverloads constructor(
     }
 
     private fun encodeBitmapToBase64(bitmap: Bitmap): String {
+        val scaled = scaleBitmap(bitmap, maxDimension = 640)
         val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+        scaled.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
         val bytes = outputStream.toByteArray()
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
+    private fun scaleBitmap(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        if (width <= maxDimension && height <= maxDimension) return bitmap
+        val ratio = maxDimension.toFloat() / maxOf(width, height).toFloat()
+        return Bitmap.createScaledBitmap(bitmap, (width * ratio).toInt(), (height * ratio).toInt(), true)
     }
 
     fun onPermissionDenied() {
