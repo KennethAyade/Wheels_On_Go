@@ -48,6 +48,7 @@ data class DriverHomeUiState(
     val pendingRequests: List<IncomingRideRequestUiData> = emptyList(),
     val acceptedRideId: String? = null,
     val acceptedRiderName: String = "",
+    val pendingAcceptRideId: String? = null,
     val activeRideId: String? = null,
     val activeRide: RideResponse? = null,
     val navigateToDriveRequests: Boolean = false,
@@ -388,7 +389,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
             s.copy(
                 pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId },
                 acceptedRiderName = request?.riderName ?: s.acceptedRiderName,
-                acceptedRideId = request?.rideId ?: s.acceptedRideId
+                pendingAcceptRideId = request?.rideId ?: s.pendingAcceptRideId
             )
         }
     }
@@ -425,7 +426,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(
             activeRideId = null,
             acceptedRideId = null,
-            acceptedRiderName = ""
+            acceptedRiderName = "",
+            pendingAcceptRideId = null
         ) }
     }
 
@@ -451,8 +453,12 @@ class DriverHomeViewModel @JvmOverloads constructor(
             is DispatchEvent.DispatchAccepted -> {
                 // Extract rideId from event data (backend sends { ride: { id, ... } })
                 val rideId = event.data?.get("id")?.takeIf { it.isNotEmpty() }
-                    ?: _uiState.value.acceptedRideId ?: return
-                _uiState.update { it.copy(pendingRequests = emptyList(), acceptedRideId = rideId) }
+                    ?: _uiState.value.pendingAcceptRideId ?: return
+                _uiState.update { it.copy(
+                    pendingRequests = emptyList(),
+                    acceptedRideId = rideId,
+                    pendingAcceptRideId = null
+                ) }
             }
             is DispatchEvent.DispatchDeclined -> {
                 // Clear all pending (backend rejected or timed out)
@@ -461,7 +467,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
             is DispatchEvent.Error -> {
                 _uiState.update { it.copy(
                     errorMessage = event.message,
-                    acceptedRideId = null
+                    acceptedRideId = null,
+                    pendingAcceptRideId = null
                 ) }
             }
             else -> { /* Rider-side events — ignore for driver */ }

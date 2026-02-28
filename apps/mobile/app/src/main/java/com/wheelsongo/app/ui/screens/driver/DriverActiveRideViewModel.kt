@@ -88,11 +88,15 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
     val uiState: StateFlow<DriverActiveRideUiState> = _uiState.asStateFlow()
 
     fun initialize(rideId: String, riderName: String = "") {
-        _uiState.update { it.copy(rideId = rideId, isLoading = true, riderName = riderName) }
+        _uiState.update { it.copy(rideId = rideId, isLoading = true, riderName = riderName, errorMessage = null) }
         dispatchSocketClient.connect()
         viewModelScope.launch {
-            rideRepository.getRideById(rideId)
-                .onSuccess { ride ->
+            var lastError: Throwable? = null
+            var loaded = false
+            for (attempt in 1..3) {
+                val result = rideRepository.getRideById(rideId)
+                if (result.isSuccess) {
+                    val ride = result.getOrThrow()
                     val phase = statusToPhase(ride.status)
                     val durationMinutes = (ride.estimatedDuration ?: 0) / 60
                     val distanceKm = (ride.estimatedDistance ?: 0.0) / 1000.0
@@ -108,12 +112,27 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
                     }
                     fetchRouteForPhase(phase, ride)
                     startLocationBroadcasting()
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message ?: "Failed to load ride")
+                    loaded = true
+                    break
+                } else {
+                    val error = result.exceptionOrNull()
+                    lastError = error
+                    val msg = error?.message ?: ""
+                    val is403 = msg.contains("403") || msg.contains("do not have access")
+                    if (is403 && attempt < 3) {
+                        android.util.Log.w("DriverActiveRideVM",
+                            "getRideById 403 on attempt $attempt, retrying in ${attempt * 500}ms")
+                        kotlinx.coroutines.delay(attempt * 500L)
+                    } else {
+                        break
                     }
                 }
+            }
+            if (!loaded) {
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = lastError?.message ?: "Failed to load ride")
+                }
+            }
         }
     }
 
