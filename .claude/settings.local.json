@@ -100,7 +100,8 @@
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
       "Bash(npm run seed:admin)",
-      "Bash(cat /d/FREELANCE/Wheels-On-Go_Platform/Wheels_On_Go/apps/api/src/fatigue/dto/*.ts)"
+      "Bash(cat /d/FREELANCE/Wheels-On-Go_Platform/Wheels_On_Go/apps/api/src/fatigue/dto/*.ts)",
+      "Bash(npx nest build)"
     ]
   }
 }
