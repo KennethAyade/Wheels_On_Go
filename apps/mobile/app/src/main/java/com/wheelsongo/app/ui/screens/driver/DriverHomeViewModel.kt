@@ -151,9 +151,11 @@ class DriverHomeViewModel @JvmOverloads constructor(
     private suspend fun checkFatigueGate(): Boolean {
         try {
             val statusResp = ApiClient.fatigueApi.getFatigueStatus()
+            android.util.Log.d("DriverHomeVM", "Fatigue status response: code=${statusResp.code()}, body=${statusResp.body()}")
             if (statusResp.isSuccessful) {
                 val body = statusResp.body()
                 if (body != null && !body.allowed) {
+                    android.util.Log.d("DriverHomeVM", "Fatigue gate blocked: reason=${body.reason}")
                     when (body.reason) {
                         "Face enrollment required" -> {
                             _uiState.update { it.copy(isTogglingStatus = false, needsFaceEnrollment = true) }
@@ -178,10 +180,21 @@ class DriverHomeViewModel @JvmOverloads constructor(
                         }
                     }
                 }
+                android.util.Log.d("DriverHomeVM", "Fatigue gate passed: allowed")
+            } else {
+                val errorBody = statusResp.errorBody()?.string()
+                android.util.Log.w("DriverHomeVM", "Fatigue status API error: code=${statusResp.code()}, error=$errorBody")
+                _uiState.update {
+                    it.copy(isTogglingStatus = false, errorMessage = "Unable to verify fatigue status. Please try again.")
+                }
+                return false
             }
-            // If API fails, fail-open (allow going online)
-        } catch (_: Exception) {
-            // Fail-open: if fatigue API is unreachable, don't block the driver
+        } catch (e: Exception) {
+            android.util.Log.e("DriverHomeVM", "Fatigue status check failed", e)
+            _uiState.update {
+                it.copy(isTogglingStatus = false, errorMessage = "Unable to verify fatigue status. Please check your connection and try again.")
+            }
+            return false
         }
         return true
     }

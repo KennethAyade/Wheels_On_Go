@@ -43,10 +43,6 @@ class FatigueCheckViewModel @JvmOverloads constructor(
                 if (response.isSuccessful) {
                     val body = response.body()!!
                     if (!body.isFatigued) {
-                        // Save last check timestamp
-                        ApiClient.getTokenManager().saveLastFatigueCheck(
-                            System.currentTimeMillis().toString()
-                        )
                         _uiState.update {
                             it.copy(isChecking = false, isPassed = true, isDenied = false)
                         }
