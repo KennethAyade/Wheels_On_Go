@@ -11,6 +11,8 @@ import com.wheelsongo.app.data.models.ride.RideResponse
 import com.wheelsongo.app.data.models.ride.TriggerSosRequest
 import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DirectionsApi
+import com.wheelsongo.app.data.network.DispatchEvent
+import com.wheelsongo.app.data.network.DispatchSocketClient
 import com.wheelsongo.app.data.network.TrackingSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
 import kotlinx.coroutines.Job
@@ -40,13 +42,16 @@ data class DriverActiveRideUiState(
     val riderName: String = "",
     val paymentMethod: String = "",
     val rideDurationMinutes: Int = 0,
-    val rideDistanceKm: Double = 0.0
+    val rideDistanceKm: Double = 0.0,
+    val isCancelled: Boolean = false,
+    val cancellationReason: String = ""
 )
 
 class DriverActiveRideViewModel @JvmOverloads constructor(
     application: Application,
     private val rideRepository: RideRepository = RideRepository(),
-    private val trackingSocketClient: TrackingSocketClient = TrackingSocketClient()
+    private val trackingSocketClient: TrackingSocketClient = TrackingSocketClient(),
+    private val dispatchSocketClient: DispatchSocketClient = DispatchSocketClient()
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
@@ -60,6 +65,23 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
             application.packageName, PackageManager.GET_META_DATA
         )
         mapsApiKey = appInfo.metaData?.getString("com.google.android.geo.API_KEY") ?: ""
+
+        // Listen for ride cancellation events
+        viewModelScope.launch {
+            dispatchSocketClient.events.collect { event ->
+                if (event is DispatchEvent.RideCancelled &&
+                    event.rideId == _uiState.value.rideId) {
+                    _uiState.update {
+                        it.copy(
+                            isCancelled = true,
+                            cancellationReason = event.reason
+                        )
+                    }
+                    locationBroadcastJob?.cancel()
+                    trackingSocketClient.disconnect()
+                }
+            }
+        }
     }
 
     private val _uiState = MutableStateFlow(DriverActiveRideUiState())
@@ -67,6 +89,7 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
 
     fun initialize(rideId: String, riderName: String = "") {
         _uiState.update { it.copy(rideId = rideId, isLoading = true, riderName = riderName) }
+        dispatchSocketClient.connect()
         viewModelScope.launch {
             rideRepository.getRideById(rideId)
                 .onSuccess { ride ->
@@ -248,6 +271,7 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
         routeFetchJob?.cancel()
         locationBroadcastJob?.cancel()
         trackingSocketClient.disconnect()
+        dispatchSocketClient.disconnect()
     }
 
     private fun statusToPhase(status: String): DriverRidePhase {

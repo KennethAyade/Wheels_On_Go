@@ -647,6 +647,7 @@ private fun formatDateTime(isoDate: String?): String? {
     if (isoDate == null) return null
     return try {
         val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        input.timeZone = java.util.TimeZone.getTimeZone("UTC")
         val output = SimpleDateFormat("MMM d, yyyy h:mm a", Locale.US)
         val date = input.parse(isoDate.take(19)) ?: return isoDate
         output.format(date)

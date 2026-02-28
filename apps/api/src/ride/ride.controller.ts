@@ -155,6 +155,22 @@ export class RideController {
     @Param('id') rideId: string,
     @Body() dto: CancelRideDto,
   ): Promise<RideResponseDto> {
-    return this.rideService.cancelRide(rideId, user.sub, dto);
+    const result = await this.rideService.cancelRide(rideId, user.sub, dto);
+
+    // Notify the other party via WebSocket
+    if (result.driverId && result.driverId !== user.sub) {
+      this.dispatchGateway.notifyDriver(result.driverId, 'ride:cancelled', {
+        rideId: result.id,
+        reason: dto.reason,
+      });
+    }
+    if (result.riderId && result.riderId !== user.sub) {
+      this.dispatchGateway.notifyRider(result.riderId, 'ride:cancelled', {
+        rideId: result.id,
+        reason: dto.reason,
+      });
+    }
+
+    return result;
   }
 }

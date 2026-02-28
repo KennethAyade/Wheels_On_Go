@@ -89,6 +89,14 @@ fun DriverActiveRideScreen(
         }
     }
 
+    var showCancelledDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.isCancelled) {
+        if (uiState.isCancelled) {
+            showCancelledDialog = true
+        }
+    }
+
     val ride = uiState.ride
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -158,7 +166,7 @@ fun DriverActiveRideScreen(
         }
 
         // Layer 3: Bottom overlay (status + rider card + action button)
-        if (!uiState.isLoading && ride != null) {
+        if (!uiState.isLoading && ride != null && !uiState.isCancelled) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -358,6 +366,30 @@ fun DriverActiveRideScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 280.dp)
+        )
+    }
+
+    // Ride cancelled dialog
+    if (showCancelledDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Block dismiss — must tap OK */ },
+            title = { Text("Ride Cancelled", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (uiState.cancellationReason.isNotBlank())
+                        "This ride has been cancelled by the rider.\nReason: ${uiState.cancellationReason}"
+                    else
+                        "This ride has been cancelled by the rider."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showCancelledDialog = false
+                    onBack()
+                }) {
+                    Text("OK")
+                }
+            }
         )
     }
 

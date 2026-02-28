@@ -1,5 +1,8 @@
 package com.wheelsongo.app.data.repository
 
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.wheelsongo.app.data.models.ErrorResponse
 import com.wheelsongo.app.data.models.ride.CancelRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideResponse
@@ -9,6 +12,7 @@ import com.wheelsongo.app.data.models.ride.RideResponse
 import com.wheelsongo.app.data.models.ride.UpdateRideStatusRequest
 import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.RideApi
+import retrofit2.Response
 
 /**
  * Repository for ride-related operations
@@ -18,6 +22,22 @@ import com.wheelsongo.app.data.network.RideApi
 class RideRepository(
     private val rideApi: RideApi = ApiClient.rideApi
 ) {
+
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
+
+    private val errorAdapter = moshi.adapter(ErrorResponse::class.java)
+
+    private fun parseErrorMessage(response: Response<*>): String {
+        return try {
+            response.errorBody()?.string()?.let { errorBody ->
+                errorAdapter.fromJson(errorBody)?.message
+            } ?: "Request failed with code ${response.code()}"
+        } catch (_: Exception) {
+            "Request failed with code ${response.code()}"
+        }
+    }
 
     /**
      * Get fare estimate for a ride
@@ -42,7 +62,7 @@ class RideRepository(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to get estimate: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -58,7 +78,7 @@ class RideRepository(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to create ride: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -76,7 +96,7 @@ class RideRepository(
             } else if (response.code() == 404) {
                 Result.success(null)
             } else {
-                Result.failure(Exception("Failed to get active ride: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -92,7 +112,7 @@ class RideRepository(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to get ride: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -121,7 +141,7 @@ class RideRepository(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to update ride status: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -137,7 +157,7 @@ class RideRepository(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Failed to cancel ride: ${response.code()}"))
+                Result.failure(Exception(parseErrorMessage(response)))
             }
         } catch (e: Exception) {
             Result.failure(e)
