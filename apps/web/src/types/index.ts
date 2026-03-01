@@ -18,6 +18,24 @@ export interface DashboardStats {
   totalRiders: number;
   pendingVerifications: number;
   todayRevenue: number;
+  driversFaceEnrolled: number;
+  driversOnCooldown: number;
+}
+
+export type FatigueLevel = 'NORMAL' | 'MILD' | 'MODERATE' | 'SEVERE';
+
+export interface FatigueLog {
+  id: string;
+  detectedAt: string;
+  fatigueLevel: FatigueLevel;
+  isFatigued: boolean;
+  confidence: number | null;
+  reasons: string[];
+  leftEyeProbability: number;
+  rightEyeProbability: number;
+  avgEyeProbability: number;
+  cooldownMinutes: number | null;
+  isOnRide: boolean;
 }
 
 export interface DriverDocument {
@@ -66,6 +84,12 @@ export interface DriverProfile {
   user: DriverUser;
   documents: DriverDocument[];
   vehicle: DriverVehicle | null;
+  // AI Safety / Fatigue Detection fields
+  faceEnrolledAt?: string | null;
+  lastFatigueCheckAt?: string | null;
+  lastFatigueLevel?: FatigueLevel | null;
+  fatigueCooldownUntil?: string | null;
+  fatigueDetectionLogs?: FatigueLog[];
 }
 
 export interface PaginatedResponse<T> {

@@ -48,11 +48,14 @@ data class DriverHomeUiState(
     val pendingRequests: List<IncomingRideRequestUiData> = emptyList(),
     val acceptedRideId: String? = null,
     val acceptedRiderName: String = "",
+    val pendingAcceptRideId: String? = null,
     val activeRideId: String? = null,
     val activeRide: RideResponse? = null,
     val navigateToDriveRequests: Boolean = false,
     val errorMessage: String? = null,
-    val showProfileSetupPrompt: Boolean = false
+    val showProfileSetupPrompt: Boolean = false,
+    val needsFatigueCheck: Boolean = false,
+    val needsFaceEnrollment: Boolean = false
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -134,6 +137,69 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(showProfileSetupPrompt = false) }
     }
 
+    fun clearFatigueCheckFlag() {
+        _uiState.update { it.copy(needsFatigueCheck = false) }
+    }
+
+    fun clearFaceEnrollmentFlag() {
+        _uiState.update { it.copy(needsFaceEnrollment = false) }
+    }
+
+    /**
+     * Check fatigue status before going online.
+     * Returns true if the driver is allowed to go online, false if blocked.
+     */
+    private suspend fun checkFatigueGate(): Boolean {
+        try {
+            val statusResp = ApiClient.fatigueApi.getFatigueStatus()
+            android.util.Log.d("DriverHomeVM", "Fatigue status response: code=${statusResp.code()}, body=${statusResp.body()}")
+            if (statusResp.isSuccessful) {
+                val body = statusResp.body()
+                if (body != null && !body.allowed) {
+                    android.util.Log.d("DriverHomeVM", "Fatigue gate blocked: reason=${body.reason}")
+                    when (body.reason) {
+                        "Face enrollment required" -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, needsFaceEnrollment = true) }
+                            return false
+                        }
+                        "Fatigue check required" -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, needsFatigueCheck = true) }
+                            return false
+                        }
+                        "Fatigue cooldown active" -> {
+                            val cooldownMsg = if (body.cooldownUntil != null) {
+                                "You need to rest before going online. Cooldown active."
+                            } else {
+                                "Fatigue cooldown is active. Please rest before driving."
+                            }
+                            _uiState.update { it.copy(isTogglingStatus = false, errorMessage = cooldownMsg) }
+                            return false
+                        }
+                        else -> {
+                            _uiState.update { it.copy(isTogglingStatus = false, errorMessage = body.reason ?: "Cannot go online") }
+                            return false
+                        }
+                    }
+                }
+                android.util.Log.d("DriverHomeVM", "Fatigue gate passed: allowed")
+            } else {
+                val errorBody = statusResp.errorBody()?.string()
+                android.util.Log.w("DriverHomeVM", "Fatigue status API error: code=${statusResp.code()}, error=$errorBody")
+                _uiState.update {
+                    it.copy(isTogglingStatus = false, errorMessage = "Unable to verify fatigue status. Please try again.")
+                }
+                return false
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DriverHomeVM", "Fatigue status check failed", e)
+            _uiState.update {
+                it.copy(isTogglingStatus = false, errorMessage = "Unable to verify fatigue status. Please check your connection and try again.")
+            }
+            return false
+        }
+        return true
+    }
+
     fun toggleOnlineStatus() {
         if (!tokenManager.isProfileComplete()) {
             _uiState.update { it.copy(showProfileSetupPrompt = true) }
@@ -177,6 +243,9 @@ class DriverHomeViewModel @JvmOverloads constructor(
             } else {
                 Pair(_uiState.value.currentLatitude, _uiState.value.currentLongitude)
             }
+
+            // Fatigue safety gate — check before going online
+            if (newStatus && !checkFatigueGate()) return@launch
 
             try {
                 val response = driverApi.updateStatus(
@@ -246,6 +315,9 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     )
                 }
                 loadAddressForLocation(location.latitude, location.longitude)
+
+                // Fatigue safety gate
+                if (!checkFatigueGate()) return@launch
 
                 try {
                     val response = driverApi.updateStatus(
@@ -317,7 +389,7 @@ class DriverHomeViewModel @JvmOverloads constructor(
             s.copy(
                 pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId },
                 acceptedRiderName = request?.riderName ?: s.acceptedRiderName,
-                acceptedRideId = request?.rideId ?: s.acceptedRideId
+                pendingAcceptRideId = request?.rideId ?: s.pendingAcceptRideId
             )
         }
     }
@@ -354,7 +426,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(
             activeRideId = null,
             acceptedRideId = null,
-            acceptedRiderName = ""
+            acceptedRiderName = "",
+            pendingAcceptRideId = null
         ) }
     }
 
@@ -380,8 +453,12 @@ class DriverHomeViewModel @JvmOverloads constructor(
             is DispatchEvent.DispatchAccepted -> {
                 // Extract rideId from event data (backend sends { ride: { id, ... } })
                 val rideId = event.data?.get("id")?.takeIf { it.isNotEmpty() }
-                    ?: _uiState.value.acceptedRideId ?: return
-                _uiState.update { it.copy(pendingRequests = emptyList(), acceptedRideId = rideId) }
+                    ?: _uiState.value.pendingAcceptRideId ?: return
+                _uiState.update { it.copy(
+                    pendingRequests = emptyList(),
+                    acceptedRideId = rideId,
+                    pendingAcceptRideId = null
+                ) }
             }
             is DispatchEvent.DispatchDeclined -> {
                 // Clear all pending (backend rejected or timed out)
@@ -390,7 +467,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
             is DispatchEvent.Error -> {
                 _uiState.update { it.copy(
                     errorMessage = event.message,
-                    acceptedRideId = null
+                    acceptedRideId = null,
+                    pendingAcceptRideId = null
                 ) }
             }
             else -> { /* Rider-side events — ignore for driver */ }

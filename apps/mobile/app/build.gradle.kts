@@ -138,6 +138,13 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-debug:19.0.2")
     implementation("com.google.firebase:firebase-appcheck-playintegrity:19.0.2")
 
+    // CameraX (embedded camera preview for face recognition screens)
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
     // Biometric (device fingerprint/face unlock for session resumption)
     implementation("androidx.biometric:biometric:1.1.0")
 

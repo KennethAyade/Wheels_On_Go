@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, DollarSign, Users, Shield, MapPin } from 'lucide-react';
+import { Car, DollarSign, Users, Shield, MapPin, ScanFace, Clock } from 'lucide-react';
 import { getStats } from '../api/dashboard';
 import type { DashboardStats } from '../types';
 
@@ -10,6 +10,8 @@ const defaultStats: DashboardStats = {
   totalRiders: 0,
   pendingVerifications: 0,
   todayRevenue: 0,
+  driversFaceEnrolled: 0,
+  driversOnCooldown: 0,
 };
 
 export default function DashboardPage() {
@@ -63,6 +65,22 @@ export default function DashboardPage() {
       icon: Shield,
       color: 'text-red-600',
       bg: 'bg-red-50',
+      link: '/drivers',
+    },
+    {
+      label: 'Face Enrolled',
+      value: stats.driversFaceEnrolled,
+      icon: ScanFace,
+      color: 'text-teal-600',
+      bg: 'bg-teal-50',
+      link: '/drivers',
+    },
+    {
+      label: 'Fatigue Cooldown Active',
+      value: stats.driversOnCooldown,
+      icon: Clock,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
       link: '/drivers',
     },
   ];

@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.constants';
 import { LocationService } from '../location/location.service';
-import { RideStatus, RideType, UserRole } from '@prisma/client';
+import { RideStatus, RideType, SosIncidentType, UserRole } from '@prisma/client';
 import {
   CreateRideDto,
   CreateRideResponseDto,
@@ -18,6 +18,7 @@ import {
   UpdateRideStatusDto,
   CancelRideDto,
   RideResponseDto,
+  TriggerSosDto,
 } from './dto';
 
 /**
@@ -780,6 +781,47 @@ export class RideService {
             phoneNumber: ride.rider.phoneNumber,
           }
         : undefined,
+    };
+  }
+
+  /**
+   * Trigger SOS emergency for an active ride.
+   * Creates a SosIncident record and logs the event.
+   */
+  async triggerSos(rideId: string, userId: string, dto: TriggerSosDto) {
+    const ride = await this.prisma.ride.findUnique({
+      where: { id: rideId },
+    });
+
+    if (!ride) {
+      throw new NotFoundException('Ride not found');
+    }
+
+    if (ride.riderId !== userId && ride.driverId !== userId) {
+      throw new ForbiddenException('You are not a participant of this ride');
+    }
+
+    const sos = await this.prisma.sosIncident.create({
+      data: {
+        userId,
+        rideId,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        description: dto.description,
+        incidentType: dto.incidentType || SosIncidentType.EMERGENCY,
+        status: 'ACTIVE',
+      },
+    });
+
+    this.logger.warn(
+      `SOS triggered by user ${userId} for ride ${rideId} at ${dto.latitude},${dto.longitude}`,
+    );
+
+    return {
+      id: sos.id,
+      rideId: sos.rideId,
+      status: sos.status,
+      createdAt: sos.createdAt,
     };
   }
 }

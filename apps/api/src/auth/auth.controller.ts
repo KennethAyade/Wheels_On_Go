@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Patch, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -70,5 +70,17 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   updateProfile(@CurrentUser() user: JwtUser, @Body() dto: UpdateRiderProfileDto) {
     return this.authService.updateRiderProfile(user.sub, dto);
+  }
+
+  @Post('profile-photo')
+  @UseGuards(JwtAuthGuard)
+  uploadProfilePhoto(@CurrentUser() user: JwtUser, @Body() body: { imageBase64: string }) {
+    return this.authService.uploadProfilePhoto(user.sub, body.imageBase64);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  deleteAccount(@CurrentUser() user: JwtUser) {
+    return this.authService.deleteAccount(user.sub);
   }
 }

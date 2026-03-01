@@ -122,6 +122,16 @@ sealed class Route(val value: String) {
     data object DriverDocumentUpload : Route("driver/document_upload")
 
     /**
+     * Face enrollment screen — driver registers face for fatigue detection
+     */
+    data object FaceEnrollment : Route("face_enrollment")
+
+    /**
+     * Fatigue check screen — driver takes selfie for fatigue/drowsiness check
+     */
+    data object FatigueCheck : Route("fatigue_check")
+
+    /**
      * Driver dashboard (future)
      */
     data object DriverDashboard : Route("driver/dashboard")
@@ -248,6 +258,15 @@ sealed class Route(val value: String) {
             return "ride_completion/$rideId/$encName"
         }
     }
+
+    // ==========================================
+    // Settings
+    // ==========================================
+
+    /**
+     * Settings screen — profile, preferences, account management
+     */
+    data object Settings : Route("settings")
 
     // ==========================================
     // Place Search

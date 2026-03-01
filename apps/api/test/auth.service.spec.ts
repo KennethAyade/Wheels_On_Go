@@ -6,6 +6,7 @@ import { OtpService } from '../src/auth/otp.service';
 import { FirebaseService } from '../src/auth/firebase.service';
 import { BiometricService } from '../src/biometric/biometric.service';
 import { AuditService } from '../src/audit/audit.service';
+import { StorageService } from '../src/storage/storage.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { UserRole, DriverStatus } from '@prisma/client';
 
@@ -43,6 +44,7 @@ describe('AuthService', () => {
   let firebaseService: FirebaseService;
   let biometricService: BiometricService;
   let auditService: AuditService;
+  let storageService: StorageService;
   let jwtService: JwtService;
 
   beforeEach(() => {
@@ -58,6 +60,10 @@ describe('AuthService', () => {
       verifyDriverFace: jest.fn(),
     } as unknown as BiometricService;
     auditService = { log: jest.fn() } as unknown as AuditService;
+    storageService = {
+      getDownloadUrl: jest.fn().mockResolvedValue('https://r2.example.com/photo.jpg'),
+      putBuffer: jest.fn().mockResolvedValue(undefined),
+    } as unknown as StorageService;
     jwtService = new JwtService({ secret: 'test-secret' });
 
     service = new AuthService(
@@ -68,6 +74,7 @@ describe('AuthService', () => {
       biometricService,
       auditService,
       config,
+      storageService,
     );
   });
 

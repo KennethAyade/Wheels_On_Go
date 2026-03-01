@@ -1,6 +1,7 @@
 package com.wheelsongo.app.ui.screens.driver
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,12 +33,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +70,7 @@ fun DriverActiveRideScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var showSosDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(rideId) {
         viewModel.initialize(rideId, riderName)
@@ -78,8 +85,18 @@ fun DriverActiveRideScreen(
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+            if (uiState.ride != null) {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
+            }
+        }
+    }
+
+    var showCancelledDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.isCancelled) {
+        if (uiState.isCancelled) {
+            showCancelledDialog = true
         }
     }
 
@@ -121,6 +138,72 @@ fun DriverActiveRideScreen(
             }
         }
 
+        // Error state: ride failed to load persistently
+        if (!uiState.isLoading && ride == null && uiState.errorMessage != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Unable to load ride",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "Something went wrong",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onBack,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Go Back")
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.clearError()
+                                    viewModel.initialize(rideId, riderName)
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                            ) {
+                                Text("Retry", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Layer 2: Back button (top-left)
         IconButton(
             onClick = onBack,
@@ -136,8 +219,23 @@ fun DriverActiveRideScreen(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
 
+        // Layer 2b: SOS button (top-right)
+        IconButton(
+            onClick = { showSosDialog = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(16.dp)
+                .shadow(4.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.Red)
+                .size(48.dp)
+        ) {
+            Icon(Icons.Default.Warning, contentDescription = "SOS", tint = Color.White)
+        }
+
         // Layer 3: Bottom overlay (status + rider card + action button)
-        if (!uiState.isLoading && ride != null) {
+        if (!uiState.isLoading && ride != null && !uiState.isCancelled) {
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -337,6 +435,58 @@ fun DriverActiveRideScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 280.dp)
+        )
+    }
+
+    // Ride cancelled dialog
+    if (showCancelledDialog) {
+        AlertDialog(
+            onDismissRequest = { /* Block dismiss — must tap OK */ },
+            title = { Text("Ride Cancelled", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (uiState.cancellationReason.isNotBlank())
+                        "This ride has been cancelled by the rider.\nReason: ${uiState.cancellationReason}"
+                    else
+                        "This ride has been cancelled by the rider."
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showCancelledDialog = false
+                    onBack()
+                }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    // SOS confirmation dialog
+    if (showSosDialog) {
+        val sosContext = LocalContext.current
+        AlertDialog(
+            onDismissRequest = { showSosDialog = false },
+            title = { Text("Emergency SOS", fontWeight = FontWeight.Bold) },
+            text = { Text("This will open the phone dialer to call emergency services (911). Are you sure?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSosDialog = false
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
+                        sosContext.startActivity(intent)
+                        viewModel.triggerSos()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Call 911", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSosDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

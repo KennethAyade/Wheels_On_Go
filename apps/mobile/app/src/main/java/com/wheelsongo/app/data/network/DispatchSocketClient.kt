@@ -78,6 +78,9 @@ class DispatchSocketClient(
             socket?.on("dispatch:declined", onDispatchDeclined)
             socket?.on("dispatch:error", onDispatchError)
 
+            // Shared events (both rider and driver)
+            socket?.on("ride:cancelled", onRideCancelled)
+
             // Connect to server
             socket?.connect()
         } catch (e: URISyntaxException) {
@@ -223,6 +226,17 @@ class DispatchSocketClient(
         }
     }
 
+    private val onRideCancelled = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val rideId = data.optString("rideId", "")
+            val reason = data.optString("reason", "")
+            _events.tryEmit(DispatchEvent.RideCancelled(rideId, reason))
+        } catch (_: Exception) {
+            // Ignore parse errors
+        }
+    }
+
     /**
      * Helper: Convert JSONObject to Map<String, String>
      */
@@ -258,6 +272,9 @@ sealed class DispatchEvent {
     ) : DispatchEvent()
     data class DispatchAccepted(val data: Map<String, String>?) : DispatchEvent()
     data class DispatchDeclined(val dispatchAttemptId: String) : DispatchEvent()
+
+    // Shared events (both rider and driver)
+    data class RideCancelled(val rideId: String, val reason: String) : DispatchEvent()
 }
 
 /**

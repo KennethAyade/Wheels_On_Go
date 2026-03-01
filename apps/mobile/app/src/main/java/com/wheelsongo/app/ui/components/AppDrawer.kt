@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -28,6 +29,7 @@ fun AppDrawer(
     phoneNumber: String?,
     onMyDocuments: () -> Unit = {},
     onMyVehicles: () -> Unit = {},
+    onSettings: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     ModalDrawerSheet {
@@ -89,6 +91,15 @@ fun AppDrawer(
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
+
+        // Settings — both roles
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+            label = { Text("Settings") },
+            selected = false,
+            onClick = onSettings,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
 
         // Logout
         NavigationDrawerItem(

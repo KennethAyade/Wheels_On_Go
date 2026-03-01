@@ -8,7 +8,11 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.ride.RideResponse
+import com.wheelsongo.app.data.models.ride.TriggerSosRequest
+import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DirectionsApi
+import com.wheelsongo.app.data.network.DispatchEvent
+import com.wheelsongo.app.data.network.DispatchSocketClient
 import com.wheelsongo.app.data.network.TrackingSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
 import kotlinx.coroutines.Job
@@ -38,13 +42,16 @@ data class DriverActiveRideUiState(
     val riderName: String = "",
     val paymentMethod: String = "",
     val rideDurationMinutes: Int = 0,
-    val rideDistanceKm: Double = 0.0
+    val rideDistanceKm: Double = 0.0,
+    val isCancelled: Boolean = false,
+    val cancellationReason: String = ""
 )
 
 class DriverActiveRideViewModel @JvmOverloads constructor(
     application: Application,
     private val rideRepository: RideRepository = RideRepository(),
-    private val trackingSocketClient: TrackingSocketClient = TrackingSocketClient()
+    private val trackingSocketClient: TrackingSocketClient = TrackingSocketClient(),
+    private val dispatchSocketClient: DispatchSocketClient = DispatchSocketClient()
 ) : AndroidViewModel(application) {
 
     private val locationService = LocationService(application)
@@ -58,16 +65,38 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
             application.packageName, PackageManager.GET_META_DATA
         )
         mapsApiKey = appInfo.metaData?.getString("com.google.android.geo.API_KEY") ?: ""
+
+        // Listen for ride cancellation events
+        viewModelScope.launch {
+            dispatchSocketClient.events.collect { event ->
+                if (event is DispatchEvent.RideCancelled &&
+                    event.rideId == _uiState.value.rideId) {
+                    _uiState.update {
+                        it.copy(
+                            isCancelled = true,
+                            cancellationReason = event.reason
+                        )
+                    }
+                    locationBroadcastJob?.cancel()
+                    trackingSocketClient.disconnect()
+                }
+            }
+        }
     }
 
     private val _uiState = MutableStateFlow(DriverActiveRideUiState())
     val uiState: StateFlow<DriverActiveRideUiState> = _uiState.asStateFlow()
 
     fun initialize(rideId: String, riderName: String = "") {
-        _uiState.update { it.copy(rideId = rideId, isLoading = true, riderName = riderName) }
+        _uiState.update { it.copy(rideId = rideId, isLoading = true, riderName = riderName, errorMessage = null) }
+        dispatchSocketClient.connect()
         viewModelScope.launch {
-            rideRepository.getRideById(rideId)
-                .onSuccess { ride ->
+            var lastError: Throwable? = null
+            var loaded = false
+            for (attempt in 1..3) {
+                val result = rideRepository.getRideById(rideId)
+                if (result.isSuccess) {
+                    val ride = result.getOrThrow()
                     val phase = statusToPhase(ride.status)
                     val durationMinutes = (ride.estimatedDuration ?: 0) / 60
                     val distanceKm = (ride.estimatedDistance ?: 0.0) / 1000.0
@@ -83,12 +112,27 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
                     }
                     fetchRouteForPhase(phase, ride)
                     startLocationBroadcasting()
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message ?: "Failed to load ride")
+                    loaded = true
+                    break
+                } else {
+                    val error = result.exceptionOrNull()
+                    lastError = error
+                    val msg = error?.message ?: ""
+                    val is403 = msg.contains("403") || msg.contains("do not have access")
+                    if (is403 && attempt < 3) {
+                        android.util.Log.w("DriverActiveRideVM",
+                            "getRideById 403 on attempt $attempt, retrying in ${attempt * 500}ms")
+                        kotlinx.coroutines.delay(attempt * 500L)
+                    } else {
+                        break
                     }
                 }
+            }
+            if (!loaded) {
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = lastError?.message ?: "Failed to load ride")
+                }
+            }
         }
     }
 
@@ -218,11 +262,35 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Trigger SOS — logs the emergency to the backend (fire-and-forget).
+     */
+    fun triggerSos() {
+        viewModelScope.launch {
+            try {
+                val rideId = _uiState.value.rideId
+                val ride = _uiState.value.ride
+                if (rideId.isNotBlank() && ride != null) {
+                    ApiClient.rideApi.triggerSos(
+                        rideId,
+                        TriggerSosRequest(
+                            latitude = ride.pickupLatitude,
+                            longitude = ride.pickupLongitude
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // SOS logging is best-effort
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         routeFetchJob?.cancel()
         locationBroadcastJob?.cancel()
         trackingSocketClient.disconnect()
+        dispatchSocketClient.disconnect()
     }
 
     private fun statusToPhase(status: String): DriverRidePhase {

@@ -8,6 +8,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.models.location.LocationData
 import com.wheelsongo.app.data.models.ride.RideResponse
+import com.wheelsongo.app.data.models.ride.TriggerSosRequest
+import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DirectionsApi
 import com.wheelsongo.app.data.network.DispatchEvent
 import com.wheelsongo.app.data.network.DispatchSocketClient
@@ -313,6 +315,30 @@ class ActiveRideViewModel @JvmOverloads constructor(
 
     fun clearGeofenceMessage() {
         _uiState.update { it.copy(geofenceMessage = null) }
+    }
+
+    /**
+     * Trigger SOS — logs the emergency to the backend (fire-and-forget).
+     * The actual phone call is handled by the UI layer via Intent.ACTION_DIAL.
+     */
+    fun triggerSos() {
+        viewModelScope.launch {
+            try {
+                val rideId = _uiState.value.rideId
+                val location = _uiState.value.driverLocation ?: _uiState.value.pickupLocation
+                if (rideId.isNotBlank() && location != null) {
+                    ApiClient.rideApi.triggerSos(
+                        rideId,
+                        TriggerSosRequest(
+                            latitude = location.latitude,
+                            longitude = location.longitude
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // SOS logging is best-effort; the phone call is the real action
+            }
+        }
     }
 
     override fun onCleared() {

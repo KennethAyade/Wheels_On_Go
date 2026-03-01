@@ -4,6 +4,7 @@ import { AuditService } from '../src/audit/audit.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { StorageService } from '../src/storage/storage.service';
 import { LocationService } from '../src/location/location.service';
+import { FatigueService } from '../src/fatigue/fatigue.service';
 import { DriverStatus, DocumentStatus, DriverDocumentType } from '@prisma/client';
 
 const prismaMock = () =>
@@ -31,6 +32,7 @@ describe('DriverService', () => {
   let storage: StorageService;
   let audit: AuditService;
   let location: LocationService;
+  let fatigue: FatigueService;
 
   beforeEach(() => {
     prisma = prismaMock();
@@ -41,7 +43,12 @@ describe('DriverService', () => {
     location = {
       getDistanceMatrix: jest.fn().mockResolvedValue({ distanceKm: 5, durationSeconds: 600, distanceMeters: 5000 }),
     } as unknown as LocationService;
-    service = new DriverService(prisma, storage, audit, location);
+    fatigue = {
+      canGoOnline: jest.fn().mockResolvedValue({ allowed: true }),
+      checkFatigue: jest.fn(),
+      enrollFace: jest.fn(),
+    } as unknown as FatigueService;
+    service = new DriverService(prisma, storage, audit, location, fatigue);
   });
 
   describe('requestKycUpload()', () => {

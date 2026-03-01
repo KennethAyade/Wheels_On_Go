@@ -20,6 +20,7 @@ import { JwtUser } from '../common/types/jwt-user.type';
 import { BiometricService } from '../biometric/biometric.service';
 import { BiometricVerifyDto } from './dto/biometric-verify.dto';
 import { AuditService } from '../audit/audit.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly biometricService: BiometricService,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
+    private readonly storageService: StorageService,
   ) {}
 
   async adminLogin(dto: AdminLoginDto) {
@@ -354,20 +356,79 @@ export class AuthService {
       );
     }
 
-    return { ...found, isProfileComplete };
+    // Sanitize sensitive fields
+    const { passwordHash, phoneNumberHash, emailHash, ...safeUser } = found as any;
+
+    // Resolve profile photo URL if it's an R2 storage key
+    let profilePhotoUrl = safeUser.profilePhotoUrl;
+    if (profilePhotoUrl && !profilePhotoUrl.startsWith('http')) {
+      try {
+        profilePhotoUrl = await this.storageService.getDownloadUrl(profilePhotoUrl);
+      } catch {
+        profilePhotoUrl = null;
+      }
+    }
+
+    return { ...safeUser, profilePhotoUrl, isProfileComplete };
   }
 
-  async updateRiderProfile(userId: string, dto: { firstName: string; lastName: string; age: number; address: string }) {
+  async updateRiderProfile(userId: string, dto: { firstName?: string; lastName?: string; age?: number; address?: string }) {
+    // Build update object from only provided fields
+    const data: Record<string, any> = {};
+    if (dto.firstName !== undefined) data.firstName = dto.firstName;
+    if (dto.lastName !== undefined) data.lastName = dto.lastName;
+    if (dto.age !== undefined) data.age = dto.age;
+    if (dto.address !== undefined) data.address = dto.address;
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No fields to update');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: data as any,
+    });
+
+    const isProfileComplete = !!(
+      updated.firstName && updated.lastName &&
+      (updated as any).age && (updated as any).address
+    );
+
+    return {
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      age: (updated as any).age,
+      address: (updated as any).address,
+      isProfileComplete,
+    };
+  }
+
+  async uploadProfilePhoto(userId: string, imageBase64: string) {
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const key = `profile-photos/${userId}/${Date.now()}.jpg`;
+    await this.storageService.putBuffer(key, buffer, 'image/jpeg');
     await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        age: dto.age,
-        address: dto.address,
-      } as any,
+      data: { profilePhotoUrl: key } as any,
     });
-    return { firstName: dto.firstName, lastName: dto.lastName, age: dto.age, address: dto.address, isProfileComplete: true };
+    const downloadUrl = await this.storageService.getDownloadUrl(key);
+    return { profilePhotoUrl: downloadUrl };
+  }
+
+  async deleteAccount(userId: string) {
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.deleteMany({ where: { userId } }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          isActive: false,
+          isSuspended: true,
+          suspensionReason: 'Account deleted by user',
+          suspendedAt: new Date(),
+        },
+      }),
+    ]);
+    return { deleted: true };
   }
 
   private async findOrCreateUser(phoneNumber: string, role: UserRole): Promise<User> {

@@ -32,6 +32,8 @@ class TokenManager(private val context: Context) {
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
         private val PHONE_NUMBER_KEY = stringPreferencesKey("phone_number")
         private val PROFILE_COMPLETE_KEY = booleanPreferencesKey("profile_complete")
+        private val FACE_ENROLLED_KEY = booleanPreferencesKey("face_enrolled")
+        private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
     }
 
     /**
@@ -190,6 +192,41 @@ class TokenManager(private val context: Context) {
     suspend fun clearBiometricToken() {
         context.authDataStore.edit { prefs ->
             prefs.remove(BIOMETRIC_TOKEN_KEY)
+        }
+    }
+
+    /**
+     * Save face enrollment status
+     */
+    suspend fun saveFaceEnrolled(enrolled: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[FACE_ENROLLED_KEY] = enrolled
+        }
+    }
+
+    /**
+     * Check if face is enrolled
+     */
+    fun isFaceEnrolled(): Boolean {
+        return runBlocking {
+            context.authDataStore.data.first()[FACE_ENROLLED_KEY] ?: false
+        }
+    }
+
+    /**
+     * Check if device biometric login is enabled (driver preference).
+     * Default: true (biometric prompt shown on session resume).
+     */
+    suspend fun isBiometricEnabled(): Boolean {
+        return context.authDataStore.data.first()[BIOMETRIC_ENABLED_KEY] ?: true
+    }
+
+    /**
+     * Save biometric login preference
+     */
+    suspend fun saveBiometricEnabled(enabled: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[BIOMETRIC_ENABLED_KEY] = enabled
         }
     }
 }

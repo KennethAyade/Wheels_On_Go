@@ -23,6 +23,7 @@ import {
   UpdateRideStatusDto,
   CancelRideDto,
   RideResponseDto,
+  TriggerSosDto,
 } from './dto';
 
 /**
@@ -130,6 +131,20 @@ export class RideController {
   }
 
   /**
+   * Trigger SOS emergency for an active ride
+   * POST /rides/:id/sos
+   * Available to both riders and drivers
+   */
+  @Post(':id/sos')
+  async triggerSos(
+    @CurrentUser() user: JwtUser,
+    @Param('id') rideId: string,
+    @Body() dto: TriggerSosDto,
+  ) {
+    return this.rideService.triggerSos(rideId, user.sub, dto);
+  }
+
+  /**
    * Cancel a ride
    * POST /rides/:id/cancel
    * Available to riders, drivers, and admins
@@ -140,6 +155,22 @@ export class RideController {
     @Param('id') rideId: string,
     @Body() dto: CancelRideDto,
   ): Promise<RideResponseDto> {
-    return this.rideService.cancelRide(rideId, user.sub, dto);
+    const result = await this.rideService.cancelRide(rideId, user.sub, dto);
+
+    // Notify the other party via WebSocket
+    if (result.driverId && result.driverId !== user.sub) {
+      this.dispatchGateway.notifyDriver(result.driverId, 'ride:cancelled', {
+        rideId: result.id,
+        reason: dto.reason,
+      });
+    }
+    if (result.riderId && result.riderId !== user.sub) {
+      this.dispatchGateway.notifyRider(result.riderId, 'ride:cancelled', {
+        rideId: result.id,
+        reason: dto.reason,
+      });
+    }
+
+    return result;
   }
 }

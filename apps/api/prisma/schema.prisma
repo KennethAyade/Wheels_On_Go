@@ -293,6 +293,15 @@ model DriverProfile {
   profilePhotoUploadedAt DateTime?
   biometricVerifiedAt    DateTime?
 
+  // Face enrollment for fatigue detection
+  faceEnrolledAt       DateTime?
+  enrolledFaceKey      String?
+
+  // Fatigue detection gating
+  lastFatigueCheckAt   DateTime?
+  lastFatigueLevel     FatigueLevel?
+  fatigueCooldownUntil DateTime?
+
   licenseNumber            String?   @unique
   licenseExpiryDate        DateTime?
   isOnline                 Boolean   @default(false)
@@ -713,6 +722,11 @@ model FatigueDetectionLog {
 
   isOnRide      Boolean @default(false)
   currentRideId String?
+
+  geminiRawResponse String? @db.Text
+  confidence        Float?
+  reasons           String[]
+  cooldownMinutes   Int?
 
   detectedAt DateTime @default(now())
 
