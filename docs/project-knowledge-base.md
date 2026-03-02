@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
-**Repository:** `d:\FREELANCE\Wheels-On-Go_Platform\Wheels_On_Go`
-**Last Updated:** 2026-02-21
+**Repository:** `g:\WORK\Freelance\Wheels_On_Go`
+**Last Updated:** 2026-03-02
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phase 1 is complete**, **Phase 2 (Weeks 4–5) is complete**, and **Phase 3 Week 7 (Admin Dashboard) is complete**: Firebase Phone Auth, driver KYC (Cloudflare R2), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, and the admin web dashboard are all implemented end-to-end. 122 backend tests pass across 13 suites. The complete database schema for remaining phases (40+ models) is ready.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phase 1 is complete**, **Phase 2 (Weeks 4–5) is complete**, **Phase 3 Week 7 (Admin Dashboard) is complete**, and **safety features (fatigue detection, SOS, ratings) are implemented**: Firebase Phone Auth, driver KYC (Cloudflare R2), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, and ride cancellation notifications are all implemented end-to-end. The complete database schema (40+ models) is ready for remaining financial and communication features.
 
 ---
 
@@ -30,7 +30,11 @@
 | 2026-02-20 | Phase 2 Week 5 — Driver Booking Flow (DriveRequests, DriverActiveRide, DriverTripCompletion, dispatch normalization) | ✅ Complete |
 | 2026-02-20 | Phase 2 Week 5 — Real-time Tracking (TrackingSocketClient, geofencing, ETA, turn-by-turn nav, actual fare) | ✅ Complete |
 | 2026-02-21 | Phase 3 Week 7 — Admin Web Dashboard (driver verification, bookings, stats, login) | ✅ Complete |
-| Week 6 | Financial & communication features | 📅 Planned |
+| 2026-02-22 | Driver/rider profile setup, driver approval response, ride pricing fix | ✅ Complete |
+| 2026-02-23 | CORS env config, admin login enhancements, admin seed fix in Render build | ✅ Complete |
+| 2026-02-27 | Fatigue detection (Gemini Vision AI), face enrollment, admin fatigue metrics, settings screen | ✅ Complete |
+| 2026-02-28 | SOS functionality, ride cancellation notifications, rating system, error handling | ✅ Complete |
+| Week 6 | Financial & communication features (payments, wallets, masked calls, notifications) | 📅 Planned |
 | Week 8–9 | QA, deployment, production hardening | 📅 Planned |
 
 ---
@@ -65,12 +69,14 @@ Wheels_On_Go/
 │   │   │   ├── auth/                  # OTP, JWT, biometric, admin login
 │   │   │   ├── driver/                # Driver profiles, KYC, admin approval
 │   │   │   ├── admin/                 # Admin stats + bookings endpoints
-│   │   │   ├── rides/                 # Ride creation, status, fare calculation
+│   │   │   ├── ride/                   # Ride creation, status, fare estimation, SOS
 │   │   │   ├── dispatch/              # WebSocket dispatch + routing engine
 │   │   │   ├── tracking/              # Real-time location + geofencing
-│   │   │   ├── rider-vehicle/         # Rider vehicle CRUD
-│   │   │   ├── pricing/               # Surge pricing + promo codes
-│   │   │   ├── location/              # Geocoding, autocomplete, distance
+│   │   │   ├── rider-vehicle/         # Rider vehicle CRUD + document uploads
+│   │   │   ├── fatigue/               # Fatigue detection (Gemini Vision AI) + face enrollment
+│   │   │   ├── rating/                # Ride ratings
+│   │   │   ├── geofence/              # Geofence event tracking
+│   │   │   ├── location/              # Geocoding, autocomplete, distance, place details
 │   │   │   ├── biometric/             # Face recognition (AWS Rekognition/mock)
 │   │   │   ├── storage/               # S3-compatible storage for uploads
 │   │   │   ├── encryption/            # AES-256-GCM PII encryption
@@ -84,7 +90,7 @@ Wheels_On_Go/
 │   │   │   ├── seed-admin.ts          # Admin user seed script
 │   │   │   └── migrations/            # Database migrations
 │   │   ├── scripts/                   # Database utilities
-│   │   └── test/                      # Unit tests (122 passing)
+│   │   └── test/                      # Unit tests (140 passing, 14 suites)
 │   ├── mobile/                        # Android app (Kotlin/Compose)
 │   └── web/                           # React admin dashboard
 │       ├── src/
@@ -116,72 +122,95 @@ Wheels_On_Go/
 ### Authentication
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/auth/request-otp` | Public | Request OTP code (emulators: console SMS) |
+| POST | `/auth/admin/login` | Public | Admin email + password login (throttled 5/60s) |
+| POST | `/auth/request-otp` | Public | Request OTP code (throttled 3/60s) |
 | POST | `/auth/verify-otp` | Public | Verify OTP, receive tokens |
 | POST | `/auth/verify-firebase` | Public | Verify Firebase ID token (real phones) |
 | POST | `/auth/biometric/verify` | Biometric token | Face recognition verification |
-| POST | `/auth/admin/login` | Public | Admin email + password login |
+| POST | `/auth/refresh` | Refresh token | Refresh access token (with token rotation) |
+| POST | `/auth/logout` | Public | Revoke refresh token |
 | GET | `/auth/me` | JWT | Get current user profile |
-| POST | `/auth/refresh` | Refresh token | Refresh access token |
+| PATCH | `/auth/profile` | JWT | Update rider profile (firstName, lastName, age, address) |
+| POST | `/auth/profile-photo` | JWT | Upload profile photo (base64) |
+| DELETE | `/auth/me` | JWT | Soft-delete user account |
 
 ### Driver Management
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/drivers/me` | JWT | Get driver profile |
-| GET | `/drivers/kyc` | JWT | Get KYC documents + upload status |
-| POST | `/drivers/kyc/presign` | JWT | Request presigned upload URL |
-| POST | `/drivers/kyc/confirm` | JWT | Confirm document upload |
+| GET | `/drivers/available` | JWT (any role) | Find available drivers near location (?lat, lng, radiusKm) |
+| GET | `/drivers/:id/public-profile` | JWT (any role) | Get driver public profile |
+| GET | `/drivers/me` | Driver JWT | Get own driver profile |
+| POST | `/drivers/kyc/presign` | Driver JWT | Request presigned upload URL for KYC doc |
+| POST | `/drivers/kyc/confirm` | Driver JWT | Confirm document upload |
+| PATCH | `/drivers/profile-setup` | Driver JWT | Setup/update driver profile (license, expiry, etc.) |
+| PATCH | `/drivers/me/status` | Driver JWT | Update online/offline status |
+| GET | `/drivers/kyc` | Driver JWT | Get KYC documents + upload status |
 
 ### Admin — Driver Verification
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/admin/drivers` | Admin JWT | List all drivers (paginated, filterable by status/search) |
 | GET | `/admin/drivers/pending` | Admin JWT | List pending driver approvals |
-| GET | `/admin/drivers/:id` | Admin JWT | Get driver detail with presigned document URLs |
-| POST | `/admin/drivers/:id/approve` | Admin JWT | Approve driver |
-| POST | `/admin/drivers/:id/reject` | Admin JWT | Reject driver with reason |
+| GET | `/admin/drivers/:driverId` | Admin JWT | Get driver detail with presigned document URLs |
+| POST | `/admin/drivers/:driverId/approve` | Admin JWT | Approve driver |
+| POST | `/admin/drivers/:driverId/reject` | Admin JWT | Reject driver with reason |
 
 ### Admin — Dashboard & Bookings
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/admin/stats` | Admin JWT | Dashboard stats (activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue) |
+| GET | `/admin/stats` | Admin JWT | Dashboard stats (activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue, driversFaceEnrolled, driversOnCooldown) |
 | GET | `/admin/bookings` | Admin JWT | List bookings (paginated, status/date/fare/search filters) |
 
 ### Rides & Booking
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/rides` | JWT | Create ride (triggers dispatch) |
+| POST | `/rides` | Rider JWT | Create ride (triggers dispatch for INSTANT, or notifies selected driver) |
+| POST | `/rides/estimate` | JWT | Get fare estimate with surge pricing and optional promo code |
+| GET | `/rides/active` | JWT | Get current active ride for user |
 | GET | `/rides/:id` | JWT | Get ride details |
-| POST | `/rides/:id/arrive` | Driver JWT | Mark arrived at pickup |
-| POST | `/rides/:id/start` | Driver JWT | Start ride |
-| POST | `/rides/:id/complete` | Driver JWT | Complete ride (calculates actual fare) |
-| POST | `/rides/:id/cancel` | JWT | Cancel ride |
+| PATCH | `/rides/:id/status` | Driver/Admin JWT | Update ride status (DRIVER_ARRIVED, STARTED, COMPLETED) |
+| POST | `/rides/:id/sos` | JWT | Trigger SOS emergency (creates SosIncident) |
+| POST | `/rides/:id/cancel` | JWT | Cancel ride (notifies other party via WebSocket) |
 
 ### Rider Vehicles
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/rider-vehicles` | JWT | Register vehicle |
-| GET | `/rider-vehicles` | JWT | List rider vehicles |
-| DELETE | `/rider-vehicles/:id` | JWT | Delete vehicle |
-| PATCH | `/rider-vehicles/:id/default` | JWT | Set default vehicle |
+| POST | `/rider-vehicles` | Rider JWT | Register vehicle (idempotent by plate) |
+| GET | `/rider-vehicles` | Rider JWT | List rider vehicles |
+| GET | `/rider-vehicles/:id` | Rider JWT | Get vehicle by ID |
+| PATCH | `/rider-vehicles/:id` | Rider JWT | Update vehicle details |
+| DELETE | `/rider-vehicles/:id` | Rider JWT | Delete vehicle |
+| PATCH | `/rider-vehicles/:id/default` | Rider JWT | Set default vehicle |
+| POST | `/rider-vehicles/:id/documents` | Rider JWT | Upload OR/CR document (?type=OR or ?type=CR) |
 
-### Pricing
+### Fatigue Detection
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/pricing/fare-estimate` | JWT | Get fare estimate with surge |
-| POST | `/pricing/promo/validate` | JWT | Validate promo code |
+| POST | `/fatigue/enroll-face` | Driver JWT | Enroll driver face for fatigue checks (base64 image) |
+| POST | `/fatigue/check` | Driver JWT | Run fatigue detection (Gemini Vision AI analysis) |
+| GET | `/fatigue/status` | Driver JWT | Get fatigue status and go-online eligibility |
+
+### Ratings
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/ratings` | Rider JWT | Rate a completed ride |
 
 ### Location
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/location/autocomplete` | JWT | Place autocomplete |
-| GET | `/location/geocode` | JWT | Geocode address |
-| GET | `/location/reverse-geocode` | JWT | Reverse geocode coordinates |
+| POST | `/location/geocode` | JWT | Geocode address to coordinates |
+| POST | `/location/reverse-geocode` | JWT | Reverse geocode coordinates to address |
+| GET | `/location/autocomplete` | JWT | Place autocomplete suggestions |
+| GET | `/location/place/:placeId` | JWT | Get place details by Google Place ID |
+| POST | `/location/distance` | JWT | Calculate distance between two points (Google API) |
+| GET | `/location/haversine-distance` | JWT | Calculate Haversine distance (no API call) |
 
 ### Tracking
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/tracking/location` | Driver JWT | Update driver location |
+| POST | `/tracking/location` | Driver JWT | Update driver location (HTTP fallback for WebSocket) |
+| GET | `/tracking/ride/:rideId/driver` | JWT | Get driver's current location for a ride |
+| GET | `/tracking/driver/:driverProfileId/history` | Admin JWT | Get driver location history (last 24h) |
 
 ### Health
 | Method | Endpoint | Auth | Description |
@@ -309,24 +338,25 @@ Wheels_On_Go/
 
 ## Testing Status
 
-### Current Coverage (as of Feb 21, 2026)
+### Current Coverage (as of Mar 2, 2026)
 | Component | Unit | Integration | E2E |
 |-----------|------|-------------|-----|
-| Backend Tests | ✅ 122 passing (13 suites) | ⚠️ Pending | ⚠️ Pending |
+| Backend Tests | ✅ 140 passing (14 suites) | ⚠️ Pending | ⚠️ Pending |
 | Mobile Tests | ✅ 87 compiled (12 files) — JVM crash blocks runtime | ⚠️ Pending | ⚠️ Pending |
 | EncryptionService | ✅ 100% (22 tests) | ⚠️ Pending | ⚠️ Pending |
 | FirebaseService | ✅ 100% (5 tests) | ⚠️ Pending | ⚠️ Pending |
 | AuthService | ✅ Firebase + admin login flows | ⚠️ Pending | ⚠️ Pending |
 | RiderVehicleService | ✅ 100% (10 tests incl. idempotency) | ⚠️ Pending | ⚠️ Pending |
 | SurgePricingService | ✅ (5 tests) | ⚠️ Pending | ⚠️ Pending |
-| Web Admin Build | ✅ TypeScript clean, Vite build (302KB JS + 19KB CSS) | N/A | ⚠️ Pending |
+| FatigueService | ✅ (12 tests) | ⚠️ Pending | ⚠️ Pending |
+| Web Admin Build | ✅ TypeScript clean, Vite build | N/A | ⚠️ Pending |
 | PrismaMiddleware | N/A | ⚠️ Pending | ⚠️ Pending |
 | AuditService | ⚠️ 0% | ⚠️ Pending | ⚠️ Pending |
 
 ### Testing Roadmap
-- **Current (Weeks 4–5 + Phase 3):** 122 backend tests passing; mobile 87 tests compile, JVM crash blocks runtime; web build clean
+- **Current:** Backend tests passing (13 suites); mobile 87 tests compile, JVM crash blocks runtime; web build clean
 - **Next (Week 8):** Integration tests, E2E tests (6-8 hours)
-- **Phase 3 (Weeks 8–9):** Security tests, performance tests, load tests
+- **Weeks 8–9:** Security tests, performance tests, load tests
 
 ---
 
@@ -341,14 +371,17 @@ DATABASE_URL=postgresql://user:password@host:5432/database
 JWT_SECRET=your-jwt-secret
 ACCESS_TOKEN_TTL=15m
 BIOMETRIC_TOKEN_TTL=5m
+REFRESH_TOKEN_TTL=30d
 
-# Encryption (CRITICAL)
+# Encryption (CRITICAL — must be exactly 64 hex chars)
 ENCRYPTION_KEY=64-hex-characters-here
 
-# OTP/SMS
+# OTP/SMS (providers: console, textbelt, twilio)
 OTP_CODE_TTL_SECONDS=300
-SMS_PROVIDER=textbelt|console
+OTP_REQUESTS_PER_HOUR=5
+SMS_PROVIDER=console
 ALLOW_DEBUG_SMS=true
+TEXTBELT_API_KEY=textbelt
 
 # Firebase Phone Auth (for real phone OTP delivery)
 FIREBASE_PROJECT_ID=your-project-id
@@ -369,10 +402,18 @@ BIOMETRIC_MODE=mock|rekognition
 BIOMETRIC_MIN_CONFIDENCE=90
 
 # CORS
-CORS_ORIGINS=http://localhost:3001,https://your-admin-domain.com
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 
 # Google Maps Platform
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+
+# Fatigue Detection (Gemini Vision AI)
+FATIGUE_MODE=mock|live
+GEMINI_API_KEY=your-gemini-api-key
+
+# Server
+PORT=3000
+NODE_ENV=development
 ```
 
 ---
@@ -410,9 +451,16 @@ netAmount = totalFare × (1 - commissionRate)
 - Driver must complete daily checklist (Brakes, Lights, Oil, Water, Battery, Air, Gas, Engine, Tools, Self)
 - Expires after 24 hours; blocks driver from going online if expired
 
-### 7. Fatigue Detection
-- Google ML Kit monitors eye probability
-- Alert if avgEyeProbability < 0.4 for > 2 seconds
+### 7. Fatigue Detection (Gemini Vision AI)
+- Uses `gemini-2.0-flash` multimodal model to analyze driver face images
+- Analyzes: eye openness (0–1), yawning, head tilt, blank stare, heavy eyelids
+- **NORMAL** (eyes > 0.7) — No cooldown, can go online
+- **MILD** (eyes 0.5–0.7) — 30 min cooldown before going online
+- **MODERATE** (eyes 0.3–0.5) — 60 min cooldown
+- **SEVERE** (eyes < 0.3) — 120 min cooldown
+- Fatigue check required every 2 hours while online
+- Face enrollment required before first fatigue check
+- Fail-safe: if Gemini fails, returns NORMAL (allows driver to proceed)
 
 ### 8. Admin Driver Verification Flow
 ```
@@ -439,7 +487,11 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Admin bookings controller | `apps/api/src/admin/admin-bookings.controller.ts` |
 | Dispatch gateway | `apps/api/src/dispatch/dispatch.gateway.ts` |
 | Tracking gateway | `apps/api/src/tracking/tracking.gateway.ts` |
-| Ride service (actual fare) | `apps/api/src/rides/ride.service.ts` |
+| Ride controller (SOS, cancel) | `apps/api/src/ride/ride.controller.ts` |
+| Ride service (actual fare) | `apps/api/src/ride/ride.service.ts` |
+| Fatigue controller | `apps/api/src/fatigue/fatigue.controller.ts` |
+| Fatigue service (Gemini AI) | `apps/api/src/fatigue/fatigue.service.ts` |
+| Rating controller | `apps/api/src/rating/rating.controller.ts` |
 | Encryption service | `apps/api/src/encryption/encryption.service.ts` |
 | Firebase service | `apps/api/src/auth/firebase.service.ts` |
 
@@ -475,6 +527,38 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 ---
 
 ## Recent Changes Summary
+
+### 2026-02-28 — SOS, Ride Cancellation Notifications, Error Handling
+- `POST /rides/:id/sos` — triggers SOS emergency, creates SosIncident record
+- Ride cancellation now notifies the other party via WebSocket (`ride:cancelled`)
+- JSON body size limit increased to 5MB for base64 image payloads (biometric + fatigue)
+- Enhanced error handling in DriverActiveRideScreen for ride loading failures
+- Removed redundant fatigue check timestamp from TokenManager
+
+### 2026-02-27 — Fatigue Detection & Face Enrollment
+- `apps/api/src/fatigue/` NEW module — FatigueController (3 endpoints), FatigueService
+- Gemini Vision AI (`gemini-2.0-flash`) analyzes face for fatigue indicators
+- Four fatigue levels: NORMAL, MILD (30m), MODERATE (60m), SEVERE (120m cooldown)
+- Face enrollment via `POST /fatigue/enroll-face` (base64 image stored in R2)
+- Admin stats enhanced: `driversFaceEnrolled`, `driversOnCooldown` metrics
+- Settings screen with profile management and biometric preferences (mobile)
+- `FATIGUE_MODE` and `GEMINI_API_KEY` env vars added to Render
+
+### 2026-02-23 — CORS Config, Admin Login Enhancements, Seed Fix
+- `CORS_ORIGINS` env variable properly configured
+- `.env.example` and `vercel.json` files created for deployment
+- Admin login page enhanced with loading state and timeout error handling
+- `seed:admin` added to Render build command to fix admin login in production
+
+### 2026-02-22 — Profile Setup, Driver Approval Response, Ride Pricing Fix
+- `PATCH /auth/profile` — update rider profile (firstName, lastName, age, address)
+- `POST /auth/profile-photo` — upload profile photo as base64
+- `DELETE /auth/me` — soft-delete user account
+- `POST /auth/logout` — revoke refresh token
+- `GET /drivers/available`, `GET /drivers/:id/public-profile` — driver discovery
+- `PATCH /drivers/profile-setup`, `PATCH /drivers/me/status` — driver profile management
+- Driver approval/rejection now returns updated driver details
+- Ride pricing uses estimated fare for minimum fare calculation
 
 ### 2026-02-21 — Phase 3: Admin Web Dashboard
 - `apps/web/` NEW — React 18 + Vite + Tailwind CSS admin dashboard
@@ -522,13 +606,14 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 ## Current Limitations
 
 1. **Biometric Mode:** Defaults to mock mode (always match=true). Set `BIOMETRIC_MODE=rekognition` for production with AWS credentials.
-2. **Liveness Detection:** Camera captures static photo. No anti-spoofing. Consider ML Kit Face Detection for production.
-3. **Admin Dashboard Payments/Customers:** Sidebar items exist but show "Coming Soon". Features deferred to later phase.
-4. **Integration Tests:** Not yet implemented (significant gap for production).
-5. **Key Rotation:** Procedure not yet documented.
-6. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.
-7. **Logout:** Token cleared locally but no backend token invalidation endpoint.
+2. **Fatigue Mode:** Defaults to mock mode locally (always NORMAL). Set `FATIGUE_MODE=live` with valid `GEMINI_API_KEY` for real Gemini Vision AI analysis.
+3. **Liveness Detection:** Camera captures static photo. No anti-spoofing. Consider ML Kit Face Detection for production.
+4. **Admin Dashboard Payments/Customers:** Sidebar items exist but show "Coming Soon". Features deferred to later phase.
+5. **Integration Tests:** Not yet implemented (significant gap for production).
+6. **Key Rotation:** Procedure not yet documented.
+7. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.
 8. **Firebase Quota:** Free tier limited to 10K phone auth verifications/month.
+9. **BLOWBAGETS Checklist:** Schema ready but enforcement not yet implemented in driver go-online flow.
 
 ---
 
@@ -546,7 +631,7 @@ npm run prisma:migrate             # Run migrations (prisma migrate deploy)
 npm run seed:admin                 # Seed admin user (admin@wheelsongo.com / Admin123!)
 
 # Testing
-npm run test:api                   # Run all backend tests (122 passing)
+npm run test:api                   # Run all backend tests (140 passing, 14 suites)
 npm run test:api -- --watch        # Watch mode
 
 # Build
