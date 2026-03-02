@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.ride
 
+import android.app.Application
 import com.wheelsongo.app.data.models.ride.RideResponse
 import com.wheelsongo.app.data.network.DispatchSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
@@ -38,7 +39,7 @@ class ActiveRideViewModelTest {
         eventsFlow = MutableSharedFlow()
         every { socketClient.events } returns eventsFlow
 
-        viewModel = ActiveRideViewModel(rideRepository, socketClient)
+        viewModel = ActiveRideViewModel(mockk(relaxed = true), rideRepository, socketClient)
     }
 
     @After

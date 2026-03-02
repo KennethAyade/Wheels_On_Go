@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.vehicle
 
+import android.app.Application
 import com.wheelsongo.app.data.models.ride.RiderVehicleResponse
 import com.wheelsongo.app.data.models.ride.VehicleType
 import com.wheelsongo.app.data.repository.VehicleRepository
@@ -29,7 +30,7 @@ class VehicleRegistrationViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         vehicleRepository = mockk()
-        viewModel = VehicleRegistrationViewModel(vehicleRepository)
+        viewModel = VehicleRegistrationViewModel(mockk(relaxed = true), vehicleRepository)
     }
 
     @After

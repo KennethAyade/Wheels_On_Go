@@ -174,7 +174,7 @@ class OtpVerificationViewModelTest {
         assertTrue(viewModel.uiState.value.canResend)
 
         // Now resend — advance just enough for the API call, not the full new countdown
-        viewModel.resendOtp(phone, role)
+        viewModel.resendOtp(phone, role, null, null)
         advanceTimeBy(100)
         testDispatcher.scheduler.runCurrent()
 
@@ -197,7 +197,7 @@ class OtpVerificationViewModelTest {
         advanceTimeBy(61000)
 
         // Resend
-        viewModel.resendOtp(phone, role)
+        viewModel.resendOtp(phone, role, null, null)
         advanceUntilIdle()
 
         assertEquals("", viewModel.uiState.value.otpValue)

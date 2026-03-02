@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.driver
 
+import android.app.Application
 import com.wheelsongo.app.data.models.ride.RideResponse
 import com.wheelsongo.app.data.repository.RideRepository
 import io.mockk.coEvery
@@ -45,7 +46,7 @@ class DriverActiveRideViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         rideRepository = mockk()
-        viewModel = DriverActiveRideViewModel(rideRepository)
+        viewModel = DriverActiveRideViewModel(mockk(relaxed = true), rideRepository)
     }
 
     @After
@@ -123,7 +124,7 @@ class DriverActiveRideViewModelTest {
         advanceUntilIdle()
 
         assertEquals(DriverRidePhase.COMPLETED, viewModel.uiState.value.phase)
-        assertTrue(viewModel.uiState.value.isCompleted)
+        assertTrue(viewModel.uiState.value.navigateToCompletion)
     }
 
     @Test
