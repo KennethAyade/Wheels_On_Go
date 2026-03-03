@@ -5,7 +5,9 @@ import {
   CreditCard,
   Car,
   Users,
-  Activity,
+  BarChart2,
+  AlertTriangle,
+  ClipboardList,
   FileText,
 } from 'lucide-react';
 
@@ -14,8 +16,10 @@ const navItems = [
   { to: '/bookings', label: 'Bookings', icon: BookOpen, enabled: true },
   { to: '#', label: 'Payments', icon: CreditCard, enabled: false },
   { to: '/drivers', label: 'Drivers', icon: Car, enabled: true },
-  { to: '#', label: 'Customers', icon: Users, enabled: false },
-  { to: '#', label: 'System Usage', icon: Activity, enabled: false },
+  { to: '/customers', label: 'Customers', icon: Users, enabled: true },
+  { to: '/analytics', label: 'Analytics', icon: BarChart2, enabled: true },
+  { to: '/incidents', label: 'SOS Incidents', icon: AlertTriangle, enabled: true },
+  { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList, enabled: true },
   { to: '#', label: 'Reports', icon: FileText, enabled: false },
 ];
 

@@ -160,6 +160,33 @@ Wheels_On_Go/
 |--------|----------|------|-------------|
 | GET | `/admin/stats` | Admin JWT | Dashboard stats (activeRides, onlineDrivers, totalRiders, pendingVerifications, todayRevenue, driversFaceEnrolled, driversOnCooldown) |
 | GET | `/admin/bookings` | Admin JWT | List bookings (paginated, status/date/fare/search filters) |
+| GET | `/admin/bookings/:id` | Admin JWT | Full booking detail with rider, driver, driverProfile, vehicle, rating, sosIncident, dispatch attempts, route |
+| PATCH | `/admin/bookings/:id/status` | Admin JWT | Cancel booking (CANCELLED_BY_SYSTEM). Validates cancellable status |
+
+### Admin — Analytics
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/analytics/overview` | Admin JWT | Time-series: rides/day, revenue/day, newUsers/day. Query: `?days=30` (default 30, max 90) |
+| GET | `/admin/analytics/drivers` | Admin JWT | Driver approval rate, counts by status, top 10 drivers by totalRides |
+
+### Admin — Customer Management
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/users` | Admin JWT | Paginated rider list. Filters: search, suspended |
+| PATCH | `/admin/users/:id/suspend` | Admin JWT | Suspend user with reason (min 5 chars). Cannot suspend admins |
+| PATCH | `/admin/users/:id/reactivate` | Admin JWT | Reactivate suspended user |
+
+### Admin — SOS Incidents
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/incidents` | Admin JWT | Paginated SOS incidents. Filters: status, type, dateFrom, dateTo |
+| PATCH | `/admin/incidents/:id` | Admin JWT | Update status (ACKNOWLEDGED/RESPONDING/RESOLVED/FALSE_ALARM) |
+
+### Admin — Audit Logs & Ratings
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/audit-logs` | Admin JWT | Paginated audit logs. Filters: action, targetType, actorUserId, dates |
+| GET | `/admin/ratings` | Admin JWT | Aggregate rating stats + paginated recent ratings |
 
 ### Rides & Booking
 | Method | Endpoint | Auth | Description |
@@ -608,7 +635,7 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 1. **Biometric Mode:** Defaults to mock mode (always match=true). Set `BIOMETRIC_MODE=rekognition` for production with AWS credentials.
 2. **Fatigue Mode:** Defaults to mock mode locally (always NORMAL). Set `FATIGUE_MODE=live` with valid `GEMINI_API_KEY` for real Gemini Vision AI analysis.
 3. **Liveness Detection:** Camera captures static photo. No anti-spoofing. Consider ML Kit Face Detection for production.
-4. **Admin Dashboard Payments/Customers:** Sidebar items exist but show "Coming Soon". Features deferred to later phase.
+4. **Admin Dashboard Payments/Reports:** Sidebar items exist but show "Coming Soon". Features deferred to later phase.
 5. **Integration Tests:** Not yet implemented (significant gap for production).
 6. **Key Rotation:** Procedure not yet documented.
 7. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.

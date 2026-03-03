@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Download, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listBookings } from '../api/bookings';
 import StatusBadge from '../components/StatusBadge';
@@ -10,6 +11,7 @@ const RIDE_STATUSES = [
 ];
 
 export default function BookingsPage() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -173,7 +175,7 @@ export default function BookingsPage() {
                     ? [booking.driver.firstName, booking.driver.lastName].filter(Boolean).join(' ')
                     : '-';
                   return (
-                    <tr key={booking.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={booking.id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/bookings/${booking.id}`)}>
                       <td className="px-4 py-3 text-gray-500 font-mono text-xs">
                         {booking.id.slice(0, 12)}...
                       </td>

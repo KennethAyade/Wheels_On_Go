@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, DollarSign, Users, Shield, MapPin, ScanFace, Clock } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getStats } from '../api/dashboard';
-import type { DashboardStats } from '../types';
+import { getAnalyticsOverview } from '../api/analytics';
+import type { DashboardStats, AnalyticsDataPoint } from '../types';
 
 const defaultStats: DashboardStats = {
   activeRides: 0,
@@ -17,6 +19,8 @@ const defaultStats: DashboardStats = {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>(defaultStats);
   const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<AnalyticsDataPoint[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,6 +28,10 @@ export default function DashboardPage() {
       .then(setStats)
       .catch(() => {})
       .finally(() => setLoading(false));
+    getAnalyticsOverview(7)
+      .then((res) => setChartData(res.series))
+      .catch(() => {})
+      .finally(() => setChartLoading(false));
   }, []);
 
   const cards = [
@@ -117,6 +125,62 @@ export default function DashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* 7-Day Mini Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Rides (Last 7 Days)</h2>
+          {chartLoading ? (
+            <div className="h-[180px] bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="ridesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString()} />
+                <Area type="monotone" dataKey="rides" stroke="#059669" fill="url(#ridesGrad)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Revenue (Last 7 Days)</h2>
+          {chartLoading ? (
+            <div className="h-[180px] bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  tick={{ fontSize: 11 }}
+                />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `₱${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                <Tooltip formatter={(v: number) => [`₱${v.toLocaleString()}`, 'Revenue']} labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString()} />
+                <Area type="monotone" dataKey="revenue" stroke="#7c3aed" fill="url(#revenueGrad)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
     </div>
   );
