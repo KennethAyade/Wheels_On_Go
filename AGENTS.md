@@ -7,8 +7,9 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 Wheels On Go (Valet&Go) is a ride-hailing platform with:
 - **Backend**: NestJS 10 + Prisma + PostgreSQL REST API (`apps/api`)
 - **Mobile**: Kotlin + Jetpack Compose Android app (`apps/mobile`)
+- **Web Admin**: React 18 + Vite 7 + Tailwind CSS 4 admin dashboard (`apps/web`)
 
-Current status: Phase 2 complete (Firebase Phone Auth, KYC via Cloudflare R2, biometric login, booking engine with surge pricing, promo codes, and WebSocket dispatch).
+Current status: Phase 3 complete + safety features. Implemented: Firebase Phone Auth, KYC via Cloudflare R2, biometric login, booking engine with surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, admin web dashboard, fatigue detection (Gemini Vision AI), SOS emergency, ride ratings, user profile management, and ride cancellation notifications.
 
 ## Build & Run Commands
 
@@ -27,7 +28,7 @@ npm run prisma:migrate       # Apply migrations (production)
 npm run prisma:studio        # Open Prisma Studio GUI
 
 # Testing
-npm run test:api             # Run all backend tests (121 tests, 13 suites)
+npm run test:api             # Run all backend tests (13 suites)
 npm run test:api -- --watch  # Watch mode
 npm run test:api -- --testNamePattern="pattern"  # Run specific tests
 
@@ -46,8 +47,11 @@ NestJS modular architecture with these domains:
 |--------|---------|
 | `auth/` | OTP flow, JWT tokens, Firebase Phone Auth, biometric verification |
 | `driver/` | Driver profiles, KYC document management, admin approval |
-| `ride/` | Ride creation, fare estimation with surge pricing + promo codes |
-| `rider-vehicle/` | Rider vehicle CRUD |
+| `ride/` | Ride creation, fare estimation, status updates, SOS emergency |
+| `rider-vehicle/` | Rider vehicle CRUD + OR/CR document uploads |
+| `fatigue/` | Fatigue detection (Gemini Vision AI) + face enrollment |
+| `rating/` | Ride ratings from riders |
+| `geofence/` | Geofence event tracking for proximity detection |
 | `dispatch/` | WebSocket gateway for real-time driver matching |
 | `tracking/` | WebSocket gateway for driver location updates |
 | `storage/` | S3-compatible storage (Cloudflare R2) for KYC uploads |
@@ -107,6 +111,8 @@ Copy `apps/api/.env.example` to `apps/api/.env`. Critical variables:
 - `ENCRYPTION_KEY` - 64 hex chars for AES-256-GCM
 - `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY` - Phone auth
 - `STORAGE_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` - R2 storage
+- `FATIGUE_MODE` - `mock` or `live` (Gemini Vision AI)
+- `GEMINI_API_KEY` - Google Gemini API key (for fatigue detection)
 
 ## Key Business Logic
 
@@ -118,6 +124,23 @@ totalFare = baseFare + (distance × costPerKm) + (duration × costPerMin) + surg
 **Driver matching:** Haversine distance within 5km radius, dispatch to closest, expand radius on decline.
 
 **Surge pricing:** 5 tiers (1.0x–2.0x) based on demand/supply ratio in area.
+
+### Web Admin (`apps/web/src/`)
+
+React + Vite + Tailwind CSS admin dashboard:
+
+| Area | Location | Purpose |
+|------|----------|---------|
+| API | `api/` | Axios clients (auth, drivers, bookings, dashboard) |
+| Context | `context/` | AuthContext (JWT in localStorage, auto-refresh) |
+| Pages | `pages/` | Login, Dashboard, Drivers, DriverDetail, Bookings |
+| Components | `components/` | Layout, Sidebar, TopBar, ProtectedRoute, StatusBadge |
+
+**Key patterns:**
+- JWT stored in `localStorage` (`wog_access_token`, `wog_refresh_token`)
+- Axios interceptors auto-refresh on 401
+- Role check: only `ADMIN` role allowed
+- Dev server on port 3001, proxies `/api` to `localhost:3000`
 
 ## Deployment
 

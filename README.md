@@ -47,7 +47,7 @@ npm run seed:admin   # admin@wheelsongo.com / Admin123!
 # 6. Start dev server (port 3000)
 npm run dev:api
 
-# 7. Run tests (122 passing)
+# 7. Run tests (140 passing, 14 suites)
 npm run test:api
 ```
 
@@ -119,35 +119,56 @@ CORS_ORIGINS=http://localhost:3001
 ## Key API Endpoints
 
 ### Auth
+- `POST /auth/admin/login` — Admin email/password login
 - `POST /auth/request-otp` — Request OTP (emulators: console SMS)
 - `POST /auth/verify-otp` — Verify OTP, receive JWT tokens
 - `POST /auth/verify-firebase` — Verify Firebase ID token (real phones)
 - `POST /auth/biometric/verify` — Driver face verification
-- `POST /auth/admin/login` — Admin email/password login
+- `POST /auth/refresh` — Refresh access token
+- `POST /auth/logout` — Revoke refresh token
 - `GET /auth/me` — Current user
+- `PATCH /auth/profile` — Update rider profile
+- `POST /auth/profile-photo` — Upload profile photo (base64)
+- `DELETE /auth/me` — Delete account
 
 ### Admin (require admin JWT)
-- `GET /admin/stats` — Dashboard stats
+- `GET /admin/stats` — Dashboard stats (incl. fatigue metrics)
 - `GET /admin/bookings` — Paginated bookings with filters
 - `GET /admin/drivers` — All drivers (paginated, searchable)
-- `GET /admin/drivers/:id` — Driver detail with document presigned URLs
-- `POST /admin/drivers/:id/approve` — Approve driver
-- `POST /admin/drivers/:id/reject` — Reject with reason
+- `GET /admin/drivers/:driverId` — Driver detail with document presigned URLs
+- `POST /admin/drivers/:driverId/approve` — Approve driver
+- `POST /admin/drivers/:driverId/reject` — Reject with reason
 
-### Driver KYC
+### Drivers
+- `GET /drivers/available` — Find nearby available drivers
+- `GET /drivers/:id/public-profile` — Driver public profile
+- `PATCH /drivers/profile-setup` — Setup driver profile
+- `PATCH /drivers/me/status` — Toggle online/offline
 - `POST /drivers/kyc/presign` — Get presigned upload URL
 - `POST /drivers/kyc/confirm` — Confirm upload
 - `GET /drivers/kyc` — Get KYC status
 
 ### Rides
 - `POST /rides` — Create ride (triggers WebSocket dispatch)
+- `POST /rides/estimate` — Fare estimate with surge + optional promo
+- `GET /rides/active` — Get current active ride
 - `GET /rides/:id` — Get ride details
-- `POST /rides/:id/arrive` / `start` / `complete` / `cancel` — Status transitions
+- `PATCH /rides/:id/status` — Update status (DRIVER_ARRIVED / STARTED / COMPLETED)
+- `POST /rides/:id/sos` — Trigger SOS emergency
+- `POST /rides/:id/cancel` — Cancel ride (notifies other party)
 
-### Vehicles & Pricing
-- `POST /rider-vehicles` / `GET` / `DELETE /:id` / `PATCH /:id/default`
-- `GET /pricing/fare-estimate` — Surge-adjusted estimate
-- `POST /pricing/promo/validate` — Validate promo code
+### Vehicles
+- `POST /rider-vehicles` / `GET` / `GET /:id` / `PATCH /:id` / `DELETE /:id`
+- `PATCH /rider-vehicles/:id/default` — Set default vehicle
+- `POST /rider-vehicles/:id/documents?type=OR|CR` — Upload document
+
+### Fatigue Detection
+- `POST /fatigue/enroll-face` — Enroll driver face
+- `POST /fatigue/check` — Run fatigue check (Gemini Vision AI)
+- `GET /fatigue/status` — Go-online eligibility
+
+### Ratings
+- `POST /ratings` — Rate a completed ride
 
 ## WebSocket Namespaces
 
@@ -196,22 +217,32 @@ Wheels_On_Go/
 
 ### ✅ Phase 3 Week 7 — Admin Web Dashboard
 - Email/password admin login (admin@wheelsongo.com / Admin123!)
-- Dashboard stat cards (live data)
+- Dashboard stat cards (live data incl. fatigue metrics)
 - Driver verification UI (document viewer with zoom, approve/reject)
 - Bookings table (status/date/fare filters, pagination)
 - React + Vite + Tailwind CSS 4 at `apps/web/`, port 3001
 
+### ✅ Safety & Profile Features (Feb 22–28)
+- Fatigue detection via Gemini Vision AI (4 levels with cooldowns)
+- Face enrollment for fatigue checks
+- SOS emergency triggers (`POST /rides/:id/sos`)
+- Ride ratings (`POST /ratings`)
+- User profile management (update, photo upload, account deletion)
+- Driver profile setup + online/offline status
+- Ride cancellation notifications via WebSocket
+- Settings screen with biometric preferences
+
 ### 📅 Remaining — Weeks 6, 8–9
 - Financial features (payments, wallets, transactions)
 - Communication (masked calls, notifications)
-- Safety (BLOWBAGETS checklist, fatigue detection, SOS)
+- BLOWBAGETS safety checklist enforcement
 - Integration + E2E tests
 - Production hardening + load testing
 
 ## Testing
 
 ```bash
-# Backend (122 passing, 13 suites)
+# Backend (140 passing, 14 suites)
 cd apps/api && npm test
 
 # Web admin TypeScript check

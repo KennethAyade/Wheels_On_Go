@@ -18,6 +18,78 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-02-28 19:11 PHT
+Summary: SOS functionality, ride cancellation notifications, fatigue timestamp cleanup, JSON body size limit, error handling improvements.
+Changes:
+- apps/api/src/ride/ride.controller.ts: Added `POST /rides/:id/sos` endpoint — triggers SOS emergency, creates SosIncident record
+- apps/api/src/ride/ride.service.ts: Added `triggerSos()` method with latitude, longitude, description, incidentType
+- apps/api/src/ride/dto/trigger-sos.dto.ts: NEW — TriggerSosDto validation
+- apps/api/src/ride/ride.controller.ts: Cancel ride now notifies other party via WebSocket (`ride:cancelled` event to driver/rider)
+- apps/api/src/main.ts: Increased JSON body size limit to 5MB for base64 image payloads (biometric + fatigue endpoints)
+- apps/mobile/.../ui/screens/driver/DriverActiveRideScreen.kt: Enhanced error handling for ride loading failures
+- apps/mobile/.../ui/screens/driver/DriverActiveRideViewModel.kt: Added error state and retry logic
+- apps/mobile/.../data/auth/TokenManager.kt: Removed last fatigue check timestamp handling (simplified)
+- apps/mobile/.../ui/screens/driver/FatigueCheckViewModel.kt: Removed timestamp tracking
+- apps/api/src/rating/: NEW module — RatingController (`POST /ratings`), RatingService (creates Rating record, updates driver average)
+
+## 2026-02-27 22:15 PHT
+Summary: Settings screen with profile management and biometric preferences.
+Changes:
+- apps/mobile/.../ui/screens/settings/SettingsScreen.kt: NEW — logout, profile info, biometric toggle, account deletion
+- apps/mobile/.../ui/screens/settings/SettingsViewModel.kt: NEW — profile management with auth repository integration
+- apps/mobile/.../AppNav.kt: Added Settings route to navigation graph
+
+## 2026-02-27 11:47 PHT
+Summary: Enhanced admin stats and driver detail pages with fatigue detection metrics; network error handling in session resume.
+Changes:
+- apps/api/src/admin/admin-stats.controller.ts: Added `driversFaceEnrolled` and `driversOnCooldown` to dashboard stats
+- apps/web/src/pages/DashboardPage.tsx: Display fatigue metrics in stat cards
+- apps/web/src/pages/DriverDetailPage.tsx: Show fatigue detection logs and face enrollment status
+- apps/web/src/types/: Updated TypeScript interfaces for fatigue data
+- apps/mobile/.../ui/screens/auth/SessionResumeScreen.kt: Added network error handling
+
+## 2026-02-27 00:35 PHT
+Summary: Implement fatigue detection and face enrollment features with Gemini Vision AI.
+Changes:
+- apps/api/src/fatigue/fatigue.controller.ts: NEW — 3 endpoints (enroll-face, check, status)
+- apps/api/src/fatigue/fatigue.service.ts: NEW — Gemini Vision AI analysis (gemini-2.0-flash), mock mode, cooldown logic, face enrollment via R2 storage
+- apps/api/src/fatigue/fatigue.module.ts: NEW — FatigueModule with dependencies
+- apps/api/src/fatigue/dto/fatigue-check.dto.ts: NEW — FatigueCheckDto (imageBase64, isOnRide, currentRideId)
+- apps/api/src/fatigue/dto/face-enroll.dto.ts: NEW — FaceEnrollDto (imageBase64)
+- apps/api/src/app.module.ts: Registered FatigueModule
+- apps/api/test/fatigue.service.spec.ts: NEW — 12 tests for fatigue service
+- apps/mobile/.../ui/screens/driver/FaceEnrollmentScreen.kt: NEW — camera capture for face enrollment
+- apps/mobile/.../ui/screens/driver/FatigueCheckScreen.kt: NEW — fatigue check flow with camera
+- apps/mobile/.../ui/screens/driver/FatigueCheckViewModel.kt: NEW — Gemini analysis integration
+- render.yaml: Added FATIGUE_MODE and GEMINI_API_KEY env vars
+
+## 2026-02-23 11:01 PHT
+Summary: Admin seed fix in Render build command, login page UX enhancements, CORS/env configuration.
+Changes:
+- render.yaml: Added `npm run seed:admin` to build command chain for production admin user creation
+- apps/web/src/pages/LoginPage.tsx: Added loading spinner, timeout error handling, better error messages
+- apps/web/src/api/client.ts: Improved error messages for network failures
+- apps/api/.env.example: Created comprehensive .env.example with all environment variables documented
+- apps/web/.env.example: Created with VITE_API_URL template
+- apps/web/vercel.json: Created for Vercel deployment
+
+## 2026-02-22 20:39 PHT
+Summary: User profile setup for drivers and riders, driver approval/rejection response enhancement, ride pricing fix, endpoint additions.
+Changes:
+- apps/api/src/auth/auth.controller.ts: Added `PATCH /auth/profile`, `POST /auth/profile-photo`, `DELETE /auth/me`, `POST /auth/logout`
+- apps/api/src/auth/auth.service.ts: Added updateRiderProfile(), uploadProfilePhoto(), deleteAccount(), revokeRefreshToken()
+- apps/api/src/auth/dto/update-rider-profile.dto.ts: NEW — UpdateRiderProfileDto
+- apps/api/src/driver/driver.controller.ts: Added `GET /drivers/available`, `GET /drivers/:id/public-profile`, `PATCH /drivers/profile-setup`, `PATCH /drivers/me/status`
+- apps/api/src/driver/driver.service.ts: Added findAvailableDrivers(), getPublicProfile(), setupDriverProfile(), updateOnlineStatus()
+- apps/api/src/driver/dto/driver-profile-setup.dto.ts: NEW — DriverProfileSetupDto
+- apps/api/src/driver/dto/update-driver-status.dto.ts: NEW — UpdateDriverStatusDto
+- apps/api/src/driver/dto/available-drivers.dto.ts: NEW — AvailableDriversQueryDto
+- apps/api/src/driver/admin-driver.controller.ts: Approval/rejection now returns updated driver details
+- apps/api/src/ride/ride.service.ts: Fixed minimum fare to use estimated fare
+- apps/mobile/.../ui/screens/auth/RiderProfileSetupScreen.kt: NEW — rider profile onboarding
+- apps/mobile/.../ui/screens/driver/DriverProfileSetupScreen.kt: NEW — driver profile onboarding
+- package.json: Removed redundant @types/multer dependency
+
 ## 2026-02-21 12:00 PHT
 Summary: Phase 3 Week 7 — Admin web dashboard complete. Vite + React + Tailwind web app (`apps/web`) added to monorepo. Admin email/password auth, driver verification UI, bookings table, dashboard stats. 122 backend tests still passing.
 Changes:

@@ -2,6 +2,7 @@
 node_modules/
 apps/api/dist/
 apps/api/.env
+apps/web/.env
 
 # Android/Gradle
 apps/mobile/.gradle/

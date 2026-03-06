@@ -22,6 +22,15 @@ const colorMap: Record<string, string> = {
   Online: 'bg-green-100 text-green-800',
   Offline: 'bg-gray-100 text-gray-800',
   Driving: 'bg-blue-100 text-blue-800',
+  // User statuses
+  Active: 'bg-green-100 text-green-800',
+  Suspended: 'bg-red-100 text-red-800',
+  // SOS incident statuses
+  ACTIVE: 'bg-red-100 text-red-800',
+  ACKNOWLEDGED: 'bg-yellow-100 text-yellow-800',
+  RESPONDING: 'bg-blue-100 text-blue-800',
+  RESOLVED: 'bg-green-100 text-green-800',
+  FALSE_ALARM: 'bg-gray-100 text-gray-800',
 };
 
 const labelMap: Record<string, string> = {

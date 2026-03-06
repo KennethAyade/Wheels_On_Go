@@ -217,7 +217,7 @@ export default function DriversPage() {
                             <StatusBadge status={getDriverOnlineStatus(driver)} />
                           </td>
                           <td className="px-4 py-3 text-gray-600">
-                            {driver.user ? '5' : '-'}
+                            {driver.user?.averageRating ? Number(driver.user.averageRating).toFixed(1) : '-'}
                           </td>
                           <td className="px-4 py-3 text-gray-600">{driver.licenseNumber || '-'}</td>
                           <td className="px-4 py-3 text-gray-600">
