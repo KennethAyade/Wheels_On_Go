@@ -1,7 +1,7 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-03-06
 **Branch:** develop (main branch: main)
 
 ---
@@ -34,6 +34,7 @@
 | 2026-02-23 | CORS env config, admin login enhancements, admin seed fix in Render build | ✅ Complete |
 | 2026-02-27 | Fatigue detection (Gemini Vision AI), face enrollment, admin fatigue metrics, settings screen | ✅ Complete |
 | 2026-02-28 | SOS functionality, ride cancellation notifications, rating system, error handling | ✅ Complete |
+| 2026-03-06 | Week 7 Enhanced — Admin analytics, customers, incidents, audit logs, ratings, booking detail, dashboard charts | ✅ Complete |
 | Week 6 | Financial & communication features (payments, wallets, masked calls, notifications) | 📅 Planned |
 | Week 8–9 | QA, deployment, production hardening | 📅 Planned |
 
@@ -90,14 +91,14 @@ Wheels_On_Go/
 │   │   │   ├── seed-admin.ts          # Admin user seed script
 │   │   │   └── migrations/            # Database migrations
 │   │   ├── scripts/                   # Database utilities
-│   │   └── test/                      # Unit tests (140 passing, 14 suites)
+│   │   └── test/                      # Unit tests (166 passing, 18 suites)
 │   ├── mobile/                        # Android app (Kotlin/Compose)
 │   └── web/                           # React admin dashboard
 │       ├── src/
 │       │   ├── api/                   # Axios API clients
 │       │   ├── context/               # AuthContext (JWT)
 │       │   ├── components/            # Layout, Sidebar, StatusBadge, etc.
-│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings
+│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings, Analytics, Customers, Incidents, AuditLogs
 │       │   └── types/                 # TypeScript interfaces
 │       ├── vite.config.ts             # Port 3001, proxy /api → localhost:3000
 │       └── package.json
@@ -365,10 +366,10 @@ Wheels_On_Go/
 
 ## Testing Status
 
-### Current Coverage (as of Mar 2, 2026)
+### Current Coverage (as of Mar 6, 2026)
 | Component | Unit | Integration | E2E |
 |-----------|------|-------------|-----|
-| Backend Tests | ✅ 140 passing (14 suites) | ⚠️ Pending | ⚠️ Pending |
+| Backend Tests | ✅ 166 passing (18 suites) | ⚠️ Pending | ⚠️ Pending |
 | Mobile Tests | ✅ 87 compiled (12 files) — JVM crash blocks runtime | ⚠️ Pending | ⚠️ Pending |
 | EncryptionService | ✅ 100% (22 tests) | ⚠️ Pending | ⚠️ Pending |
 | FirebaseService | ✅ 100% (5 tests) | ⚠️ Pending | ⚠️ Pending |
@@ -378,10 +379,14 @@ Wheels_On_Go/
 | FatigueService | ✅ (12 tests) | ⚠️ Pending | ⚠️ Pending |
 | Web Admin Build | ✅ TypeScript clean, Vite build | N/A | ⚠️ Pending |
 | PrismaMiddleware | N/A | ⚠️ Pending | ⚠️ Pending |
+| AdminBookingsController | ✅ (4 tests) | ⚠️ Pending | ⚠️ Pending |
+| AdminAnalyticsController | ✅ (5 tests) | ⚠️ Pending | ⚠️ Pending |
+| AdminUsersController | ✅ (7 tests) | ⚠️ Pending | ⚠️ Pending |
+| AdminIncidentsController | ✅ (6 tests) | ⚠️ Pending | ⚠️ Pending |
 | AuditService | ⚠️ 0% | ⚠️ Pending | ⚠️ Pending |
 
 ### Testing Roadmap
-- **Current:** Backend tests passing (13 suites); mobile 87 tests compile, JVM crash blocks runtime; web build clean
+- **Current:** Backend tests passing (18 suites, 166 tests); mobile 87 tests compile, JVM crash blocks runtime; web build clean
 - **Next (Week 8):** Integration tests, E2E tests (6-8 hours)
 - **Weeks 8–9:** Security tests, performance tests, load tests
 
@@ -529,11 +534,17 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Auth context | `apps/web/src/context/AuthContext.tsx` |
 | API client (Axios) | `apps/web/src/api/client.ts` |
 | Login page | `apps/web/src/pages/LoginPage.tsx` |
-| Dashboard page | `apps/web/src/pages/DashboardPage.tsx` |
+| Dashboard page (stat cards + 7-day charts) | `apps/web/src/pages/DashboardPage.tsx` |
 | Drivers page | `apps/web/src/pages/DriversPage.tsx` |
 | Driver detail + doc viewer | `apps/web/src/pages/DriverDetailPage.tsx` |
-| Bookings page | `apps/web/src/pages/BookingsPage.tsx` |
+| Bookings page (clickable rows) | `apps/web/src/pages/BookingsPage.tsx` |
+| Booking detail + cancel | `apps/web/src/pages/BookingDetailPage.tsx` |
+| Analytics page (charts + driver metrics) | `apps/web/src/pages/AnalyticsPage.tsx` |
+| Customers page (suspend/reactivate) | `apps/web/src/pages/CustomersPage.tsx` |
+| SOS incidents page (status management) | `apps/web/src/pages/IncidentsPage.tsx` |
+| Audit logs page (read-only viewer) | `apps/web/src/pages/AuditLogsPage.tsx` |
 | Sidebar layout | `apps/web/src/components/Sidebar.tsx` |
+| Status badges (all statuses) | `apps/web/src/components/StatusBadge.tsx` |
 | Vite config (proxy) | `apps/web/vite.config.ts` |
 
 ### Mobile App Key Files
@@ -554,6 +565,18 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 ---
 
 ## Recent Changes Summary
+
+### 2026-03-06 — Week 7 Enhanced: Admin Dashboard & Analytics
+- 10 new admin API endpoints: analytics (overview + drivers), customer management (list/suspend/reactivate), SOS incidents (list/update), audit logs (list), ratings (aggregate + list), booking detail + cancel
+- 5 new admin pages: AnalyticsPage (Recharts charts), BookingDetailPage, CustomersPage, IncidentsPage, AuditLogsPage
+- DashboardPage enhanced with 7-day mini charts (rides + revenue AreaCharts)
+- DriversPage fixed: hardcoded rating replaced with actual averageRating
+- BookingsPage: row click navigates to booking detail
+- Sidebar updated: 6 enabled pages + 2 coming soon (Payments, Reports)
+- StatusBadge: added colors for user statuses (Active/Suspended) and SOS statuses
+- 7 new DTOs, AdminModule updated with AuditModule
+- 26 new backend tests (4 new test files), total: 166 tests / 18 suites
+- All admin write actions logged via AuditService
 
 ### 2026-02-28 — SOS, Ride Cancellation Notifications, Error Handling
 - `POST /rides/:id/sos` — triggers SOS emergency, creates SosIncident record
@@ -658,7 +681,7 @@ npm run prisma:migrate             # Run migrations (prisma migrate deploy)
 npm run seed:admin                 # Seed admin user (admin@wheelsongo.com / Admin123!)
 
 # Testing
-npm run test:api                   # Run all backend tests (140 passing, 14 suites)
+npm run test:api                   # Run all backend tests (166 passing, 18 suites)
 npm run test:api -- --watch        # Watch mode
 
 # Build

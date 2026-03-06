@@ -356,7 +356,7 @@ describe('DriverService', () => {
       // findUnique for ensureProfile (first call)
       // then two parallel findUnique calls for user + driverProfile profile gate
       (prisma.driverProfile.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ id: profileId, userId }) // ensureProfile
+        .mockResolvedValueOnce({ id: profileId, userId, status: DriverStatus.APPROVED }) // ensureProfile
         .mockResolvedValueOnce({ licenseNumber: null, licenseExpiryDate: null }); // profile gate driverProfile
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         firstName: null,
@@ -368,9 +368,37 @@ describe('DriverService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('allows going online when profile is complete', async () => {
+    it('throws BadRequestException when PENDING driver tries to go online', async () => {
       (prisma.driverProfile.findUnique as jest.Mock)
-        .mockResolvedValueOnce({ id: profileId, userId }) // ensureProfile
+        .mockResolvedValueOnce({ id: profileId, userId, status: DriverStatus.PENDING }) // ensureProfile
+        .mockResolvedValueOnce({ licenseNumber: 'LIC-001', licenseExpiryDate: new Date('2028-01-01') }); // profile gate
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        firstName: 'Juan',
+        lastName: 'Cruz',
+      });
+
+      await expect(
+        service.updateOnlineStatus(userId, { isOnline: true }),
+      ).rejects.toThrow('Your documents are under review');
+    });
+
+    it('throws BadRequestException when REJECTED driver tries to go online', async () => {
+      (prisma.driverProfile.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: profileId, userId, status: DriverStatus.REJECTED }) // ensureProfile
+        .mockResolvedValueOnce({ licenseNumber: 'LIC-001', licenseExpiryDate: new Date('2028-01-01') }); // profile gate
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        firstName: 'Juan',
+        lastName: 'Cruz',
+      });
+
+      await expect(
+        service.updateOnlineStatus(userId, { isOnline: true }),
+      ).rejects.toThrow('Your documents have been rejected');
+    });
+
+    it('allows going online when profile is complete and APPROVED', async () => {
+      (prisma.driverProfile.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: profileId, userId, status: DriverStatus.APPROVED }) // ensureProfile
         .mockResolvedValueOnce({ licenseNumber: 'LIC-001', licenseExpiryDate: new Date('2028-01-01') }); // profile gate
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         firstName: 'Juan',

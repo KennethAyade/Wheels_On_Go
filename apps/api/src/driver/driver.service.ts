@@ -212,6 +212,17 @@ export class DriverService {
         );
       }
 
+      // Approval status gate — only APPROVED drivers can go online
+      if (profile.status !== DriverStatus.APPROVED) {
+        const msg =
+          profile.status === DriverStatus.PENDING
+            ? 'Your documents are under review. You can go online once your account is approved.'
+            : profile.status === DriverStatus.REJECTED
+              ? 'Your documents have been rejected. Please contact support.'
+              : 'Your account is suspended. Please contact support.';
+        throw new BadRequestException(msg);
+      }
+
       // Fatigue safety gate — face enrollment + fatigue check required
       const fatigueStatus = await this.fatigueService.canGoOnline(profile.id);
       if (!fatigueStatus.allowed) {
