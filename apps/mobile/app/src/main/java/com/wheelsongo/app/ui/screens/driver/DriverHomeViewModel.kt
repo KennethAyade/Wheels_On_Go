@@ -55,7 +55,8 @@ data class DriverHomeUiState(
     val errorMessage: String? = null,
     val showProfileSetupPrompt: Boolean = false,
     val needsFatigueCheck: Boolean = false,
-    val needsFaceEnrollment: Boolean = false
+    val needsFaceEnrollment: Boolean = false,
+    val driverStatus: String = "PENDING"
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -84,6 +85,23 @@ class DriverHomeViewModel @JvmOverloads constructor(
 
         // Check for active ride on startup
         checkForActiveRide()
+
+        // Fetch driver approval status
+        fetchDriverStatus()
+    }
+
+    private fun fetchDriverStatus() {
+        viewModelScope.launch {
+            try {
+                val response = driverApi.getProfile()
+                if (response.isSuccessful) {
+                    val profile = response.body()
+                    if (profile != null) {
+                        _uiState.update { it.copy(driverStatus = profile.status) }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     fun onLocationPermissionResult(granted: Boolean) {
@@ -205,6 +223,16 @@ class DriverHomeViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(showProfileSetupPrompt = true) }
             return
         }
+        if (_uiState.value.driverStatus != "APPROVED") {
+            _uiState.update { it.copy(
+                errorMessage = when (_uiState.value.driverStatus) {
+                    "PENDING" -> "Your documents are under review. You'll be notified once approved."
+                    "REJECTED" -> "Your application was not approved. Please contact support."
+                    else -> "Your account is currently suspended."
+                }
+            )}
+            return
+        }
         val newStatus = !_uiState.value.isOnline
         _uiState.value = _uiState.value.copy(isTogglingStatus = true)
 
@@ -280,6 +308,16 @@ class DriverHomeViewModel @JvmOverloads constructor(
     fun goOnlineAndFindRides() {
         if (!tokenManager.isProfileComplete()) {
             _uiState.update { it.copy(showProfileSetupPrompt = true) }
+            return
+        }
+        if (_uiState.value.driverStatus != "APPROVED") {
+            _uiState.update { it.copy(
+                errorMessage = when (_uiState.value.driverStatus) {
+                    "PENDING" -> "Your documents are under review. You'll be notified once approved."
+                    "REJECTED" -> "Your application was not approved. Please contact support."
+                    else -> "Your account is currently suspended."
+                }
+            )}
             return
         }
         if (!_uiState.value.isOnline) {

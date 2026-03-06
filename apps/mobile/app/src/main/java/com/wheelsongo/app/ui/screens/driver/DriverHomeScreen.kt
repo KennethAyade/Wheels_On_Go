@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -253,8 +255,58 @@ fun DriverHomeScreen(
                     DriverStatusToggle(
                         isOnline = uiState.isOnline,
                         isLoading = uiState.isTogglingStatus,
+                        enabled = uiState.driverStatus == "APPROVED",
                         onToggle = { viewModel.toggleOnlineStatus() }
                     )
+                }
+            }
+
+            // Approval status banner for non-APPROVED drivers
+            if (uiState.driverStatus != "APPROVED") {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 80.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (uiState.driverStatus == "PENDING") Color(0xFFFFF8E1) else Color(0xFFFFEBEE)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = if (uiState.driverStatus == "PENDING") Icons.Default.Info else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (uiState.driverStatus == "PENDING") Color(0xFFF9A825) else Color(0xFFD32F2F),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (uiState.driverStatus == "PENDING") "Documents Under Review"
+                                       else if (uiState.driverStatus == "REJECTED") "Application Not Approved"
+                                       else "Account Suspended",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.driverStatus == "PENDING") Color(0xFFF57F17) else Color(0xFFC62828)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (uiState.driverStatus == "PENDING")
+                                    "Your application is being reviewed by our team. You'll be able to go online once approved."
+                                else if (uiState.driverStatus == "REJECTED")
+                                    "Your documents were not approved. Please contact support for assistance."
+                                else
+                                    "Your account has been suspended. Please contact support.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF616161)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -310,7 +362,7 @@ fun DriverHomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        enabled = !uiState.isTogglingStatus,
+                        enabled = !uiState.isTogglingStatus && uiState.driverStatus == "APPROVED",
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF4CAF50),
@@ -382,6 +434,7 @@ fun DriverHomeScreen(
 private fun DriverStatusToggle(
     isOnline: Boolean,
     isLoading: Boolean,
+    enabled: Boolean = true,
     onToggle: () -> Unit
 ) {
     val bgColor by animateColorAsState(
@@ -415,6 +468,7 @@ private fun DriverStatusToggle(
                 Switch(
                     checked = isOnline,
                     onCheckedChange = { onToggle() },
+                    enabled = enabled,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF388E3C),
