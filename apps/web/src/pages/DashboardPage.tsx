@@ -149,7 +149,7 @@ export default function DashboardPage() {
                   tick={{ fontSize: 11 }}
                 />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString()} />
+                <Tooltip labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString()} />
                 <Area type="monotone" dataKey="rides" stroke="#059669" fill="url(#ridesGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                   tick={{ fontSize: 11 }}
                 />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `₱${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
-                <Tooltip formatter={(v: number) => [`₱${v.toLocaleString()}`, 'Revenue']} labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString()} />
+                <Tooltip formatter={(v) => [`₱${Number(v ?? 0).toLocaleString()}`, 'Revenue']} labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString()} />
                 <Area type="monotone" dataKey="revenue" stroke="#7c3aed" fill="url(#revenueGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>

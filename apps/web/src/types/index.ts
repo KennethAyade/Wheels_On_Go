@@ -59,6 +59,7 @@ export interface DriverUser {
   phoneNumber: string;
   email: string | null;
   createdAt: string;
+  averageRating: number | null;
 }
 
 export interface DriverVehicle {

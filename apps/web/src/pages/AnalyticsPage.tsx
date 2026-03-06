@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
                 />
                 <Tooltip
                   labelFormatter={(label) => formatXAxisDate(String(label))}
-                  formatter={(value: number) => [value.toLocaleString(), 'Rides']}
+                  formatter={(value) => [Number(value ?? 0).toLocaleString(), 'Rides']}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid #e5e7eb',
@@ -262,7 +262,7 @@ export default function AnalyticsPage() {
                 />
                 <Tooltip
                   labelFormatter={(label) => formatXAxisDate(String(label))}
-                  formatter={(value: number) => [formatRevenue(value), 'Revenue']}
+                  formatter={(value) => [formatRevenue(Number(value ?? 0)), 'Revenue']}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid #e5e7eb',
