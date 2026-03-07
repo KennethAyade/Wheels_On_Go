@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Search, Download } from 'lucide-react';
 import { listDrivers } from '../api/drivers';
 import StatusBadge from '../components/StatusBadge';
+import { exportToCsv } from '../utils/csv';
 import type { DriverProfile, DriverDocument } from '../types';
 
 function getApplicantStatus(driver: DriverProfile): string {
@@ -76,6 +77,33 @@ export default function DriversPage() {
       d.id.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const handleDownload = () => {
+    const headers = ['Driver ID', 'Name', 'Section', 'Status', 'Rating', 'Total Rides', 'License Number', 'License Expiry', 'Joined Date'];
+    const applicantRows = applicants.map((d) => [
+      d.id,
+      driverName(d),
+      'Applicant',
+      getApplicantStatus(d),
+      d.user?.averageRating != null ? Number(d.user.averageRating).toFixed(1) : '',
+      String(d.totalRides ?? ''),
+      d.licenseNumber ?? '',
+      d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toLocaleDateString() : '',
+      new Date(d.createdAt).toLocaleDateString(),
+    ]);
+    const registeredRows = registered.map((d) => [
+      d.id,
+      driverName(d),
+      'Registered',
+      getDriverOnlineStatus(d),
+      d.user?.averageRating != null ? Number(d.user.averageRating).toFixed(1) : '',
+      String(d.totalRides ?? ''),
+      d.licenseNumber ?? '',
+      d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toLocaleDateString() : '',
+      new Date(d.createdAt).toLocaleDateString(),
+    ]);
+    exportToCsv('drivers.csv', headers, [...applicantRows, ...registeredRows]);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -91,7 +119,11 @@ export default function DriversPage() {
               className="pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+          <button
+            onClick={handleDownload}
+            disabled={loadingApplicants || loadingRegistered}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
             <Download size={16} /> Download
           </button>
         </div>

@@ -104,7 +104,8 @@
       "Bash(npx nest build)",
       "Bash(npm run prisma:generate)",
       "Bash(npm ls @nestjs/core @nestjs/common @nestjs/throttler)",
-      "Bash(npm ci)"
+      "Bash(npm ci)",
+      "Bash(xargs wc -l)"
     ]
   }
 }

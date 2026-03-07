@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Download, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { listBookings } from '../api/bookings';
 import StatusBadge from '../components/StatusBadge';
+import { exportToCsv } from '../utils/csv';
 import type { Booking } from '../types';
 
 const RIDE_STATUSES = [
@@ -22,6 +23,7 @@ export default function BookingsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -45,6 +47,34 @@ export default function BookingsPage() {
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const params: any = { page: 1, limit: 1000 };
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
+      const res = await listBookings(params);
+      const headers = ['Booking ID', 'Status', 'Rider', 'Driver', 'Pickup', 'Dropoff', 'Fare (PHP)', 'Date'];
+      const rows = res.data.map((b: Booking) => [
+        b.id,
+        b.status,
+        b.rider ? [b.rider.firstName, b.rider.lastName].filter(Boolean).join(' ') : '',
+        b.driver ? [b.driver.firstName, b.driver.lastName].filter(Boolean).join(' ') : '',
+        b.pickupAddress ?? '',
+        b.dropoffAddress ?? '',
+        String(b.totalFare ?? ''),
+        new Date(b.createdAt).toLocaleString(),
+      ]);
+      exportToCsv('bookings.csv', headers, rows);
+    } catch {
+      // ignore
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const activeFilters: string[] = [];
   if (statusFilter) activeFilters.push(`Status: ${statusFilter}`);
@@ -82,8 +112,12 @@ export default function BookingsPage() {
               className="pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-            <Download size={16} /> Download
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Download size={16} /> {downloading ? 'Exporting...' : 'Download'}
           </button>
         </div>
       </div>
