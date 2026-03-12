@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -60,6 +61,7 @@ fun ActiveRideScreen(
     rideId: String,
     onBack: () -> Unit,
     onRideCompleted: (driverName: String) -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
     viewModel: ActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -333,6 +335,30 @@ fun ActiveRideScreen(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // Message Driver button (visible when driver is assigned)
+                    if (ride?.driver != null && uiState.rideStatus in listOf("ACCEPTED", "DRIVER_ARRIVED", "STARTED")) {
+                        OutlinedButton(
+                            onClick = {
+                                val driverName = ride.driver?.driverProfile?.vehicle?.let {
+                                    "${it.make} ${it.model}"
+                                } ?: "Driver"
+                                onNavigateToChat(rideId, driverName)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Message Driver")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
                     // Share Ride button (visible when driver is assigned)
                     if (ride?.driver != null && uiState.rideStatus in listOf("ACCEPTED", "DRIVER_ARRIVED", "STARTED")) {

@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Settings
@@ -29,6 +31,8 @@ fun AppDrawer(
     phoneNumber: String?,
     onMyDocuments: () -> Unit = {},
     onMyVehicles: () -> Unit = {},
+    onSubscription: () -> Unit = {},
+    onMyEarnings: () -> Unit = {},
     onSettings: () -> Unit = {},
     onLogout: () -> Unit
 ) {
@@ -79,15 +83,31 @@ fun AppDrawer(
                 onClick = onMyVehicles,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
+
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Default.CardMembership, contentDescription = null) },
+                label = { Text("Subscription") },
+                selected = false,
+                onClick = onSubscription,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
         }
 
-        // My Documents — only for drivers
+        // My Documents + My Earnings — only for drivers
         if (userRole == "DRIVER") {
             NavigationDrawerItem(
                 icon = { Icon(Icons.Default.Description, contentDescription = null) },
                 label = { Text("My Documents") },
                 selected = false,
                 onClick = onMyDocuments,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
+                label = { Text("My Earnings") },
+                selected = false,
+                onClick = onMyEarnings,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }

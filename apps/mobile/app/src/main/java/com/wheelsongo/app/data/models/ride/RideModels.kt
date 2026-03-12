@@ -30,6 +30,7 @@ data class RideEstimateResponse(
     @Json(name = "surgePricing") val surgePricing: Int,
     @Json(name = "surgeMultiplier") val surgeMultiplier: Double,
     @Json(name = "promoDiscount") val promoDiscount: Int,
+    @Json(name = "subscriptionDiscount") val subscriptionDiscount: Int = 0,
     @Json(name = "estimatedFare") val estimatedFare: Int,
     @Json(name = "currency") val currency: String,
     @Json(name = "costPerKm") val costPerKm: Int,
@@ -151,4 +152,13 @@ data class UpdateRideStatusRequest(
 @JsonClass(generateAdapter = true)
 data class CancelRideRequest(
     @Json(name = "reason") val reason: String? = null
+)
+
+// ==========================================
+// Confirm Cash Payment
+// ==========================================
+
+@JsonClass(generateAdapter = true)
+data class ConfirmCashPaymentResponse(
+    @Json(name = "success") val success: Boolean
 )

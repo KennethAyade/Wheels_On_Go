@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.constants';
 import { LocationService } from '../location/location.service';
+import { PaymentService } from '../payment/payment.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { RideStatus, RideType, SosIncidentType, UserRole } from '@prisma/client';
 import {
   CreateRideDto,
@@ -47,6 +49,8 @@ export class RideService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly locationService: LocationService,
+    private readonly paymentService: PaymentService,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   /**
@@ -188,6 +192,7 @@ export class RideService {
    */
   async calculateEstimate(
     dto: RideEstimateRequestDto,
+    userId?: string,
   ): Promise<RideEstimateResponseDto> {
     // Get distance from Google Distance Matrix (or Haversine fallback)
     const distanceResult = await this.locationService.getDistanceMatrix({
@@ -223,9 +228,19 @@ export class RideService {
       );
     }
 
+    // Calculate subscription discount
+    let subscriptionDiscount = 0;
+    if (userId) {
+      const discountPct = await this.subscriptionService.getSubscriptionDiscount(userId);
+      if (discountPct > 0) {
+        const subtotal = PRICING_CONFIG.baseFare + distanceFare + timeFare + surgePricing - promoDiscount;
+        subscriptionDiscount = subtotal * (discountPct / 100);
+      }
+    }
+
     // Calculate total
     let estimatedFare =
-      PRICING_CONFIG.baseFare + distanceFare + timeFare + surgePricing - promoDiscount;
+      PRICING_CONFIG.baseFare + distanceFare + timeFare + surgePricing - promoDiscount - subscriptionDiscount;
 
     // Apply minimum fare
     estimatedFare = Math.max(estimatedFare, PRICING_CONFIG.minimumFare);
@@ -246,6 +261,7 @@ export class RideService {
       surgePricing: Math.round(surgePricing),
       surgeMultiplier,
       promoDiscount: Math.round(promoDiscount),
+      subscriptionDiscount: Math.round(subscriptionDiscount),
       estimatedFare,
       currency: PRICING_CONFIG.currency,
       costPerKm: PRICING_CONFIG.costPerKm,
@@ -469,6 +485,13 @@ export class RideService {
       rideId,
       { previousStatus: ride.status, newStatus: dto.status },
     );
+
+    // Process payment after ride completion
+    if (dto.status === RideStatus.COMPLETED) {
+      this.paymentService.processPayment(rideId).catch((err) => {
+        this.logger.error(`Payment processing failed for ride ${rideId}: ${err.message}`);
+      });
+    }
 
     return this.mapRideToResponse(updatedRide);
   }

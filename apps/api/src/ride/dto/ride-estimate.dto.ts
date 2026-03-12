@@ -61,6 +61,7 @@ export class RideEstimateResponseDto {
   surgePricing: number; // Surge multiplier amount
   surgeMultiplier: number;
   promoDiscount: number;
+  subscriptionDiscount: number;
 
   // Total
   estimatedFare: number;

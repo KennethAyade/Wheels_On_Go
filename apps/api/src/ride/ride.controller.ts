@@ -89,9 +89,10 @@ export class RideController {
    */
   @Post('estimate')
   async getRideEstimate(
+    @CurrentUser() user: JwtUser,
     @Body() dto: RideEstimateRequestDto,
   ): Promise<RideEstimateResponseDto> {
-    return this.rideService.calculateEstimate(dto);
+    return this.rideService.calculateEstimate(dto, user.sub);
   }
 
   /**

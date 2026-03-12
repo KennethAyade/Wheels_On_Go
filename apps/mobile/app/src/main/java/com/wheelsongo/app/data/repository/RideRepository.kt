@@ -149,6 +149,22 @@ class RideRepository(
     }
 
     /**
+     * Confirm cash payment received (driver only)
+     */
+    suspend fun confirmCashPayment(rideId: String): Result<Boolean> {
+        return try {
+            val response = rideApi.confirmCashPayment(rideId)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.success)
+            } else {
+                Result.failure(Exception(parseErrorMessage(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Cancel a ride
      */
     suspend fun cancelRide(rideId: String, reason: String? = null): Result<RideResponse> {

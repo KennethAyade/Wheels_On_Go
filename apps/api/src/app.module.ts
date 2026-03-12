@@ -19,6 +19,10 @@ import { RiderVehicleModule } from './rider-vehicle/rider-vehicle.module';
 import { RatingModule } from './rating/rating.module';
 import { AdminModule } from './admin/admin.module';
 import { FatigueModule } from './fatigue/fatigue.module';
+import { PaymentModule } from './payment/payment.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { EarningsModule } from './earnings/earnings.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -48,6 +52,10 @@ import { FatigueModule } from './fatigue/fatigue.module';
     RatingModule,
     AdminModule,
     FatigueModule,
+    PaymentModule,
+    SubscriptionModule,
+    EarningsModule,
+    ChatModule,
   ],
   providers: [
     Reflector,

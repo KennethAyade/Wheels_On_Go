@@ -65,6 +65,7 @@ fun DriverActiveRideScreen(
     riderName: String = "",
     onBack: () -> Unit,
     onNavigateToCompletion: (rideId: String, riderName: String) -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
     viewModel: DriverActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -304,13 +305,9 @@ fun DriverActiveRideScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Message button stub
+                        // Message button
                         OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Chat feature coming soon")
-                                }
-                            },
+                            onClick = { onNavigateToChat(rideId, uiState.riderName) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         ) {

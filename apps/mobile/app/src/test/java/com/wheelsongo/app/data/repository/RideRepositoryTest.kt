@@ -1,5 +1,6 @@
 package com.wheelsongo.app.data.repository
 
+import com.wheelsongo.app.data.models.ride.ConfirmCashPaymentResponse
 import com.wheelsongo.app.data.models.ride.CreateRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideResponse
 import com.wheelsongo.app.data.models.ride.RideEstimateResponse
@@ -178,6 +179,29 @@ class RideRepositoryTest {
         )
 
         val result = repository.cancelRide("ride-1")
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `confirmCashPayment returns success`() = runTest {
+        coEvery { rideApi.confirmCashPayment("ride-1") } returns Response.success(
+            ConfirmCashPaymentResponse(success = true)
+        )
+
+        val result = repository.confirmCashPayment("ride-1")
+
+        assertTrue(result.isSuccess)
+        assertEquals(true, result.getOrNull())
+    }
+
+    @Test
+    fun `confirmCashPayment returns failure on error`() = runTest {
+        coEvery { rideApi.confirmCashPayment("ride-1") } returns Response.error(
+            400, "Not a cash ride".toResponseBody("application/json".toMediaType())
+        )
+
+        val result = repository.confirmCashPayment("ride-1")
 
         assertTrue(result.isFailure)
     }

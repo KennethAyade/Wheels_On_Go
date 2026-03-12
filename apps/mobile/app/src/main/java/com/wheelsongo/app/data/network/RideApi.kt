@@ -1,6 +1,7 @@
 package com.wheelsongo.app.data.network
 
 import com.wheelsongo.app.data.models.ride.CancelRideRequest
+import com.wheelsongo.app.data.models.ride.ConfirmCashPaymentResponse
 import com.wheelsongo.app.data.models.ride.CreateRideRequest
 import com.wheelsongo.app.data.models.ride.CreateRideResponse
 import com.wheelsongo.app.data.models.ride.SosResponse
@@ -79,4 +80,13 @@ interface RideApi {
         @Path("id") rideId: String,
         @Body request: TriggerSosRequest
     ): Response<SosResponse>
+
+    /**
+     * Confirm cash payment received (driver only)
+     * POST /rides/{id}/confirm-cash-payment
+     */
+    @POST("rides/{id}/confirm-cash-payment")
+    suspend fun confirmCashPayment(
+        @Path("id") rideId: String
+    ): Response<ConfirmCashPaymentResponse>
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheelsongo.app.data.models.rating.CreateRatingRequest
 import com.wheelsongo.app.data.repository.RatingRepository
+import com.wheelsongo.app.data.repository.RideRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,9 @@ import kotlinx.coroutines.launch
 data class RideCompletionUiState(
     val rideId: String = "",
     val driverName: String = "",
+    val totalFare: Double? = null,
+    val paymentMethod: String = "",
+    val paymentStatus: String = "",
     val overallRating: Int = 0,
     val punctualityRating: Int = 0,
     val safetyRating: Int = 0,
@@ -25,7 +29,8 @@ data class RideCompletionUiState(
 )
 
 class RideCompletionViewModel(
-    private val ratingRepository: RatingRepository = RatingRepository()
+    private val ratingRepository: RatingRepository = RatingRepository(),
+    private val rideRepository: RideRepository = RideRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RideCompletionUiState())
@@ -33,6 +38,18 @@ class RideCompletionViewModel(
 
     fun initialize(rideId: String, driverName: String) {
         _uiState.update { it.copy(rideId = rideId, driverName = driverName) }
+        // Fetch ride details for fare/payment info
+        viewModelScope.launch {
+            rideRepository.getRideById(rideId).onSuccess { ride ->
+                _uiState.update {
+                    it.copy(
+                        totalFare = ride.estimatedFare,
+                        paymentMethod = ride.paymentMethod,
+                        paymentStatus = ride.paymentStatus ?: "PENDING"
+                    )
+                }
+            }
+        }
     }
 
     fun setOverallRating(rating: Int) {

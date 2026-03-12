@@ -275,6 +275,25 @@ export interface AdminRating {
   ride: { id: string; pickupAddress: string; dropoffAddress: string };
 }
 
+// Transaction types
+export interface Transaction {
+  id: string;
+  type: string;
+  amount: number;
+  status: string;
+  paymentMethod: string;
+  paymentReference: string | null;
+  grossAmount: number | null;
+  commissionAmount: number | null;
+  commissionRate: number | null;
+  netAmount: number | null;
+  processedAt: string | null;
+  createdAt: string;
+  rider: { id: string; firstName: string | null; lastName: string | null } | null;
+  driver: { id: string; firstName: string | null; lastName: string | null } | null;
+  ride: { id: string; pickupAddress: string; dropoffAddress: string } | null;
+}
+
 export interface AdminRatingsResponse {
   aggregates: {
     averageRating: number | null;

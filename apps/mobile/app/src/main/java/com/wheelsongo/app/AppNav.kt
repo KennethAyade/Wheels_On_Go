@@ -45,6 +45,9 @@ import com.wheelsongo.app.ui.screens.ride.RideCompletionScreen
 import com.wheelsongo.app.ui.screens.vehicle.VehicleRegistrationScreen
 import com.wheelsongo.app.ui.screens.fatigue.FaceEnrollmentScreen
 import com.wheelsongo.app.ui.screens.fatigue.FatigueCheckScreen
+import com.wheelsongo.app.ui.screens.subscription.SubscriptionScreen
+import com.wheelsongo.app.ui.screens.earnings.DriverEarningsScreen
+import com.wheelsongo.app.ui.screens.chat.RideChatScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -347,6 +350,48 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         }
 
         // ==========================================
+        // Subscription Screen (Rider)
+        // ==========================================
+        composable(Route.Subscription.value) {
+            SubscriptionScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
+        // Driver Earnings Screen
+        // ==========================================
+        composable(Route.DriverEarnings.value) {
+            DriverEarningsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
+        // Ride Chat Screen
+        // ==========================================
+        composable(
+            route = Route.RideChat.value,
+            arguments = listOf(
+                navArgument(Route.RideChat.ARG_RIDE_ID) { type = NavType.StringType },
+                navArgument(Route.RideChat.ARG_OTHER_NAME) {
+                    type = NavType.StringType
+                    defaultValue = "Chat"
+                    nullable = true
+                }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.RideChat.ARG_RIDE_ID) ?: ""
+            val otherName = backStackEntry.arguments?.getString(Route.RideChat.ARG_OTHER_NAME) ?: "Chat"
+
+            RideChatScreen(
+                rideId = rideId,
+                otherName = otherName,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
         // Home Screen (Role-Conditional: Rider vs Driver)
         // ==========================================
         composable(Route.Home.value) {
@@ -371,6 +416,14 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     onMyVehicles = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.VehicleList.value)
+                    },
+                    onSubscription = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.Subscription.value)
+                    },
+                    onMyEarnings = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.DriverEarnings.value)
                     },
                     onSettings = {
                         scope.launch { drawerState.close() }
@@ -546,6 +599,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     navController.navigate(Route.RideCompletion.createRoute(rideId, driverName)) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
+                },
+                onNavigateToChat = { chatRideId, otherName ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
                 }
             )
         }
@@ -603,6 +659,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     ) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
+                },
+                onNavigateToChat = { chatRideId, otherName ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
                 }
             )
         }
@@ -651,6 +710,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     navController.navigate(Route.Home.value) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onNavigateToChat = { chatRideId, otherName ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
                 }
             )
         }

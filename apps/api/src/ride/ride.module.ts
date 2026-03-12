@@ -5,6 +5,8 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { LocationModule } from '../location/location.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
+import { PaymentModule } from '../payment/payment.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 /**
  * Ride module for managing ride requests
@@ -15,7 +17,7 @@ import { DispatchModule } from '../dispatch/dispatch.module';
  * - Auto-dispatch for INSTANT rides
  */
 @Module({
-  imports: [PrismaModule, AuditModule, LocationModule, DispatchModule],
+  imports: [PrismaModule, AuditModule, LocationModule, DispatchModule, PaymentModule, SubscriptionModule],
   controllers: [RideController],
   providers: [RideService],
   exports: [RideService],

@@ -173,6 +173,14 @@ object ApiClient {
     val fatigueApi: FatigueApi by lazy {
         retrofit.create(FatigueApi::class.java)
     }
+
+    val subscriptionApi: SubscriptionApi by lazy {
+        retrofit.create(SubscriptionApi::class.java)
+    }
+
+    val earningsApi: EarningsApi by lazy {
+        retrofit.create(EarningsApi::class.java)
+    }
 }
 
 /**

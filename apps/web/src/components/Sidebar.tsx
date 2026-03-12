@@ -15,7 +15,7 @@ import {
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, enabled: true },
   { to: '/bookings', label: 'Bookings', icon: BookOpen, enabled: true },
-  { to: '#', label: 'Payments', icon: CreditCard, enabled: false },
+  { to: '/payments', label: 'Payments', icon: CreditCard, enabled: true },
   { to: '/drivers', label: 'Drivers', icon: Car, enabled: true },
   { to: '/customers', label: 'Customers', icon: Users, enabled: true },
   { to: '/analytics', label: 'Analytics', icon: BarChart2, enabled: true },

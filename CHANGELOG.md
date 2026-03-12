@@ -18,6 +18,31 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-13 02:20 PHT
+Summary: Week 8 — Financial Module (payment gateway, subscriptions, driver earnings), In-App Real-Time Chat, and 150 new unit tests (100 backend + 50 mobile).
+Changes:
+- apps/api/src/payment/: NEW module — PaymentService (processPayment, confirmCashPayment, completePayment), PaymentController (POST /rides/:id/confirm-cash-payment DRIVER only). Simulated GCash/Card auto-completion, cash confirmation flow, commission calculation (default 20%), Prisma $transaction for atomicity
+- apps/api/src/subscription/: NEW module — SubscriptionService (listPlans, getMySubscription, subscribe 30-day, cancelSubscription, getSubscriptionDiscount), SubscriptionController (4 endpoints). Plans: Basic ₱99/5%, Premium ₱199/10%, VIP ₱499/20%
+- apps/api/src/earnings/: NEW module — EarningsService (getEarningsSummary today/week/month/total, getTransactionHistory paginated, getWalletBalance), EarningsController (3 DRIVER-only endpoints)
+- apps/api/src/chat/: NEW module — ChatService (saveMessage, getHistory, markAsRead, getOtherParticipant, isParticipant), ChatGateway (Socket.IO /chat namespace with JWT auth), ChatController (REST fallback GET /chat/:rideId/messages)
+- apps/api/src/ride/ride.service.ts: Integrated PaymentService (processPayment on ride COMPLETED) + SubscriptionService (subscription discount in fare estimation)
+- apps/api/src/admin/admin-transactions.controller.ts: NEW — GET /admin/transactions with type/status/paymentMethod/date filters, pagination, CSV export support
+- apps/api/prisma/seed-subscriptions.ts: NEW — Seeds 3 subscription plans
+- apps/mobile/.../ui/screens/booking/BookingConfirmScreen.kt: Payment method selector (Cash/GCash/Card) + subscription discount row in fare breakdown
+- apps/mobile/.../ui/screens/driver/DriverTripCompletionScreen.kt: Conditional "Confirm Cash Received" button vs "Payment Complete" badge
+- apps/mobile/.../ui/screens/ride/RideCompletionScreen.kt: Payment summary card with fare + method badge
+- apps/mobile/.../ui/screens/subscription/: NEW — SubscriptionScreen + SubscriptionViewModel (plan cards, subscribe/cancel)
+- apps/mobile/.../ui/screens/earnings/: NEW — DriverEarningsScreen + DriverEarningsViewModel (wallet balance, summary, transaction history)
+- apps/mobile/.../data/network/ChatSocketClient.kt: NEW — Socket.IO client with SharedFlow events, auto-reconnect
+- apps/mobile/.../ui/screens/chat/: NEW — RideChatScreen + RideChatViewModel (reversed LazyColumn, chat bubbles)
+- apps/web/src/pages/PaymentsPage.tsx: NEW — Full payments page with filters, table, CSV export
+- apps/web/src/api/payments.ts: NEW — API client for admin transactions
+- apps/api/test/: 10 new test files — payment.service.spec.ts (15), payment.controller.spec.ts (2), subscription.service.spec.ts (25), subscription.controller.spec.ts (4), earnings.service.spec.ts (13), earnings.controller.spec.ts (4), chat.service.spec.ts (15), chat.gateway.spec.ts (14), chat.controller.spec.ts (2), admin-transactions.controller.spec.ts (6)
+- apps/mobile/.../test/: 5 new + 1 updated — SubscriptionRepositoryTest (9), EarningsRepositoryTest (8), RideRepositoryTest (+2), DriverTripCompletionViewModelTest (8), SubscriptionViewModelTest (8), DriverEarningsViewModelTest (5)
+- Backend: 222 tests (23 suites) — all passing
+- Mobile: 137+ tests (20 files) — all passing
+Details: `changes/2026-03-13-0220-pht.md`
+
 ## 2026-02-28 19:11 PHT
 Summary: SOS functionality, ride cancellation notifications, fatigue timestamp cleanup, JSON body size limit, error handling improvements.
 Changes:

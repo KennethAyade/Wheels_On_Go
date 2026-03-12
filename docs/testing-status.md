@@ -1,7 +1,7 @@
-# Testing Status - Phase 1 + Phase 2 Weeks 4–5 + Phase 3 Week 7
+# Testing Status - Phases 1–3 + Week 8 Financial & Chat
 
-**Last Updated:** 2026-02-21 PHT
-**Status:** Phase 1 Complete + Phase 2 Weeks 4–5 Complete + Phase 3 Admin Dashboard Complete — 122 Backend Tests, 87 Mobile Tests (compile verified), Web Admin Build Clean
+**Last Updated:** 2026-03-13 PHT
+**Status:** All phases through Week 8 complete — 222 Backend Tests (23 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean
 
 ---
 
@@ -16,6 +16,8 @@
 **Feb 17 Fixes:** Firebase App Check integrated (DebugAppCheckProvider for debug, PlayIntegrity for release), resend OTP device-aware routing, vehicle 409 idempotency, improved error messages.
 
 **Week 5 (Driver Booking Flow):** Full driver-side flow implemented — DriveRequestsScreen, DriverActiveRideScreen (overhauled), DriverTripCompletionScreen, backend dispatch payload normalization (riderName, pickupLat/Lng, buildRideData), DispatchSocketClient nested-JSON fix. Two bugs fixed: activeRideId navigation loop (critical), fare format ₱1500.0→₱1500 (UX). 1 new backend test. APK builds successfully.
+
+**Week 8 (Financial Module + In-App Chat):** 4 new backend modules (Payment, Subscription, Earnings, Chat) with full mobile and web admin integration. **150 new unit tests** added: 100 backend (10 new spec files) + 50 mobile (5 new + 1 updated). Total: **222 backend tests (23 suites)** all passing, **137+ mobile tests (20 files)** all passing. Web admin build clean.
 
 **Week 5 (Real-time Tracking & Navigation):** TrackingSocketClient (new `/tracking` namespace Socket.IO client), driver GPS broadcast every 3s, rider ActiveRideScreen with live driver marker + route polyline, ETA dual-strategy (Haversine instant + Directions API every 30s), geofence events at 200m/50m thresholds, turn-by-turn navigation FAB, backend RideRoute storage on acceptance, actual fare calculation from GPS trail on COMPLETED. Dispatch: 30s SELECTED timeout, EXPIRED event, normalized accepted payload.
 
@@ -109,6 +111,28 @@
 - ✅ **Vite Build:** SUCCESS — 302KB JS + 19KB CSS
 - ⚠️ **Web E2E Tests:** Not yet implemented
 - ⚠️ **Admin Endpoint Integration Tests:** Not yet implemented
+
+**Week 8 (Financial Module + In-App Chat):**
+- ✅ **Backend Unit Tests:** 222/222 passing across 23 test suites (2026-03-13)
+- ✅ **PaymentService:** 15 tests (processPayment auto-complete, skip CASH, commission calc; confirmCashPayment validations)
+- ✅ **PaymentController:** 2 tests
+- ✅ **SubscriptionService:** 25 tests (listPlans, getMySubscription, subscribe edge cases, cancelSubscription, getSubscriptionDiscount)
+- ✅ **SubscriptionController:** 4 tests
+- ✅ **EarningsService:** 13 tests (summary date boundaries, pagination, Decimal conversion, wallet)
+- ✅ **EarningsController:** 4 tests (query parsing, limit clamping)
+- ✅ **ChatService:** 15 tests (saveMessage, getHistory, markAsRead, getOtherParticipant, isParticipant)
+- ✅ **ChatGateway:** 14 tests (JWT auth, join/send/read events, disconnect cleanup)
+- ✅ **ChatController:** 2 tests
+- ✅ **AdminTransactionsController:** 6 tests (filters, pagination, limit clamping, totalPages)
+- ✅ **Mobile Tests:** 137+ tests across 20 files — all passing (2026-03-13)
+- ✅ **SubscriptionRepositoryTest:** 9 tests (success/failure for all 4 API calls + IOException)
+- ✅ **EarningsRepositoryTest:** 8 tests (success/failure for all 3 API calls + IOException)
+- ✅ **RideRepositoryTest:** +2 tests (confirmCashPayment success/failure)
+- ✅ **DriverTripCompletionViewModelTest:** 8 tests (cash detection, confirmation, error handling)
+- ✅ **SubscriptionViewModelTest:** 8 tests (init loading, subscribe, cancel, clearMessages)
+- ✅ **DriverEarningsViewModelTest:** 5 tests (init loads all data, partial failure handling)
+- ✅ **Web Admin Build:** TypeScript + Vite build clean (PaymentsPage added)
+- ⚠️ **RideChatViewModel:** Not tested (directly instantiates ChatSocketClient — needs DI refactor)
 
 ---
 

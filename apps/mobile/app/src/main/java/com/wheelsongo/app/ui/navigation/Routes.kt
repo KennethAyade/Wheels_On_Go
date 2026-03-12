@@ -136,6 +136,11 @@ sealed class Route(val value: String) {
      */
     data object DriverDashboard : Route("driver/dashboard")
 
+    /**
+     * Driver earnings screen
+     */
+    data object DriverEarnings : Route("driver/earnings")
+
     // ==========================================
     // Booking & Rides
     // ==========================================
@@ -258,6 +263,34 @@ sealed class Route(val value: String) {
             return "ride_completion/$rideId/$encName"
         }
     }
+
+    // ==========================================
+    // Chat
+    // ==========================================
+
+    /**
+     * Ride chat screen — in-app messaging between rider and driver
+     * @param rideId The ride ID
+     * @param otherName Display name of the other participant (URL-encoded)
+     */
+    data object RideChat : Route("ride_chat/{rideId}?otherName={otherName}") {
+        const val ARG_RIDE_ID = "rideId"
+        const val ARG_OTHER_NAME = "otherName"
+
+        fun createRoute(rideId: String, otherName: String = ""): String {
+            val encName = URLEncoder.encode(otherName.ifEmpty { "Chat" }, StandardCharsets.UTF_8.toString())
+            return "ride_chat/$rideId?otherName=$encName"
+        }
+    }
+
+    // ==========================================
+    // Subscription
+    // ==========================================
+
+    /**
+     * Subscription plans screen (rider only)
+     */
+    data object Subscription : Route("subscription")
 
     // ==========================================
     // Settings

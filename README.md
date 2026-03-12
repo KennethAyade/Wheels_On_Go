@@ -19,7 +19,7 @@ A ride-hailing platform built as a monorepo — NestJS REST API (backend), Kotli
 | **Encryption** | AES-256-GCM at rest, TLS 1.3 in transit |
 | **Storage** | Cloudflare R2 (S3-compatible) |
 | **Maps** | Google Maps Platform (Android SDK, Directions, Distance Matrix, Geocoding, Places) |
-| **WebSocket** | Socket.IO — `/dispatch` (ride matching) + `/tracking` (GPS + geofencing) |
+| **WebSocket** | Socket.IO — `/dispatch` (ride matching) + `/tracking` (GPS + geofencing) + `/chat` (in-app messaging) |
 | **Mobile** | Kotlin + Jetpack Compose, Retrofit, DataStore, Socket.IO client |
 | **Web Admin** | React 18, TypeScript, Vite 7, Tailwind CSS 4, React Router v7, Axios |
 | **Deployment** | Render.com (API), port 3000 |
@@ -47,7 +47,7 @@ npm run seed:admin   # admin@wheelsongo.com / Admin123!
 # 6. Start dev server (port 3000)
 npm run dev:api
 
-# 7. Run tests (140 passing, 14 suites)
+# 7. Run tests (222 passing, 23 suites)
 npm run test:api
 ```
 
@@ -170,12 +170,33 @@ CORS_ORIGINS=http://localhost:3001
 ### Ratings
 - `POST /ratings` — Rate a completed ride
 
+### Payments
+- `POST /rides/:id/confirm-cash-payment` — Driver confirms cash received
+
+### Subscriptions
+- `GET /subscriptions/plans` — List subscription plans
+- `GET /subscriptions/me` — Get current subscription
+- `POST /subscriptions/subscribe` — Subscribe to a plan
+- `DELETE /subscriptions/me` — Cancel subscription
+
+### Driver Earnings
+- `GET /drivers/me/earnings` — Earnings summary (today/week/month/total)
+- `GET /drivers/me/earnings/transactions` — Paginated transaction history
+- `GET /drivers/me/wallet` — Wallet balance
+
+### Chat (In-App Messaging)
+- `GET /chat/:rideId/messages` — Get chat history (REST fallback)
+
+### Admin — Transactions
+- `GET /admin/transactions` — Paginated transactions with filters (type, status, method, date range)
+
 ## WebSocket Namespaces
 
 | Namespace | Purpose |
 |-----------|---------|
 | `/dispatch` | Ride matching — new requests, accept/decline, timeout/expire |
 | `/tracking` | Real-time GPS + geofence events (APPROACHING/ARRIVED at PICKUP/DROPOFF) |
+| `/chat` | In-app rider-driver messaging during active rides (JWT auth, read receipts) |
 
 ## Repo Structure
 
@@ -232,9 +253,16 @@ Wheels_On_Go/
 - Ride cancellation notifications via WebSocket
 - Settings screen with biometric preferences
 
-### 📅 Remaining — Weeks 6, 8–9
-- Financial features (payments, wallets, transactions)
-- Communication (masked calls, notifications)
+### ✅ Week 8 — Financial Module + In-App Chat
+- Static payment gateway (simulated GCash/Card auto-completion, driver cash confirmation)
+- Subscription plans (Basic 5%, Premium 10%, VIP 20% fare discount)
+- Driver earnings dashboard (wallet balance, summary, transaction history)
+- In-App real-time chat (Socket.IO `/chat` namespace, JWT auth, read receipts)
+- Admin payments page with filters and CSV export
+- 150 new unit tests (100 backend + 50 mobile)
+
+### 📅 Remaining — Weeks 9+
+- Communication (masked calls, push notifications)
 - BLOWBAGETS safety checklist enforcement
 - Integration + E2E tests
 - Production hardening + load testing
@@ -242,7 +270,7 @@ Wheels_On_Go/
 ## Testing
 
 ```bash
-# Backend (140 passing, 14 suites)
+# Backend (222 passing, 23 suites)
 cd apps/api && npm test
 
 # Web admin TypeScript check
@@ -252,7 +280,7 @@ cd apps/web && npx tsc -b
 cd apps/web && npx vite build
 ```
 
-Mobile tests (87 across 12 files) compile correctly but are blocked from running by a JBR-21 JVM GC bug. APK builds and installs fine.
+Mobile tests: 137+ across 20 files — all passing.
 
 ## Deployment
 

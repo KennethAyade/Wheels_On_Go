@@ -15,7 +15,10 @@ data class DriverTripCompletionUiState(
     val ride: RideResponse? = null,
     val riderName: String = "",
     val isLoading: Boolean = true,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isCashPayment: Boolean = false,
+    val isCashConfirmed: Boolean = false,
+    val isConfirmingCash: Boolean = false
 )
 
 class DriverTripCompletionViewModel(
@@ -30,7 +33,16 @@ class DriverTripCompletionViewModel(
         viewModelScope.launch {
             rideRepository.getRideById(rideId)
                 .onSuccess { ride ->
-                    _uiState.update { it.copy(ride = ride, isLoading = false) }
+                    val isCash = ride.paymentMethod.equals("CASH", ignoreCase = true)
+                    val isAlreadyPaid = ride.paymentStatus?.equals("COMPLETED", ignoreCase = true) == true
+                    _uiState.update {
+                        it.copy(
+                            ride = ride,
+                            isLoading = false,
+                            isCashPayment = isCash,
+                            isCashConfirmed = isCash && isAlreadyPaid
+                        )
+                    }
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -38,5 +50,30 @@ class DriverTripCompletionViewModel(
                     }
                 }
         }
+    }
+
+    fun confirmCashPayment() {
+        val rideId = _uiState.value.rideId
+        if (rideId.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isConfirmingCash = true, errorMessage = null) }
+            rideRepository.confirmCashPayment(rideId)
+                .onSuccess {
+                    _uiState.update { it.copy(isConfirmingCash = false, isCashConfirmed = true) }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isConfirmingCash = false,
+                            errorMessage = error.message ?: "Failed to confirm cash payment"
+                        )
+                    }
+                }
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }

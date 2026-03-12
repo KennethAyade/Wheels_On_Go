@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,6 +53,7 @@ fun DriverTripCompletionScreen(
     rideId: String,
     riderName: String = "",
     onGoHome: () -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
     viewModel: DriverTripCompletionViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -222,9 +224,7 @@ fun DriverTripCompletionScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedButton(
-                    onClick = {
-                        snackbarMessage.value = "Chat feature coming soon"
-                    },
+                    onClick = { onNavigateToChat(rideId, uiState.riderName) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -259,6 +259,75 @@ fun DriverTripCompletionScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Payment status / Cash confirmation
+                if (uiState.isCashPayment && !uiState.isCashConfirmed) {
+                    // Cash payment pending - show confirm button
+                    Button(
+                        onClick = { viewModel.confirmCashPayment() },
+                        enabled = !uiState.isConfirmingCash,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                    ) {
+                        if (uiState.isConfirmingCash) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Confirming...", color = Color.White)
+                        } else {
+                            Text(
+                                text = "Confirm Cash Received",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else {
+                    // Payment confirmed badge (cash confirmed or digital auto-complete)
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.isCashPayment) "Cash Received" else "Payment Complete",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+                    }
+                }
+
+                // Error message
+                uiState.errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
 
@@ -315,7 +384,7 @@ private fun String.initials(): String {
 
 private fun paymentLabel(method: String): String = when (method.uppercase()) {
     "GCASH" -> "GCash"
-    "CARD" -> "Card"
+    "CREDIT_CARD", "CARD" -> "Card"
     else -> "Cash"
 }
 
