@@ -40,6 +40,7 @@ data class ActiveRideUiState(
     val isCancelling: Boolean = false,
     val errorMessage: String? = null,
     val isCompleted: Boolean = false,
+    val isCancelled: Boolean = false,
     // Map & tracking
     val driverLocation: LocationData? = null,
     val pickupLocation: LocationData? = null,
@@ -125,8 +126,10 @@ class ActiveRideViewModel @JvmOverloads constructor(
                     }
                     is DispatchEvent.RideStatusChanged -> {
                         _uiState.update { it.copy(rideStatus = event.status) }
-                        if (event.status == "COMPLETED" || event.status.startsWith("CANCELLED") || event.status == "EXPIRED") {
+                        if (event.status == "COMPLETED") {
                             _uiState.update { it.copy(isCompleted = true) }
+                        } else if (event.status.startsWith("CANCELLED") || event.status == "EXPIRED") {
+                            _uiState.update { it.copy(isCancelled = true) }
                         }
                         fetchRide(_uiState.value.rideId)
                     }
@@ -195,7 +198,8 @@ class ActiveRideViewModel @JvmOverloads constructor(
                             rideStatus = ride.status,
                             pickupLocation = pickup,
                             dropoffLocation = dropoff,
-                            isCompleted = ride.status == "COMPLETED" || ride.status.startsWith("CANCELLED") || ride.status == "EXPIRED"
+                            isCompleted = ride.status == "COMPLETED",
+                            isCancelled = ride.status.startsWith("CANCELLED") || ride.status == "EXPIRED"
                         )
                     }
 
@@ -296,7 +300,7 @@ class ActiveRideViewModel @JvmOverloads constructor(
                         it.copy(
                             isCancelling = false,
                             rideStatus = "CANCELLED_BY_RIDER",
-                            isCompleted = true
+                            isCancelled = true
                         )
                     }
                 },

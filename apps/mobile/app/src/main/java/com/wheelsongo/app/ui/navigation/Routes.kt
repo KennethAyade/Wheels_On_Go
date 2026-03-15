@@ -214,26 +214,28 @@ sealed class Route(val value: String) {
     // Driver Selection & Rating
     // ==========================================
 
-    data object DriverList : Route("driver_list/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}") {
+    data object DriverList : Route("driver_list/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}/{paymentMethod}") {
         const val ARG_PICKUP_LAT = "pickupLat"
         const val ARG_PICKUP_LNG = "pickupLng"
         const val ARG_DROPOFF_LAT = "dropoffLat"
         const val ARG_DROPOFF_LNG = "dropoffLng"
         const val ARG_PICKUP_ADDRESS = "pickupAddress"
         const val ARG_DROPOFF_ADDRESS = "dropoffAddress"
+        const val ARG_PAYMENT_METHOD = "paymentMethod"
 
         fun createRoute(
             pickupLat: Double, pickupLng: Double,
             dropoffLat: Double, dropoffLng: Double,
-            pickupAddress: String, dropoffAddress: String
+            pickupAddress: String, dropoffAddress: String,
+            paymentMethod: String = "CASH"
         ): String {
             val encPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
             val encDropoff = URLEncoder.encode(dropoffAddress, StandardCharsets.UTF_8.toString())
-            return "driver_list/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff"
+            return "driver_list/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff/$paymentMethod"
         }
     }
 
-    data object DriverProfile : Route("driver_profile/{driverProfileId}/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}") {
+    data object DriverProfile : Route("driver_profile/{driverProfileId}/{pickupLat}/{pickupLng}/{dropoffLat}/{dropoffLng}/{pickupAddress}/{dropoffAddress}/{paymentMethod}") {
         const val ARG_DRIVER_PROFILE_ID = "driverProfileId"
         const val ARG_PICKUP_LAT = "pickupLat"
         const val ARG_PICKUP_LNG = "pickupLng"
@@ -241,16 +243,18 @@ sealed class Route(val value: String) {
         const val ARG_DROPOFF_LNG = "dropoffLng"
         const val ARG_PICKUP_ADDRESS = "pickupAddress"
         const val ARG_DROPOFF_ADDRESS = "dropoffAddress"
+        const val ARG_PAYMENT_METHOD = "paymentMethod"
 
         fun createRoute(
             driverProfileId: String,
             pickupLat: Double, pickupLng: Double,
             dropoffLat: Double, dropoffLng: Double,
-            pickupAddress: String, dropoffAddress: String
+            pickupAddress: String, dropoffAddress: String,
+            paymentMethod: String = "CASH"
         ): String {
             val encPickup = URLEncoder.encode(pickupAddress, StandardCharsets.UTF_8.toString())
             val encDropoff = URLEncoder.encode(dropoffAddress, StandardCharsets.UTF_8.toString())
-            return "driver_profile/$driverProfileId/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff"
+            return "driver_profile/$driverProfileId/$pickupLat/$pickupLng/$dropoffLat/$dropoffLng/$encPickup/$encDropoff/$paymentMethod"
         }
     }
 

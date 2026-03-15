@@ -301,8 +301,20 @@ export class DispatchService {
         `Driver ${dispatchAttempt.driverProfileId} declined ride ${dispatchAttempt.rideId}: ${declineReason}`,
       );
 
-      // Dispatch to next driver asynchronously
-      const nextDispatch = await this.dispatchRide(dispatchAttempt.rideId);
+      // Only dispatch to next driver if ride is still PENDING
+      const currentRide = await this.prisma.ride.findUnique({
+        where: { id: dispatchAttempt.rideId },
+        select: { status: true },
+      });
+
+      let nextDispatch = null;
+      if (currentRide?.status === RideStatus.PENDING) {
+        nextDispatch = await this.dispatchRide(dispatchAttempt.rideId);
+      } else {
+        this.logger.log(
+          `Ride ${dispatchAttempt.rideId} is no longer PENDING (${currentRide?.status}), skipping next dispatch`,
+        );
+      }
 
       return {
         accepted: false,

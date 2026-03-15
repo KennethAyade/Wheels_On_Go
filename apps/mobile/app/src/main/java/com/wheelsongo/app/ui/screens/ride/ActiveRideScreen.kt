@@ -74,10 +74,18 @@ fun ActiveRideScreen(
     }
 
     LaunchedEffect(uiState.isCompleted) {
-        if (uiState.isCompleted) {
+        if (uiState.isCompleted && !uiState.isCancelled) {
             kotlinx.coroutines.delay(500)
             val driverName = uiState.ride?.driver?.phoneNumber ?: "your driver"
             onRideCompleted(driverName)
+        }
+    }
+
+    // Navigate back to home when ride is cancelled
+    LaunchedEffect(uiState.isCancelled) {
+        if (uiState.isCancelled) {
+            kotlinx.coroutines.delay(1000)
+            onBack()
         }
     }
 

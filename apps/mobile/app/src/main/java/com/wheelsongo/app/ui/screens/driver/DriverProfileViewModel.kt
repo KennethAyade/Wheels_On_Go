@@ -20,6 +20,7 @@ data class DriverProfileUiState(
     val dropoffLng: Double = 0.0,
     val pickupAddress: String = "",
     val dropoffAddress: String = "",
+    val paymentMethod: String = "CASH",
     val profile: DriverPublicProfileResponse? = null,
     val isLoading: Boolean = false,
     val isBooking: Boolean = false,
@@ -39,14 +40,16 @@ class DriverProfileViewModel(
         driverProfileId: String,
         pickupLat: Double, pickupLng: Double,
         dropoffLat: Double, dropoffLng: Double,
-        pickupAddress: String, dropoffAddress: String
+        pickupAddress: String, dropoffAddress: String,
+        paymentMethod: String = "CASH"
     ) {
         _uiState.update {
             it.copy(
                 driverProfileId = driverProfileId,
                 pickupLat = pickupLat, pickupLng = pickupLng,
                 dropoffLat = dropoffLat, dropoffLng = dropoffLng,
-                pickupAddress = pickupAddress, dropoffAddress = dropoffAddress
+                pickupAddress = pickupAddress, dropoffAddress = dropoffAddress,
+                paymentMethod = paymentMethod
             )
         }
         fetchProfile()
@@ -81,7 +84,7 @@ class DriverProfileViewModel(
                     dropoffLongitude = state.dropoffLng,
                     dropoffAddress = state.dropoffAddress,
                     rideType = "INSTANT",
-                    paymentMethod = "CASH",
+                    paymentMethod = state.paymentMethod,
                     selectedDriverId = state.driverProfileId
                 )
             ).fold(

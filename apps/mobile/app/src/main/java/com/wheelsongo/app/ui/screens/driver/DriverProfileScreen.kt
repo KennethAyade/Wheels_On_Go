@@ -38,6 +38,7 @@ fun DriverProfileScreen(
     dropoffLng: Double,
     pickupAddress: String,
     dropoffAddress: String,
+    paymentMethod: String = "CASH",
     onNavigateBack: () -> Unit = {},
     onRideCreated: (rideId: String) -> Unit = {},
     viewModel: DriverProfileViewModel = viewModel()
@@ -47,7 +48,8 @@ fun DriverProfileScreen(
     LaunchedEffect(Unit) {
         viewModel.initialize(
             driverProfileId, pickupLat, pickupLng,
-            dropoffLat, dropoffLng, pickupAddress, dropoffAddress
+            dropoffLat, dropoffLng, pickupAddress, dropoffAddress,
+            paymentMethod
         )
     }
 

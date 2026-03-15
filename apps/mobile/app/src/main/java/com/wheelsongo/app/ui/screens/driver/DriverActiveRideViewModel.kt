@@ -66,19 +66,35 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
         )
         mapsApiKey = appInfo.metaData?.getString("com.google.android.geo.API_KEY") ?: ""
 
-        // Listen for ride cancellation events
+        // Listen for dispatch events (cancellation and status changes)
         viewModelScope.launch {
             dispatchSocketClient.events.collect { event ->
-                if (event is DispatchEvent.RideCancelled &&
-                    event.rideId == _uiState.value.rideId) {
-                    _uiState.update {
-                        it.copy(
-                            isCancelled = true,
-                            cancellationReason = event.reason
-                        )
+                when (event) {
+                    is DispatchEvent.RideCancelled -> {
+                        if (event.rideId == _uiState.value.rideId) {
+                            _uiState.update {
+                                it.copy(
+                                    isCancelled = true,
+                                    cancellationReason = event.reason
+                                )
+                            }
+                            locationBroadcastJob?.cancel()
+                            trackingSocketClient.disconnect()
+                        }
                     }
-                    locationBroadcastJob?.cancel()
-                    trackingSocketClient.disconnect()
+                    is DispatchEvent.RideStatusChanged -> {
+                        // Geofence or other server-side status update — sync UI phase
+                        val newPhase = statusToPhase(event.status)
+                        if (newPhase != _uiState.value.phase) {
+                            rideRepository.getRideById(_uiState.value.rideId).onSuccess { ride ->
+                                _uiState.update {
+                                    it.copy(ride = ride, phase = statusToPhase(ride.status))
+                                }
+                                fetchRouteForPhase(statusToPhase(ride.status), ride)
+                            }
+                        }
+                    }
+                    else -> { /* ignore other events */ }
                 }
             }
         }

@@ -56,7 +56,9 @@ data class DriverHomeUiState(
     val showProfileSetupPrompt: Boolean = false,
     val needsFatigueCheck: Boolean = false,
     val needsFaceEnrollment: Boolean = false,
-    val driverStatus: String = "PENDING"
+    val driverStatus: String = "PENDING",
+    val pendingGoOnline: Boolean = false,
+    val pendingGoOnlineWithNav: Boolean = false
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -161,6 +163,48 @@ class DriverHomeViewModel @JvmOverloads constructor(
 
     fun clearFaceEnrollmentFlag() {
         _uiState.update { it.copy(needsFaceEnrollment = false) }
+    }
+
+    /**
+     * Called after fatigue check passes to automatically go online
+     * without re-running the fatigue gate.
+     */
+    fun retryGoOnlineAfterFatigue() {
+        val pending = _uiState.value.pendingGoOnline
+        val pendingWithNav = _uiState.value.pendingGoOnlineWithNav
+        if (!pending && !pendingWithNav) return
+
+        _uiState.update { it.copy(pendingGoOnline = false, pendingGoOnlineWithNav = false, isTogglingStatus = true) }
+
+        viewModelScope.launch {
+            val lat = _uiState.value.currentLatitude
+            val lng = _uiState.value.currentLongitude
+
+            try {
+                val response = driverApi.updateStatus(
+                    UpdateDriverStatusRequest(
+                        isOnline = true,
+                        latitude = lat,
+                        longitude = lng
+                    )
+                )
+                if (response.isSuccessful) {
+                    _uiState.update {
+                        it.copy(
+                            isOnline = true,
+                            isTogglingStatus = false,
+                            navigateToDriveRequests = pendingWithNav
+                        )
+                    }
+                    socketClient.connect()
+                    startLocationTracking()
+                } else {
+                    _uiState.update { it.copy(isTogglingStatus = false, errorMessage = "Failed to go online") }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isTogglingStatus = false, errorMessage = e.message ?: "Failed to go online") }
+            }
+        }
     }
 
     /**
@@ -273,7 +317,10 @@ class DriverHomeViewModel @JvmOverloads constructor(
             }
 
             // Fatigue safety gate — check before going online
-            if (newStatus && !checkFatigueGate()) return@launch
+            if (newStatus && !checkFatigueGate()) {
+                _uiState.update { it.copy(pendingGoOnline = true) }
+                return@launch
+            }
 
             try {
                 val response = driverApi.updateStatus(
@@ -355,7 +402,10 @@ class DriverHomeViewModel @JvmOverloads constructor(
                 loadAddressForLocation(location.latitude, location.longitude)
 
                 // Fatigue safety gate
-                if (!checkFatigueGate()) return@launch
+                if (!checkFatigueGate()) {
+                    _uiState.update { it.copy(pendingGoOnlineWithNav = true) }
+                    return@launch
+                }
 
                 try {
                     val response = driverApi.updateStatus(
@@ -501,6 +551,14 @@ class DriverHomeViewModel @JvmOverloads constructor(
             is DispatchEvent.DispatchDeclined -> {
                 // Clear all pending (backend rejected or timed out)
                 _uiState.update { it.copy(pendingRequests = emptyList()) }
+            }
+            is DispatchEvent.RideCancelled -> {
+                _uiState.update { s ->
+                    s.copy(
+                        pendingRequests = s.pendingRequests.filter { it.rideId != event.rideId },
+                        errorMessage = "Ride was cancelled by the rider"
+                    )
+                }
             }
             is DispatchEvent.Error -> {
                 _uiState.update { it.copy(

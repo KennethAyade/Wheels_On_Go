@@ -60,7 +60,7 @@ fun BookingConfirmScreen(
     dropoffAddress: String,
     onBack: () -> Unit,
     onRideCreated: (rideId: String) -> Unit,
-    onFindDriver: () -> Unit = {},
+    onFindDriver: (paymentMethod: String) -> Unit = {},
     onAddVehicle: () -> Unit,
     viewModel: BookingConfirmViewModel = viewModel()
 ) {
@@ -293,7 +293,7 @@ fun BookingConfirmScreen(
             // Find a Driver button — navigates to driver list
             PrimaryButton(
                 text = "Find a Driver",
-                onClick = onFindDriver,
+                onClick = { onFindDriver(uiState.paymentMethod) },
                 enabled = uiState.selectedVehicle != null && uiState.estimate != null,
                 modifier = Modifier.fillMaxWidth()
             )
