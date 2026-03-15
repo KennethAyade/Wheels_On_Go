@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.screens.driver
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -7,8 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -20,8 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -122,6 +128,8 @@ fun DriverProfileScreen(
             uiState.profile != null -> {
                 ProfileContent(
                     profile = uiState.profile!!,
+                    paymentMethod = uiState.paymentMethod,
+                    onPaymentMethodChange = { viewModel.onPaymentMethodChange(it) },
                     errorMessage = uiState.errorMessage,
                     onDismissError = { viewModel.clearError() },
                     modifier = Modifier.padding(padding)
@@ -134,6 +142,8 @@ fun DriverProfileScreen(
 @Composable
 private fun ProfileContent(
     profile: DriverPublicProfileResponse,
+    paymentMethod: String,
+    onPaymentMethodChange: (String) -> Unit,
     errorMessage: String?,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier
@@ -309,6 +319,40 @@ private fun ProfileContent(
             }
         }
 
+        // Payment method selector
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Payment Method", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PaymentMethodCard(
+                        label = "Cash",
+                        icon = Icons.Default.Payments,
+                        isSelected = paymentMethod == "CASH",
+                        onClick = { onPaymentMethodChange("CASH") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    PaymentMethodCard(
+                        label = "GCash",
+                        icon = Icons.Default.AccountBalanceWallet,
+                        isSelected = paymentMethod == "GCASH",
+                        onClick = { onPaymentMethodChange("GCASH") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    PaymentMethodCard(
+                        label = "Card",
+                        icon = Icons.Default.CreditCard,
+                        isSelected = paymentMethod == "CREDIT_CARD",
+                        onClick = { onPaymentMethodChange("CREDIT_CARD") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
         // Bottom spacing for button
         Spacer(modifier = Modifier.height(80.dp))
     }
@@ -349,6 +393,54 @@ private fun VerificationRow(label: String, verified: Boolean, comingSoon: Boolea
                 contentDescription = if (verified) "Verified" else "Not verified",
                 tint = if (verified) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PaymentMethodCard(
+    label: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surface
+        ),
+        border = if (isSelected)
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(28.dp),
+                tint = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

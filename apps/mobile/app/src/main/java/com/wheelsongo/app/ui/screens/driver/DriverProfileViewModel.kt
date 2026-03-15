@@ -117,6 +117,10 @@ class DriverProfileViewModel(
         }
     }
 
+    fun onPaymentMethodChange(method: String) {
+        _uiState.update { it.copy(paymentMethod = method) }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
