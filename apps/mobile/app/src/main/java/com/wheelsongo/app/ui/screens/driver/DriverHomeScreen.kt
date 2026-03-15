@@ -131,6 +131,13 @@ fun DriverHomeScreen(
         }
     }
 
+    // Auto-retry going online after fatigue check passes (user returns via popBackStack)
+    LaunchedEffect(uiState.pendingGoOnline, uiState.pendingGoOnlineWithNav) {
+        if ((uiState.pendingGoOnline || uiState.pendingGoOnlineWithNav) && !uiState.needsFatigueCheck) {
+            viewModel.retryGoOnlineAfterFatigue()
+        }
+    }
+
     // Navigate to face enrollment when required
     LaunchedEffect(uiState.needsFaceEnrollment) {
         if (uiState.needsFaceEnrollment) {

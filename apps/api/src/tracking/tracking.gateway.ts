@@ -139,9 +139,17 @@ export class TrackingGateway implements OnGatewayConnection, OnGatewayDisconnect
               timestamp: new Date(),
             });
 
-            // Also notify rider's user room
+            // Notify rider's user room
             if (riderId) {
               this.server.to(`user:${riderId}`).emit('ride:status_update', {
+                rideId,
+                event: result.geofenceEvent,
+              });
+            }
+
+            // Also notify driver's user room so driver UI updates
+            if (userId) {
+              this.server.to(`user:${userId}`).emit('ride:status_update', {
                 rideId,
                 event: result.geofenceEvent,
               });

@@ -564,12 +564,13 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
                 },
-                onFindDriver = {
+                onFindDriver = { paymentMethod ->
                     navController.navigate(
                         Route.DriverList.createRoute(
                             pickupLat, pickupLng,
                             dropoffLat, dropoffLng,
-                            homeState.fromAddress, homeState.toAddress
+                            homeState.fromAddress, homeState.toAddress,
+                            paymentMethod
                         )
                     )
                 },
@@ -728,7 +729,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 navArgument(Route.DriverList.ARG_DROPOFF_LAT) { type = NavType.StringType },
                 navArgument(Route.DriverList.ARG_DROPOFF_LNG) { type = NavType.StringType },
                 navArgument(Route.DriverList.ARG_PICKUP_ADDRESS) { type = NavType.StringType },
-                navArgument(Route.DriverList.ARG_DROPOFF_ADDRESS) { type = NavType.StringType }
+                navArgument(Route.DriverList.ARG_DROPOFF_ADDRESS) { type = NavType.StringType },
+                navArgument(Route.DriverList.ARG_PAYMENT_METHOD) { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val pickupLat = backStackEntry.arguments?.getString(Route.DriverList.ARG_PICKUP_LAT)?.toDoubleOrNull() ?: 0.0
@@ -737,6 +739,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val dropoffLng = backStackEntry.arguments?.getString(Route.DriverList.ARG_DROPOFF_LNG)?.toDoubleOrNull() ?: 0.0
             val pickupAddress = backStackEntry.arguments?.getString(Route.DriverList.ARG_PICKUP_ADDRESS) ?: ""
             val dropoffAddress = backStackEntry.arguments?.getString(Route.DriverList.ARG_DROPOFF_ADDRESS) ?: ""
+            val paymentMethod = backStackEntry.arguments?.getString(Route.DriverList.ARG_PAYMENT_METHOD) ?: "CASH"
 
             DriverListScreen(
                 pickupLat = pickupLat,
@@ -752,7 +755,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                             driverProfileId,
                             pickupLat, pickupLng,
                             dropoffLat, dropoffLng,
-                            pickupAddress, dropoffAddress
+                            pickupAddress, dropoffAddress,
+                            paymentMethod
                         )
                     )
                 }
@@ -771,7 +775,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 navArgument(Route.DriverProfile.ARG_DROPOFF_LAT) { type = NavType.StringType },
                 navArgument(Route.DriverProfile.ARG_DROPOFF_LNG) { type = NavType.StringType },
                 navArgument(Route.DriverProfile.ARG_PICKUP_ADDRESS) { type = NavType.StringType },
-                navArgument(Route.DriverProfile.ARG_DROPOFF_ADDRESS) { type = NavType.StringType }
+                navArgument(Route.DriverProfile.ARG_DROPOFF_ADDRESS) { type = NavType.StringType },
+                navArgument(Route.DriverProfile.ARG_PAYMENT_METHOD) { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val driverProfileId = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DRIVER_PROFILE_ID) ?: ""
@@ -781,6 +786,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val dropoffLng = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DROPOFF_LNG)?.toDoubleOrNull() ?: 0.0
             val pickupAddress = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_PICKUP_ADDRESS) ?: ""
             val dropoffAddress = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_DROPOFF_ADDRESS) ?: ""
+            val paymentMethod = backStackEntry.arguments?.getString(Route.DriverProfile.ARG_PAYMENT_METHOD) ?: "CASH"
 
             DriverProfileScreen(
                 driverProfileId = driverProfileId,
@@ -790,6 +796,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 dropoffLng = dropoffLng,
                 pickupAddress = pickupAddress,
                 dropoffAddress = dropoffAddress,
+                paymentMethod = paymentMethod,
                 onNavigateBack = { navController.popBackStack() },
                 onRideCreated = { rideId ->
                     navController.navigate(Route.ActiveRide.createRoute(rideId)) {

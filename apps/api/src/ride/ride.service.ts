@@ -372,6 +372,21 @@ export class RideService {
       throw new NotFoundException('Ride not found');
     }
 
+    // Idempotent: if already in the target status, return current ride as-is
+    if (ride.status === dto.status) {
+      const currentRide = await this.prisma.ride.findUnique({
+        where: { id: rideId },
+        include: {
+          rider: { select: { id: true, phoneNumber: true } },
+          driver: { select: { id: true, phoneNumber: true } },
+          driverProfile: {
+            include: { vehicle: true },
+          },
+        },
+      });
+      return this.mapRideToResponse(currentRide);
+    }
+
     // Validate status transition
     this.validateStatusTransition(ride.status, dto.status as RideStatus);
 
