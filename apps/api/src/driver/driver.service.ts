@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { LocationService } from '../location/location.service';
 import { FatigueService } from '../fatigue/fatigue.service';
+import { VerificationService } from '../verification/verification.service';
 import { RequestKycUploadDto } from './dto/request-kyc-upload.dto';
 import { ConfirmKycUploadDto } from './dto/confirm-kyc-upload.dto';
 import { UpdateDriverStatusDto } from './dto/update-driver-status.dto';
@@ -31,6 +32,7 @@ export class DriverService {
     private readonly auditService: AuditService,
     private readonly locationService: LocationService,
     private readonly fatigueService: FatigueService,
+    private readonly verificationService: VerificationService,
   ) {}
 
   async getKycStatus(userId: string) {
@@ -48,7 +50,7 @@ export class DriverService {
     // Enrich documents with presigned download URLs for viewing
     const enrichedDocuments = await Promise.all(
       documents.map(async (doc) => {
-        if (doc.status === DocumentStatus.UPLOADED && doc.storageKey) {
+        if ((doc.status === DocumentStatus.UPLOADED || doc.status === DocumentStatus.VERIFIED) && doc.storageKey) {
           const downloadUrl = await this.storageService.getDownloadUrl(
             doc.storageKey,
             900,
@@ -61,11 +63,21 @@ export class DriverService {
 
     const allUploaded = requiredTypes.every((type) =>
       documents.some(
-        (d) => d.type === type && d.status === DocumentStatus.UPLOADED,
+        (d) =>
+          d.type === type &&
+          (d.status === DocumentStatus.UPLOADED ||
+            d.status === DocumentStatus.VERIFIED),
       ),
     );
-    // No VERIFIED status yet — allVerified is future-proofing
-    const allVerified = false;
+    const allVerified = requiredTypes.every((type) =>
+      documents.some(
+        (d) =>
+          d.type === type &&
+          (d.status === DocumentStatus.VERIFIED ||
+            (d.type === DriverDocumentType.PROFILE_PHOTO &&
+              d.status === DocumentStatus.UPLOADED)),
+      ),
+    );
 
     return { documents: enrichedDocuments, allUploaded, allVerified };
   }
@@ -163,6 +175,74 @@ export class DriverService {
       type: dto.type,
       key: dto.key,
     });
+
+    // AI verification for ID documents (skip for PROFILE_PHOTO)
+    if (dto.type !== DriverDocumentType.PROFILE_PHOTO) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true },
+      });
+
+      const verificationResult =
+        await this.verificationService.verifyIdDocument({
+          storageKey: updated.storageKey,
+          documentType: dto.type as 'LICENSE' | 'GOVERNMENT_ID',
+          mimeType: updated.mimeType,
+          driverFirstName: user?.firstName ?? undefined,
+          driverLastName: user?.lastName ?? undefined,
+        });
+
+      if (
+        !verificationResult.isValid ||
+        !verificationResult.isAuthentic ||
+        verificationResult.nameMatch === false
+      ) {
+        const rejected = await this.prisma.driverDocument.update({
+          where: { id: document.id },
+          data: {
+            status: DocumentStatus.REJECTED,
+            rejectionReason:
+              verificationResult.rejectionReason ||
+              'Document verification failed. Please upload a valid, authentic ID document.',
+          },
+        });
+
+        await this.auditService.log(
+          userId,
+          'KYC_VERIFICATION_FAILED',
+          'driver',
+          profile.id,
+          {
+            type: dto.type,
+            reason: verificationResult.rejectionReason,
+            details: verificationResult.details,
+            confidence: verificationResult.confidence,
+          },
+        );
+
+        return rejected;
+      }
+
+      // Verification passed
+      const verified = await this.prisma.driverDocument.update({
+        where: { id: document.id },
+        data: { status: DocumentStatus.VERIFIED },
+      });
+
+      await this.auditService.log(
+        userId,
+        'KYC_VERIFICATION_PASSED',
+        'driver',
+        profile.id,
+        {
+          type: dto.type,
+          confidence: verificationResult.confidence,
+          details: verificationResult.details,
+        },
+      );
+
+      return verified;
+    }
 
     return updated;
   }
@@ -342,7 +422,7 @@ export class DriverService {
   private async enrichDocumentsWithUrls(documents: any[]) {
     return Promise.all(
       documents.map(async (doc) => {
-        if (doc.status === DocumentStatus.UPLOADED && doc.storageKey) {
+        if ((doc.status === DocumentStatus.UPLOADED || doc.status === DocumentStatus.VERIFIED) && doc.storageKey) {
           const downloadUrl = await this.storageService.getDownloadUrl(
             doc.storageKey,
             900,

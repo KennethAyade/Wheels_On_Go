@@ -73,6 +73,7 @@ fun DriverHomeScreen(
     onNavigateToProfileSetup: () -> Unit = {},
     onNavigateToFatigueCheck: () -> Unit = {},
     onNavigateToFaceEnrollment: () -> Unit = {},
+    onNavigateToBreathalyzer: (dispatchAttemptId: String, rideId: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: DriverHomeViewModel = viewModel()
 ) {
@@ -135,6 +136,15 @@ fun DriverHomeScreen(
     LaunchedEffect(uiState.pendingGoOnline, uiState.pendingGoOnlineWithNav) {
         if ((uiState.pendingGoOnline || uiState.pendingGoOnlineWithNav) && !uiState.needsFatigueCheck) {
             viewModel.retryGoOnlineAfterFatigue()
+        }
+    }
+
+    // Navigate to breathalyzer screen when driver accepts a ride
+    LaunchedEffect(uiState.pendingBreathalyzerAccept) {
+        val pending = uiState.pendingBreathalyzerAccept
+        if (pending != null) {
+            viewModel.clearBreathalyzerFlag()
+            onNavigateToBreathalyzer(pending.dispatchAttemptId, pending.rideId)
         }
     }
 

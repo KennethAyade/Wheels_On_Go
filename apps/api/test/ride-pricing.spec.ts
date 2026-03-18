@@ -52,7 +52,9 @@ describe('RideService - Surge Pricing & Promo Codes', () => {
       calculateHaversineDistance: jest.fn().mockReturnValue(1.0), // 1km - within radius
     } as unknown as LocationService;
 
-    service = new RideService(prisma, audit, locationService);
+    const paymentService = {} as unknown as import('../src/payment/payment.service').PaymentService;
+    const subscriptionService = {} as unknown as import('../src/subscription/subscription.service').SubscriptionService;
+    service = new RideService(prisma, audit, locationService, paymentService, subscriptionService);
   });
 
   describe('calculateEstimate() - surge pricing', () => {

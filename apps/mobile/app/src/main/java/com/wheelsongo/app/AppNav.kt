@@ -48,6 +48,7 @@ import com.wheelsongo.app.ui.screens.fatigue.FatigueCheckScreen
 import com.wheelsongo.app.ui.screens.subscription.SubscriptionScreen
 import com.wheelsongo.app.ui.screens.earnings.DriverEarningsScreen
 import com.wheelsongo.app.ui.screens.chat.RideChatScreen
+import com.wheelsongo.app.ui.screens.checklist.BreathalyzerUploadScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -336,6 +337,33 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         }
 
         // ==========================================
+        // Safety Checklists
+        // ==========================================
+        composable(
+            Route.BreathalyzerUpload.value,
+            arguments = listOf(
+                navArgument(Route.BreathalyzerUpload.ARG_RIDE_ID) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(Route.BreathalyzerUpload.ARG_RIDE_ID) ?: ""
+            BreathalyzerUploadScreen(
+                rideId = rideId,
+                onPassed = {
+                    driverHomeViewModel.confirmAcceptAfterBreathalyzer()
+                    navController.popBackStack()
+                },
+                onFailed = {
+                    driverHomeViewModel.cancelPendingAccept()
+                    navController.popBackStack()
+                },
+                onBack = {
+                    driverHomeViewModel.cancelPendingAccept()
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // ==========================================
         // Settings
         // ==========================================
         composable(Route.Settings.value) {
@@ -378,15 +406,22 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                     type = NavType.StringType
                     defaultValue = "Chat"
                     nullable = true
+                },
+                navArgument(Route.RideChat.ARG_OTHER_PHONE) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
                 }
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString(Route.RideChat.ARG_RIDE_ID) ?: ""
             val otherName = backStackEntry.arguments?.getString(Route.RideChat.ARG_OTHER_NAME) ?: "Chat"
+            val otherPhone = backStackEntry.arguments?.getString(Route.RideChat.ARG_OTHER_PHONE) ?: ""
 
             RideChatScreen(
                 rideId = rideId,
                 otherName = otherName,
+                otherPhone = otherPhone,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -462,6 +497,9 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         },
                         onNavigateToFaceEnrollment = {
                             navController.navigate(Route.FaceEnrollment.value)
+                        },
+                        onNavigateToBreathalyzer = { _, rideId ->
+                            navController.navigate(Route.BreathalyzerUpload.createRoute(rideId))
                         },
                         viewModel = driverHomeViewModel
                     )
@@ -601,8 +639,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
                 },
-                onNavigateToChat = { chatRideId, otherName ->
-                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
+                onNavigateToChat = { chatRideId, otherName, otherPhone ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName, otherPhone))
                 }
             )
         }
@@ -661,8 +699,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         popUpTo(Route.Home.value) { inclusive = false }
                     }
                 },
-                onNavigateToChat = { chatRideId, otherName ->
-                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
+                onNavigateToChat = { chatRideId, otherName, otherPhone ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName, otherPhone))
                 }
             )
         }
@@ -712,8 +750,8 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onNavigateToChat = { chatRideId, otherName ->
-                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName))
+                onNavigateToChat = { chatRideId, otherName, otherPhone ->
+                    navController.navigate(Route.RideChat.createRoute(chatRideId, otherName, otherPhone))
                 }
             )
         }

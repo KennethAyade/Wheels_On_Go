@@ -4,6 +4,7 @@ import { StorageModule } from '../storage/storage.module';
 import { AuditModule } from '../audit/audit.module';
 import { LocationModule } from '../location/location.module';
 import { FatigueModule } from '../fatigue/fatigue.module';
+import { VerificationModule } from '../verification/verification.module';
 import { DriverService } from './driver.service';
 import { DriverController } from './driver.controller';
 import { AdminDriverController } from './admin-driver.controller';
@@ -15,6 +16,7 @@ import { AdminDriverController } from './admin-driver.controller';
     AuditModule,
     LocationModule,
     FatigueModule,
+    VerificationModule,
   ],
   controllers: [DriverController, AdminDriverController],
   providers: [DriverService],

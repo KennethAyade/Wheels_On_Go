@@ -223,7 +223,24 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                 throw Exception("Failed to confirm upload: ${confirmResponse.message()}")
             }
 
-            // Upload complete
+            val confirmData = confirmResponse.body()
+
+            // Check if document was rejected by AI verification
+            if (confirmData?.status == "REJECTED") {
+                val reason = confirmData.rejectionReason
+                    ?: "Document verification failed. Please upload a valid ID."
+                updateDocumentState(documentType) {
+                    it.copy(
+                        isUploading = false,
+                        isUploaded = false,
+                        uploadProgress = 0f,
+                        errorMessage = reason
+                    )
+                }
+                return@launch
+            }
+
+            // Upload complete (UPLOADED or VERIFIED)
             updateDocumentState(documentType) {
                 it.copy(
                     isUploading = false,

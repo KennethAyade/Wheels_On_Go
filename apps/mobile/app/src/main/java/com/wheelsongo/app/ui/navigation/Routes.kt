@@ -269,6 +269,20 @@ sealed class Route(val value: String) {
     }
 
     // ==========================================
+    // Safety Checklists
+    // ==========================================
+
+    /**
+     * Breathalyzer upload screen — driver must upload breathalyzer result before accepting ride
+     * @param rideId The ride ID being accepted
+     */
+    data object BreathalyzerUpload : Route("breathalyzer_upload/{rideId}") {
+        const val ARG_RIDE_ID = "rideId"
+
+        fun createRoute(rideId: String): String = "breathalyzer_upload/$rideId"
+    }
+
+    // ==========================================
     // Chat
     // ==========================================
 
@@ -276,14 +290,17 @@ sealed class Route(val value: String) {
      * Ride chat screen — in-app messaging between rider and driver
      * @param rideId The ride ID
      * @param otherName Display name of the other participant (URL-encoded)
+     * @param otherPhone Phone number of the other participant (URL-encoded)
      */
-    data object RideChat : Route("ride_chat/{rideId}?otherName={otherName}") {
+    data object RideChat : Route("ride_chat/{rideId}?otherName={otherName}&otherPhone={otherPhone}") {
         const val ARG_RIDE_ID = "rideId"
         const val ARG_OTHER_NAME = "otherName"
+        const val ARG_OTHER_PHONE = "otherPhone"
 
-        fun createRoute(rideId: String, otherName: String = ""): String {
+        fun createRoute(rideId: String, otherName: String = "", otherPhone: String = ""): String {
             val encName = URLEncoder.encode(otherName.ifEmpty { "Chat" }, StandardCharsets.UTF_8.toString())
-            return "ride_chat/$rideId?otherName=$encName"
+            val encPhone = URLEncoder.encode(otherPhone, StandardCharsets.UTF_8.toString())
+            return "ride_chat/$rideId?otherName=$encName&otherPhone=$encPhone"
         }
     }
 

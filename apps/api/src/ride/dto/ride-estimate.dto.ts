@@ -159,6 +159,8 @@ export class RideResponseDto {
     id: string;
     userId: string;
     phoneNumber?: string;
+    firstName?: string;
+    lastName?: string;
     driverProfile?: {
       id: string;
       vehicle?: {
@@ -174,5 +176,7 @@ export class RideResponseDto {
     id: string;
     userId: string;
     phoneNumber?: string;
+    firstName?: string;
+    lastName?: string;
   };
 }

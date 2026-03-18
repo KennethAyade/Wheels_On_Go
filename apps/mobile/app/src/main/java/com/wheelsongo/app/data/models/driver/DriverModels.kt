@@ -134,7 +134,8 @@ data class KycConfirmResponse(
     @Json(name = "status") val status: String,
     @Json(name = "storageKey") val storageKey: String? = null,
     @Json(name = "fileName") val fileName: String? = null,
-    @Json(name = "uploadedAt") val uploadedAt: String? = null
+    @Json(name = "uploadedAt") val uploadedAt: String? = null,
+    @Json(name = "rejectionReason") val rejectionReason: String? = null
 )
 
 // ==========================================

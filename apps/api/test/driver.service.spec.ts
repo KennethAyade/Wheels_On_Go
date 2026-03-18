@@ -48,7 +48,10 @@ describe('DriverService', () => {
       checkFatigue: jest.fn(),
       enrollFace: jest.fn(),
     } as unknown as FatigueService;
-    service = new DriverService(prisma, storage, audit, location, fatigue);
+    const verification = {
+      verifyIdDocument: jest.fn().mockResolvedValue({ isValid: true, isAuthentic: true, nameMatch: null, confidence: 1, details: 'mock' }),
+    } as unknown as import('../src/verification/verification.service').VerificationService;
+    service = new DriverService(prisma, storage, audit, location, fatigue, verification);
   });
 
   describe('requestKycUpload()', () => {

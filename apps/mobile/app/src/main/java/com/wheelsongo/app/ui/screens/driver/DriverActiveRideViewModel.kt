@@ -44,7 +44,9 @@ data class DriverActiveRideUiState(
     val rideDurationMinutes: Int = 0,
     val rideDistanceKm: Double = 0.0,
     val isCancelled: Boolean = false,
-    val cancellationReason: String = ""
+    val cancellationReason: String = "",
+    val blowbagetsCompleted: Boolean = false,
+    val isSubmittingBlowbagets: Boolean = false
 )
 
 class DriverActiveRideViewModel @JvmOverloads constructor(
@@ -307,6 +309,48 @@ class DriverActiveRideViewModel @JvmOverloads constructor(
         locationBroadcastJob?.cancel()
         trackingSocketClient.disconnect()
         dispatchSocketClient.disconnect()
+    }
+
+    fun submitBlowbagets(
+        brakes: Boolean, lights: Boolean, oil: Boolean, water: Boolean,
+        battery: Boolean, air: Boolean, gas: Boolean, engine: Boolean,
+        tools: Boolean, self: Boolean
+    ) {
+        val rideId = _uiState.value.rideId
+        if (rideId.isBlank()) return
+
+        _uiState.update { it.copy(isSubmittingBlowbagets = true) }
+
+        viewModelScope.launch {
+            try {
+                val response = ApiClient.checklistApi.submitBlowbagets(
+                    com.wheelsongo.app.data.models.checklist.SubmitBlowbagetsRequest(
+                        rideId = rideId,
+                        brakes = brakes, lights = lights, oil = oil, water = water,
+                        battery = battery, air = air, gas = gas, engine = engine,
+                        tools = tools, self = self
+                    )
+                )
+
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(blowbagetsCompleted = true, isSubmittingBlowbagets = false) }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isSubmittingBlowbagets = false,
+                            errorMessage = "Failed to submit checklist: ${response.message()}"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSubmittingBlowbagets = false,
+                        errorMessage = e.message ?: "Failed to submit checklist"
+                    )
+                }
+            }
+        }
     }
 
     private fun statusToPhase(status: String): DriverRidePhase {

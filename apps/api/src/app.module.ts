@@ -23,6 +23,7 @@ import { PaymentModule } from './payment/payment.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { ChatModule } from './chat/chat.module';
+import { ChecklistModule } from './checklist/checklist.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ChatModule } from './chat/chat.module';
     SubscriptionModule,
     EarningsModule,
     ChatModule,
+    ChecklistModule,
   ],
   providers: [
     Reflector,

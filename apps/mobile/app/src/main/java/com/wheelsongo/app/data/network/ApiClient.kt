@@ -181,6 +181,10 @@ object ApiClient {
     val earningsApi: EarningsApi by lazy {
         retrofit.create(EarningsApi::class.java)
     }
+
+    val checklistApi: ChecklistApi by lazy {
+        retrofit.create(ChecklistApi::class.java)
+    }
 }
 
 /**

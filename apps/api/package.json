@@ -17,6 +17,7 @@
     "seed:admin": "ts-node prisma/seed-admin.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@aws-sdk/client-rekognition": "^3.637.0",
     "@aws-sdk/client-s3": "^3.637.0",
     "@aws-sdk/s3-request-presigner": "^3.637.0",

@@ -37,6 +37,12 @@ data class IncomingRideRequestUiData(
     val scheduledTime: String? = null
 )
 
+data class PendingBreathalyzerAccept(
+    val dispatchAttemptId: String,
+    val rideId: String,
+    val riderName: String
+)
+
 data class DriverHomeUiState(
     val isOnline: Boolean = false,
     val isTogglingStatus: Boolean = false,
@@ -58,7 +64,8 @@ data class DriverHomeUiState(
     val needsFaceEnrollment: Boolean = false,
     val driverStatus: String = "PENDING",
     val pendingGoOnline: Boolean = false,
-    val pendingGoOnlineWithNav: Boolean = false
+    val pendingGoOnlineWithNav: Boolean = false,
+    val pendingBreathalyzerAccept: PendingBreathalyzerAccept? = null
 )
 
 class DriverHomeViewModel @JvmOverloads constructor(
@@ -472,14 +479,39 @@ class DriverHomeViewModel @JvmOverloads constructor(
 
     fun acceptRide(dispatchAttemptId: String) {
         val request = _uiState.value.pendingRequests.find { it.dispatchAttemptId == dispatchAttemptId }
-        socketClient.sendAccept(dispatchAttemptId)
+        // Gate through breathalyzer — don't send accept yet
         _uiState.update { s ->
             s.copy(
-                pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId },
-                acceptedRiderName = request?.riderName ?: s.acceptedRiderName,
-                pendingAcceptRideId = request?.rideId ?: s.pendingAcceptRideId
+                pendingBreathalyzerAccept = PendingBreathalyzerAccept(
+                    dispatchAttemptId = dispatchAttemptId,
+                    rideId = request?.rideId ?: "",
+                    riderName = request?.riderName ?: ""
+                ),
+                pendingRequests = s.pendingRequests.filter { it.dispatchAttemptId != dispatchAttemptId }
             )
         }
+    }
+
+    fun clearBreathalyzerFlag() {
+        _uiState.update { it.copy(pendingBreathalyzerAccept = null) }
+    }
+
+    fun confirmAcceptAfterBreathalyzer() {
+        val pending = _uiState.value.pendingBreathalyzerAccept
+        if (pending != null) {
+            socketClient.sendAccept(pending.dispatchAttemptId)
+            _uiState.update { s ->
+                s.copy(
+                    pendingBreathalyzerAccept = null,
+                    acceptedRiderName = pending.riderName,
+                    pendingAcceptRideId = pending.rideId
+                )
+            }
+        }
+    }
+
+    fun cancelPendingAccept() {
+        _uiState.update { it.copy(pendingBreathalyzerAccept = null) }
     }
 
     fun declineRide(dispatchAttemptId: String) {

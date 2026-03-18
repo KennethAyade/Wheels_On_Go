@@ -40,6 +40,7 @@ enum DriverDocumentType {
 enum DocumentStatus {
   PENDING_UPLOAD
   UPLOADED
+  VERIFIED
   REJECTED
 }
 
@@ -302,6 +303,9 @@ model DriverProfile {
   lastFatigueLevel     FatigueLevel?
   fatigueCooldownUntil DateTime?
 
+  // Breathalyzer gating
+  breathalyzerCooldownUntil DateTime?
+
   licenseNumber            String?   @unique
   licenseExpiryDate        DateTime?
   isOnline                 Boolean   @default(false)
@@ -344,6 +348,7 @@ model DriverDocument {
   fileName        String
   mimeType        String
   status          DocumentStatus     @default(PENDING_UPLOAD)
+  rejectionReason String?
   size            Int?
   uploadedAt      DateTime?
   createdAt       DateTime           @default(now())
@@ -769,7 +774,9 @@ model BlowbagetsChecklist {
   id              String        @id @default(uuid())
   driverProfileId String
   driverProfile   DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  rideId          String?
 
+  // BLOWBAGETS vehicle inspection items
   brakes  Boolean @default(false)
   lights  Boolean @default(false)
   oil     Boolean @default(false)
@@ -785,8 +792,17 @@ model BlowbagetsChecklist {
   completedAt     DateTime @default(now())
   expiresAt       DateTime
 
+  // Breathalyzer verification fields
+  breathalyzerImageKey   String?
+  breathalyzerMimeType   String?
+  breathalyzerVerified   Boolean @default(false)
+  breathalyzerBacReading Float?
+  breathalyzerResult     String? // "PASS" | "FAIL" | "INVALID_IMAGE"
+  breathalyzerAiDetails  String?
+
   @@index([driverProfileId, completedAt])
   @@index([expiresAt])
+  @@index([rideId])
 }
 
 // ============================================

@@ -61,7 +61,7 @@ fun ActiveRideScreen(
     rideId: String,
     onBack: () -> Unit,
     onRideCompleted: (driverName: String) -> Unit,
-    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String, otherPhone: String) -> Unit,
     viewModel: ActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -348,10 +348,15 @@ fun ActiveRideScreen(
                     if (ride?.driver != null && uiState.rideStatus in listOf("ACCEPTED", "DRIVER_ARRIVED", "STARTED")) {
                         OutlinedButton(
                             onClick = {
-                                val driverName = ride.driver?.driverProfile?.vehicle?.let {
+                                val driverName = ride.driver?.let {
+                                    listOfNotNull(it.firstName, it.lastName)
+                                        .joinToString(" ")
+                                        .ifEmpty { null }
+                                } ?: ride.driver?.driverProfile?.vehicle?.let {
                                     "${it.make} ${it.model}"
                                 } ?: "Driver"
-                                onNavigateToChat(rideId, driverName)
+                                val driverPhone = ride.driver?.phoneNumber ?: ""
+                                onNavigateToChat(rideId, driverName, driverPhone)
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)

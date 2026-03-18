@@ -65,7 +65,7 @@ fun DriverActiveRideScreen(
     riderName: String = "",
     onBack: () -> Unit,
     onNavigateToCompletion: (rideId: String, riderName: String) -> Unit,
-    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String, otherPhone: String) -> Unit,
     viewModel: DriverActiveRideViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -307,7 +307,10 @@ fun DriverActiveRideScreen(
 
                         // Message button
                         OutlinedButton(
-                            onClick = { onNavigateToChat(rideId, uiState.riderName) },
+                            onClick = {
+                                val riderPhone = uiState.ride?.rider?.phoneNumber ?: ""
+                                onNavigateToChat(rideId, uiState.riderName, riderPhone)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         ) {
@@ -380,21 +383,32 @@ fun DriverActiveRideScreen(
                                 }
                             }
                             DriverRidePhase.AT_PICKUP -> {
-                                Button(
-                                    onClick = { viewModel.startRide() },
-                                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                                    enabled = !uiState.isUpdatingStatus,
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                                ) {
-                                    if (uiState.isUpdatingStatus) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(22.dp),
-                                            color = Color.White,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Text("Start Ride", color = Color.White, fontWeight = FontWeight.Bold)
+                                if (!uiState.blowbagetsCompleted) {
+                                    com.wheelsongo.app.ui.screens.checklist.BlowbagetsInlineChecklist(
+                                        isSubmitting = uiState.isSubmittingBlowbagets,
+                                        onSubmit = { brakes, lights, oil, water, battery, air, gas, engine, tools, self ->
+                                            viewModel.submitBlowbagets(
+                                                brakes, lights, oil, water, battery, air, gas, engine, tools, self
+                                            )
+                                        }
+                                    )
+                                } else {
+                                    Button(
+                                        onClick = { viewModel.startRide() },
+                                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                                        enabled = !uiState.isUpdatingStatus,
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                                    ) {
+                                        if (uiState.isUpdatingStatus) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(22.dp),
+                                                color = Color.White,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Text("Start Ride", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }

@@ -276,8 +276,8 @@ export class RideService {
     const ride = await this.prisma.ride.findUnique({
       where: { id: rideId },
       include: {
-        rider: { select: { id: true, phoneNumber: true } },
-        driver: { select: { id: true, phoneNumber: true } },
+        rider: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
+        driver: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
         driverProfile: {
           include: {
             vehicle: true,
@@ -326,8 +326,8 @@ export class RideService {
         status: { in: activeStatuses },
       },
       include: {
-        rider: { select: { id: true, phoneNumber: true } },
-        driver: { select: { id: true, phoneNumber: true } },
+        rider: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
+        driver: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
         driverProfile: {
           include: { vehicle: true },
         },
@@ -389,6 +389,23 @@ export class RideService {
 
     // Validate status transition
     this.validateStatusTransition(ride.status, dto.status as RideStatus);
+
+    // Gate: BLOWBAGETS checklist must be completed before starting the ride
+    if (dto.status === RideStatus.STARTED) {
+      const checklist = await this.prisma.blowbagetsChecklist.findFirst({
+        where: {
+          rideId,
+          allItemsChecked: true,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (!checklist) {
+        throw new BadRequestException(
+          'Vehicle safety checklist must be completed before starting the ride',
+        );
+      }
+    }
 
     // Update ride
     const updateData: any = {
@@ -484,8 +501,8 @@ export class RideService {
       where: { id: rideId },
       data: updateData,
       include: {
-        rider: { select: { id: true, phoneNumber: true } },
-        driver: { select: { id: true, phoneNumber: true } },
+        rider: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
+        driver: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
         driverProfile: {
           include: { vehicle: true },
         },
@@ -567,8 +584,8 @@ export class RideService {
         cancellationReason: dto.reason,
       },
       include: {
-        rider: { select: { id: true, phoneNumber: true } },
-        driver: { select: { id: true, phoneNumber: true } },
+        rider: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
+        driver: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
         driverProfile: {
           include: { vehicle: true },
         },
@@ -797,6 +814,8 @@ export class RideService {
             id: ride.driverId,
             userId: ride.driverId,
             phoneNumber: ride.driver.phoneNumber,
+            firstName: ride.driver.firstName,
+            lastName: ride.driver.lastName,
             driverProfile: ride.driverProfile
               ? {
                   id: ride.driverProfile.id,
@@ -817,6 +836,8 @@ export class RideService {
             id: ride.riderId,
             userId: ride.riderId,
             phoneNumber: ride.rider.phoneNumber,
+            firstName: ride.rider.firstName,
+            lastName: ride.rider.lastName,
           }
         : undefined,
     };

@@ -108,7 +108,8 @@ data class RideResponse(
     @Json(name = "startedAt") val startedAt: String? = null,
     @Json(name = "completedAt") val completedAt: String? = null,
     @Json(name = "cancelledAt") val cancelledAt: String? = null,
-    @Json(name = "driver") val driver: RideDriverInfo? = null
+    @Json(name = "driver") val driver: RideDriverInfo? = null,
+    @Json(name = "rider") val rider: RideRiderInfo? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -116,7 +117,18 @@ data class RideDriverInfo(
     @Json(name = "id") val id: String,
     @Json(name = "userId") val userId: String,
     @Json(name = "phoneNumber") val phoneNumber: String? = null,
+    @Json(name = "firstName") val firstName: String? = null,
+    @Json(name = "lastName") val lastName: String? = null,
     @Json(name = "driverProfile") val driverProfile: RideDriverProfile? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RideRiderInfo(
+    @Json(name = "id") val id: String,
+    @Json(name = "userId") val userId: String,
+    @Json(name = "phoneNumber") val phoneNumber: String? = null,
+    @Json(name = "firstName") val firstName: String? = null,
+    @Json(name = "lastName") val lastName: String? = null
 )
 
 @JsonClass(generateAdapter = true)

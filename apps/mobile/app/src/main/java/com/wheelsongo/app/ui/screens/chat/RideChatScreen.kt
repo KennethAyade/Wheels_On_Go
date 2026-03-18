@@ -1,6 +1,9 @@
 package com.wheelsongo.app.ui.screens.chat
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,11 +54,13 @@ import java.util.Locale
 fun RideChatScreen(
     rideId: String,
     otherName: String = "Chat",
+    otherPhone: String = "",
     onBack: () -> Unit,
     viewModel: RideChatViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     LaunchedEffect(rideId) {
         viewModel.initialize(rideId)
@@ -72,7 +79,17 @@ fun RideChatScreen(
                 title = {
                     Column {
                         Text(otherName.ifEmpty { "Chat" })
-                        if (!uiState.isConnected) {
+                        if (otherPhone.isNotEmpty()) {
+                            Text(
+                                text = otherPhone,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$otherPhone"))
+                                    context.startActivity(intent)
+                                }
+                            )
+                        } else if (!uiState.isConnected) {
                             Text(
                                 "Connecting...",
                                 style = MaterialTheme.typography.labelSmall,
@@ -84,6 +101,20 @@ fun RideChatScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (otherPhone.isNotEmpty()) {
+                        IconButton(onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$otherPhone"))
+                            context.startActivity(intent)
+                        }) {
+                            Icon(
+                                Icons.Default.Phone,
+                                contentDescription = "Call",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             )
