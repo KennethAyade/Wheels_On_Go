@@ -53,7 +53,7 @@ fun DriverTripCompletionScreen(
     rideId: String,
     riderName: String = "",
     onGoHome: () -> Unit,
-    onNavigateToChat: (rideId: String, otherName: String) -> Unit,
+    onNavigateToChat: (rideId: String, otherName: String, otherPhone: String) -> Unit,
     viewModel: DriverTripCompletionViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -224,7 +224,7 @@ fun DriverTripCompletionScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedButton(
-                    onClick = { onNavigateToChat(rideId, uiState.riderName) },
+                    onClick = { onNavigateToChat(rideId, uiState.riderName, "") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {

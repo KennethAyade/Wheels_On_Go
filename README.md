@@ -15,6 +15,7 @@ A ride-hailing platform built as a monorepo — NestJS REST API (backend), Kotli
 | Layer | Technology |
 |-------|------------|
 | **Backend** | Node.js 18+, NestJS 10, Prisma ORM, PostgreSQL |
+| **AI Verification** | Claude Sonnet Vision (document + breathalyzer analysis via Anthropic SDK) |
 | **Authentication** | JWT (OTP-first) + Firebase Phone Auth + admin email/password |
 | **Encryption** | AES-256-GCM at rest, TLS 1.3 in transit |
 | **Storage** | Cloudflare R2 (S3-compatible) |
@@ -47,7 +48,7 @@ npm run seed:admin   # admin@wheelsongo.com / Admin123!
 # 6. Start dev server (port 3000)
 npm run dev:api
 
-# 7. Run tests (222 passing, 23 suites)
+# 7. Run tests (267 passing, 28 suites)
 npm run test:api
 ```
 
@@ -112,6 +113,9 @@ GOOGLE_MAPS_API_KEY=your-api-key
 # Biometric (mock for dev, rekognition for prod)
 BIOMETRIC_MODE=mock
 
+# AI Document & Breathalyzer Verification (Anthropic Claude)
+ANTHROPIC_API_KEY=your-anthropic-api-key
+
 # CORS (includes web admin)
 CORS_ORIGINS=http://localhost:3001
 ```
@@ -166,6 +170,13 @@ CORS_ORIGINS=http://localhost:3001
 - `POST /fatigue/enroll-face` — Enroll driver face
 - `POST /fatigue/check` — Run fatigue check (Gemini Vision AI)
 - `GET /fatigue/status` — Go-online eligibility
+
+### Safety Checklists
+- `GET /checklist/breathalyzer/status` — Check breathalyzer cooldown
+- `POST /checklist/breathalyzer/presign` — Get presigned URL for breathalyzer image
+- `POST /checklist/breathalyzer/confirm` — Upload + AI verify (PASS/FAIL/INVALID_IMAGE)
+- `POST /checklist/blowbagets/submit` — Submit 10-item vehicle safety checklist
+- `GET /checklist/blowbagets/:rideId` — Get checklist for ride
 
 ### Ratings
 - `POST /ratings` — Rate a completed ride
@@ -261,16 +272,22 @@ Wheels_On_Go/
 - Admin payments page with filters and CSV export
 - 150 new unit tests (100 backend + 50 mobile)
 
-### 📅 Remaining — Weeks 9+
+### ✅ Week 9 — AI Verification, Breathalyzer Gate, BLOWBAGETS Checklist
+- AI-powered document verification (Claude Sonnet vision) — auto-verifies LICENSE and GOVERNMENT_ID uploads, auto-rejects invalid docs
+- Breathalyzer safety gate — per-ride breathalyzer upload + AI BAC analysis before ride acceptance (fail-closed, 8h cooldown on FAIL)
+- BLOWBAGETS 10-item vehicle safety inspection at pickup — gates "Start Ride" behind completion
+- Chat enhancement — actual driver/rider names + tappable phone numbers
+- New VerificationModule + ChecklistModule (5 REST endpoints)
+
+### 📅 Remaining — Weeks 10+
 - Communication (masked calls, push notifications)
-- BLOWBAGETS safety checklist enforcement
 - Integration + E2E tests
 - Production hardening + load testing
 
 ## Testing
 
 ```bash
-# Backend (222 passing, 23 suites)
+# Backend (267 passing, 28 suites)
 cd apps/api && npm test
 
 # Web admin TypeScript check

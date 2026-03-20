@@ -237,7 +237,7 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                         errorMessage = reason
                     )
                 }
-                return@launch
+                return
             }
 
             // Upload complete (UPLOADED or VERIFIED)

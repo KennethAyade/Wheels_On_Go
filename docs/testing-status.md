@@ -1,7 +1,7 @@
-# Testing Status - Phases 1–3 + Week 8 Financial & Chat
+# Testing Status - Phases 1–3 + Weeks 8–9 Financial, Chat, Safety & AI Verification
 
-**Last Updated:** 2026-03-13 PHT
-**Status:** All phases through Week 8 complete — 222 Backend Tests (23 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean
+**Last Updated:** 2026-03-18 PHT
+**Status:** All phases through Week 9 complete — 267 Backend Tests (28 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean
 
 ---
 
@@ -17,7 +17,9 @@
 
 **Week 5 (Driver Booking Flow):** Full driver-side flow implemented — DriveRequestsScreen, DriverActiveRideScreen (overhauled), DriverTripCompletionScreen, backend dispatch payload normalization (riderName, pickupLat/Lng, buildRideData), DispatchSocketClient nested-JSON fix. Two bugs fixed: activeRideId navigation loop (critical), fare format ₱1500.0→₱1500 (UX). 1 new backend test. APK builds successfully.
 
-**Week 8 (Financial Module + In-App Chat):** 4 new backend modules (Payment, Subscription, Earnings, Chat) with full mobile and web admin integration. **150 new unit tests** added: 100 backend (10 new spec files) + 50 mobile (5 new + 1 updated). Total: **222 backend tests (23 suites)** all passing, **137+ mobile tests (20 files)** all passing. Web admin build clean.
+**Week 8 (Financial Module + In-App Chat):** 4 new backend modules (Payment, Subscription, Earnings, Chat) with full mobile and web admin integration. **150 new unit tests** added: 100 backend (10 new spec files) + 50 mobile (5 new + 1 updated).
+
+**Week 9 (AI Verification, Breathalyzer, BLOWBAGETS, Chat Enhancement):** AI document verification (Claude Sonnet vision), per-ride breathalyzer safety gate (fail-closed), BLOWBAGETS 10-item vehicle inspection at pickup, chat name/phone enhancement. **45 new backend tests** (5 new suites). Total: **267 backend tests (28 suites)** — 267/268 passing (1 pre-existing failure in chat.gateway.spec.ts). **137+ mobile tests (20 files)** all passing. Web admin build clean.
 
 **Week 5 (Real-time Tracking & Navigation):** TrackingSocketClient (new `/tracking` namespace Socket.IO client), driver GPS broadcast every 3s, rider ActiveRideScreen with live driver marker + route polyline, ETA dual-strategy (Haversine instant + Directions API every 30s), geofence events at 200m/50m thresholds, turn-by-turn navigation FAB, backend RideRoute storage on acceptance, actual fare calculation from GPS trail on COMPLETED. Dispatch: 30s SELECTED timeout, EXPIRED event, normalized accepted payload.
 

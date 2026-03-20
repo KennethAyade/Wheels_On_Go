@@ -18,6 +18,27 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-18 11:40 PHT
+Summary: Week 9 — AI-powered document verification (Claude Sonnet vision), breathalyzer safety gate (per-ride, fail-closed), BLOWBAGETS vehicle inspection checklist at pickup, chat name/phone enhancement.
+Changes:
+- apps/api/src/verification/: NEW module — VerificationService with `verifyIdDocument()` (fail-open) and `verifyBreathalyzerResult()` (fail-closed) using Claude Sonnet vision API. Analyzes uploaded images for document authenticity and breathalyzer BAC readings.
+- apps/api/src/checklist/: NEW module — ChecklistService + ChecklistController with 5 REST endpoints. Breathalyzer: presign → R2 upload → AI confirm (PASS/FAIL/INVALID_IMAGE, 8h cooldown on FAIL). BLOWBAGETS: 10-item vehicle safety checklist submission + ride gate.
+- apps/api/src/driver/driver.service.ts: `confirmKycUpload()` now runs AI verification for LICENSE/GOVERNMENT_ID. Auto-rejects invalid docs with `rejectionReason`, auto-verifies valid docs to `VERIFIED` status.
+- apps/api/src/ride/ride.service.ts: `updateRideStatus()` gates DRIVER_ARRIVED→STARTED transition behind completed BLOWBAGETS checklist. Added firstName/lastName to ride query selects and response mapping.
+- apps/api/prisma/schema.prisma: Added `VERIFIED` to DocumentStatus, `rejectionReason` to DriverDocument, `breathalyzerCooldownUntil` to DriverProfile, breathalyzer fields + `rideId` to BlowbagetsChecklist.
+- apps/api/prisma/migrations/20260318000000_*: VERIFIED status + rejectionReason
+- apps/api/prisma/migrations/20260318100000_*: Breathalyzer fields + checklist rideId
+- apps/mobile/.../ui/screens/checklist/BreathalyzerUploadScreen.kt: NEW — Breathalyzer upload UI with camera/gallery, AI verification, PASS/FAIL/INVALID_IMAGE result cards
+- apps/mobile/.../ui/screens/checklist/BreathalyzerUploadViewModel.kt: NEW — 3-step R2 upload flow (presign → PUT → confirm)
+- apps/mobile/.../ui/screens/checklist/BlowbagetsInlineChecklist.kt: NEW — 10-item checkbox composable shown inline at AT_PICKUP phase
+- apps/mobile/.../ui/screens/driver/DriverHomeViewModel.kt: `acceptRide()` now gates through breathalyzer (sets pendingBreathalyzerAccept instead of immediate accept)
+- apps/mobile/.../ui/screens/driver/DriverActiveRideScreen.kt: AT_PICKUP shows BLOWBAGETS checklist, "Start Ride" appears after completion
+- apps/mobile/.../ui/screens/chat/RideChatScreen.kt: Shows actual names + tappable phone numbers in chat
+- apps/mobile/.../data/network/ChecklistApi.kt: NEW — Retrofit interface for 5 checklist endpoints
+- apps/mobile/.../data/models/checklist/ChecklistModels.kt: NEW — Request/response models
+- Backend: 267 tests passing (28 suites), TypeScript clean compile
+Details: `changes/2026-03-18-1140-pht.md`
+
 ## 2026-03-13 02:20 PHT
 Summary: Week 8 — Financial Module (payment gateway, subscriptions, driver earnings), In-App Real-Time Chat, and 150 new unit tests (100 backend + 50 mobile).
 Changes:

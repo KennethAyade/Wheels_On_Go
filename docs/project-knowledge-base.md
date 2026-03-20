@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-13
+**Last Updated:** 2026-03-18
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phase 1 is complete**, **Phase 2 (Weeks 4–5) is complete**, **Phase 3 Week 7 (Admin Dashboard) is complete**, **safety features (fatigue detection, SOS, ratings) are implemented**, and **Week 8 financial + chat features are complete**: Firebase Phone Auth, driver KYC (Cloudflare R2), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, and in-app real-time chat are all implemented end-to-end.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), and BLOWBAGETS 10-item vehicle safety inspection at pickup are all implemented end-to-end.
 
 ---
 
@@ -36,7 +36,8 @@
 | 2026-02-28 | SOS functionality, ride cancellation notifications, rating system, error handling | ✅ Complete |
 | 2026-03-06 | Week 7 Enhanced — Admin analytics, customers, incidents, audit logs, ratings, booking detail, dashboard charts | ✅ Complete |
 | 2026-03-13 | Week 8 — Payment gateway, subscriptions, driver earnings, in-app chat, 150 new tests | ✅ Complete |
-| Week 9+ | Communication (masked calls, push notifications), BLOWBAGETS enforcement, production hardening | 📅 Planned |
+| 2026-03-18 | Week 9 — AI document verification (Claude Sonnet), breathalyzer safety gate, BLOWBAGETS checklist, chat enhancement | ✅ Complete |
+| Week 10+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
 
@@ -48,6 +49,7 @@
 | **Database** | PostgreSQL via Prisma ORM 5.15 |
 | **Authentication** | JWT with OTP-first flow + admin email/password |
 | **Encryption** | AES-256-GCM (at rest), TLS 1.3 (in transit) |
+| **AI Verification** | Claude Sonnet Vision (document + breathalyzer analysis via Anthropic SDK) |
 | **Biometrics** | AWS Rekognition (with mock mode) |
 | **Storage** | Cloudflare R2 (S3-compatible, free tier: 10GB) |
 | **SMS/OTP** | Firebase Phone Auth (real phones, 10K/month free), console SMS (emulators) |
@@ -86,6 +88,8 @@ Wheels_On_Go/
 │   │   │   ├── subscription/          # Premium subscription plans
 │   │   │   ├── earnings/              # Driver earnings + wallet
 │   │   │   ├── chat/                  # In-app messaging (Socket.IO /chat)
+│   │   │   ├── verification/          # AI document verification (Claude Sonnet vision)
+│   │   │   ├── checklist/             # Breathalyzer + BLOWBAGETS safety checklist
 │   │   │   ├── common/                # Guards, decorators, types
 │   │   │   ├── health/                # Health check endpoint
 │   │   │   ├── prisma/                # Prisma service & middleware
@@ -95,7 +99,7 @@ Wheels_On_Go/
 │   │   │   ├── seed-admin.ts          # Admin user seed script
 │   │   │   └── migrations/            # Database migrations
 │   │   ├── scripts/                   # Database utilities
-│   │   └── test/                      # Unit tests (222 passing, 23 suites)
+│   │   └── test/                      # Unit tests (267 passing, 28 suites)
 │   ├── mobile/                        # Android app (Kotlin/Compose)
 │   └── web/                           # React admin dashboard
 │       ├── src/
@@ -223,6 +227,15 @@ Wheels_On_Go/
 |--------|----------|------|-------------|
 | GET | `/admin/transactions` | Admin JWT | Paginated transactions with type/status/paymentMethod/date filters |
 
+### Safety Checklists
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/checklist/breathalyzer/status` | Driver JWT | Check breathalyzer cooldown status |
+| POST | `/checklist/breathalyzer/presign` | Driver JWT | Get R2 presigned URL for breathalyzer image |
+| POST | `/checklist/breathalyzer/confirm` | Driver JWT | Confirm upload + AI verification (PASS/FAIL/INVALID_IMAGE) |
+| POST | `/checklist/blowbagets/submit` | Driver JWT | Submit 10-item vehicle safety checklist |
+| GET | `/checklist/blowbagets/:rideId` | Driver JWT | Get BLOWBAGETS checklist for a ride |
+
 ### Rides & Booking
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
@@ -319,8 +332,8 @@ Wheels_On_Go/
 ### Phase 1 Models (7 Implemented)
 1. **User** — Core identity (RIDER/DRIVER/ADMIN roles), passwordHash for admin login
 2. **OtpCode** — OTP management with TTL and attempts
-3. **DriverProfile** — Driver status and metrics
-4. **DriverDocument** — KYC documents (LICENSE, GOVERNMENT_ID, PROFILE_PHOTO)
+3. **DriverProfile** — Driver status and metrics, `breathalyzerCooldownUntil` for breathalyzer failures
+4. **DriverDocument** — KYC documents (LICENSE, GOVERNMENT_ID, PROFILE_PHOTO), `VERIFIED` status via AI, `rejectionReason` for AI rejections
 5. **AuditLog** — Comprehensive audit trail (51 actions)
 6. **BiometricVerification** — Face verification logs
 7. **RiderProfile** — Rider preferences
@@ -346,7 +359,7 @@ Wheels_On_Go/
 | **Booking & Ride** | Ride, DispatchAttempt, RideRoute, PromoCode, UserPromoUsage, SurgePricingLog, Rating |
 | **Financial** | SubscriptionPlan, RiderPaymentMethod, Transaction, EarningsReport |
 | **Real-Time Tracking** | DriverLocationHistory, GeofenceEvent |
-| **Safety & Intelligence** | FatigueDetectionLog, SosIncident, BlowbagetsChecklist |
+| **Safety & Intelligence** | FatigueDetectionLog, SosIncident, BlowbagetsChecklist (with breathalyzer fields + rideId) |
 | **Communication** | MaskedCall, Message, Notification |
 | **Admin & Support** | SupportTicket, TicketReply, SystemConfiguration |
 | **Observability** | AuditLog |
@@ -409,10 +422,10 @@ Wheels_On_Go/
 
 ## Testing Status
 
-### Current Coverage (as of Mar 13, 2026)
+### Current Coverage (as of Mar 18, 2026)
 | Component | Unit | Integration | E2E |
 |-----------|------|-------------|-----|
-| Backend Tests | ✅ 222 passing (23 suites) | ⚠️ Pending | ⚠️ Pending |
+| Backend Tests | ✅ 267 passing (28 suites) | ⚠️ Pending | ⚠️ Pending |
 | Mobile Tests | ✅ 137+ passing (20 files) | ⚠️ Pending | ⚠️ Pending |
 | EncryptionService | ✅ 100% (22 tests) | ⚠️ Pending | ⚠️ Pending |
 | FirebaseService | ✅ 100% (5 tests) | ⚠️ Pending | ⚠️ Pending |
@@ -434,9 +447,9 @@ Wheels_On_Go/
 | AuditService | ⚠️ 0% | ⚠️ Pending | ⚠️ Pending |
 
 ### Testing Roadmap
-- **Current:** Backend tests passing (23 suites, 222 tests); mobile 137+ tests all passing (20 files); web build clean
-- **Next (Week 9):** Integration tests, E2E tests (6-8 hours)
-- **Weeks 9–10:** Security tests, performance tests, load tests
+- **Current:** Backend tests passing (28 suites, 267 tests); mobile 137+ tests all passing (20 files); web build clean
+- **Next (Week 10):** Integration tests, E2E tests (6-8 hours)
+- **Weeks 10–11:** Security tests, performance tests, load tests
 
 ---
 
@@ -491,6 +504,9 @@ GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 FATIGUE_MODE=mock|live
 GEMINI_API_KEY=your-gemini-api-key
 
+# AI Document & Breathalyzer Verification (Anthropic Claude)
+ANTHROPIC_API_KEY=your-anthropic-api-key
+
 # Server
 PORT=3000
 NODE_ENV=development
@@ -527,9 +543,19 @@ netAmount = totalFare × (1 - commissionRate)
 - 200m from dropoff → APPROACHING_DROPOFF event to rider
 - 50m from dropoff → ARRIVED_AT_DROPOFF event to rider
 
-### 6. BLOWBAGETS Safety Checklist
-- Driver must complete daily checklist (Brakes, Lights, Oil, Water, Battery, Air, Gas, Engine, Tools, Self)
-- Expires after 24 hours; blocks driver from going online if expired
+### 6. BLOWBAGETS Safety Checklist (Per-Ride at Pickup)
+- Driver inspects rider's vehicle at pickup (DRIVER_ARRIVED phase) — 10-item checklist (Brakes, Lights, Oil, Water, Battery, Air, Gas, Engine, Tools, Self)
+- All 10 items must be checked; backend gates `DRIVER_ARRIVED → STARTED` transition behind completed checklist
+- Shown inline in DriverActiveRideScreen; "Start Ride" button appears only after completion
+- Expires after 24 hours
+
+### 6b. Breathalyzer Safety Gate (Per-Ride before Acceptance)
+- When driver taps "Accept" on a ride request, they must first upload a breathalyzer photo
+- AI (Claude Sonnet Vision) analyzes the photo for BAC reading
+- **PASS** (BAC ≤ 0.05): Ride acceptance proceeds via WebSocket
+- **FAIL** (BAC > 0.05): 8-hour cooldown, ride not accepted (auto-expires and re-dispatches)
+- **INVALID_IMAGE** (not a breathalyzer): No cooldown, driver can retry immediately
+- **Fail-CLOSED strategy** — if AI can't analyze, returns INVALID_IMAGE (driver must retry)
 
 ### 7. Fatigue Detection (Gemini Vision AI)
 - Uses `gemini-2.0-flash` multimodal model to analyze driver face images
@@ -558,6 +584,9 @@ Plans: Basic (₱99/mo, 5%), Premium (₱199/mo, 10%), VIP (₱499/mo, 20%)
 ### 10. Admin Driver Verification Flow
 ```
 Driver registers → Uploads 3 docs (LICENSE, GOVERNMENT_ID, PROFILE_PHOTO)
+→ AI auto-verifies LICENSE and GOVERNMENT_ID (Claude Sonnet Vision)
+→ If AI rejects: document marked REJECTED with rejectionReason, driver can re-upload
+→ If AI passes: document marked VERIFIED
 Admin reviews via web dashboard → Views presigned document images
 Admin approves → DriverStatus = APPROVED, driver can go online
 Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
@@ -590,6 +619,9 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Earnings service | `apps/api/src/earnings/earnings.service.ts` |
 | Chat gateway (WebSocket) | `apps/api/src/chat/chat.gateway.ts` |
 | Chat service | `apps/api/src/chat/chat.service.ts` |
+| Verification service (Claude AI) | `apps/api/src/verification/verification.service.ts` |
+| Checklist controller | `apps/api/src/checklist/checklist.controller.ts` |
+| Checklist service | `apps/api/src/checklist/checklist.service.ts` |
 | Admin transactions | `apps/api/src/admin/admin-transactions.controller.ts` |
 | Encryption service | `apps/api/src/encryption/encryption.service.ts` |
 | Firebase service | `apps/api/src/auth/firebase.service.ts` |
@@ -632,11 +664,24 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Driver earnings screen | `apps/mobile/.../ui/screens/earnings/DriverEarningsScreen.kt` |
 | Chat screen | `apps/mobile/.../ui/screens/chat/RideChatScreen.kt` |
 | Chat socket client | `apps/mobile/.../data/network/ChatSocketClient.kt` |
+| Breathalyzer upload | `apps/mobile/.../ui/screens/checklist/BreathalyzerUploadScreen.kt` |
+| BLOWBAGETS checklist | `apps/mobile/.../ui/screens/checklist/BlowbagetsInlineChecklist.kt` |
+| Checklist API | `apps/mobile/.../data/network/ChecklistApi.kt` |
 | Token manager | `apps/mobile/.../data/auth/TokenManager.kt` |
 
 ---
 
 ## Recent Changes Summary
+
+### 2026-03-18 — Week 9: AI Verification, Breathalyzer Gate, BLOWBAGETS Checklist, Chat Enhancement
+- AI-powered document verification: Claude Sonnet vision auto-verifies LICENSE and GOVERNMENT_ID during KYC (fail-open — passes through for manual admin review on AI error)
+- Breathalyzer safety gate: per-ride breathalyzer photo upload + AI BAC analysis before ride acceptance (PASS ≤ 0.05 → accept, FAIL > 0.05 → 8h cooldown, INVALID_IMAGE → retry); fail-closed strategy
+- BLOWBAGETS 10-item vehicle inspection at pickup (DRIVER_ARRIVED): gates "Start Ride" behind completion; driver inspects rider's car
+- Chat enhancement: actual driver/rider names + tappable phone numbers in chat screen
+- New modules: VerificationModule, ChecklistModule (5 REST endpoints)
+- Prisma: `VERIFIED` DocumentStatus, `rejectionReason` on DriverDocument, breathalyzer fields on BlowbagetsChecklist, `breathalyzerCooldownUntil` on DriverProfile
+- Mobile: BreathalyzerUploadScreen, BlowbagetsInlineChecklist, ChecklistApi, updated DriverHome accept flow
+- 45 new backend tests (5 new suites); total: 267 backend tests (28 suites)
 
 ### 2026-03-13 — Week 8: Financial Module + In-App Chat
 - 4 new backend modules: PaymentModule, SubscriptionModule, EarningsModule, ChatModule
@@ -746,7 +791,7 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 6. **Key Rotation:** Procedure not yet documented.
 7. **GDPR Endpoints:** Data export/deletion endpoints not yet implemented.
 8. **Firebase Quota:** Free tier limited to 10K phone auth verifications/month.
-9. **BLOWBAGETS Checklist:** Schema ready but enforcement not yet implemented in driver go-online flow.
+9. **BLOWBAGETS Checklist:** Fully implemented as per-ride inspection at pickup (DRIVER_ARRIVED phase). Driver inspects rider's vehicle before starting ride.
 
 ---
 
@@ -764,7 +809,7 @@ npm run prisma:migrate             # Run migrations (prisma migrate deploy)
 npm run seed:admin                 # Seed admin user (admin@wheelsongo.com / Admin123!)
 
 # Testing
-npm run test:api                   # Run all backend tests (222 passing, 23 suites)
+npm run test:api                   # Run all backend tests (267 passing, 28 suites)
 npm run test:api -- --watch        # Watch mode
 
 # Build

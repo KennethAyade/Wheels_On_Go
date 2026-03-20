@@ -132,7 +132,7 @@ enum UserRole { RIDER DRIVER ADMIN }
 enum OtpPurpose { LOGIN REGISTER }
 enum DriverStatus { PENDING APPROVED REJECTED }
 enum DriverDocumentType { LICENSE ORCR GOVERNMENT_ID PROFILE_PHOTO }
-enum DocumentStatus { PENDING_UPLOAD UPLOADED REJECTED }
+enum DocumentStatus { PENDING_UPLOAD UPLOADED REJECTED VERIFIED }
 
 model User {
   id           String   @id @default(uuid())
@@ -173,6 +173,7 @@ model DriverProfile {
   profilePhotoKey        String?
   profilePhotoUploadedAt DateTime?
   biometricVerifiedAt    DateTime?
+  breathalyzerCooldownUntil DateTime? // Set on breathalyzer FAIL (8h cooldown)
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
   documents              DriverDocument[]
@@ -188,6 +189,7 @@ model DriverDocument {
   fileName        String
   mimeType        String
   status          DocumentStatus    @default(PENDING_UPLOAD)
+  rejectionReason String?           // AI rejection reason (e.g., "Not a valid government ID")
   size            Int?
   uploadedAt      DateTime?
   createdAt       DateTime          @default(now())
@@ -322,9 +324,10 @@ model BiometricVerification {
 - **Business Logic**: Long-press (3s) triggers SMS to trusted contacts + admin dashboard alert
 
 #### **BlowbagetsChecklist**
-- **Purpose**: 24-hour vehicle safety checklist (Brakes, Lights, Oil, Water, Battery, Air, Gas, Engine, Tools, Self)
-- **Key Fields**: 10 boolean checkpoints, allItemsChecked, expiresAt
-- **Business Logic**: Blocks driver from going online if checklist expired
+- **Purpose**: Per-ride vehicle safety checklist (Brakes, Lights, Oil, Water, Battery, Air, Gas, Engine, Tools, Self) + breathalyzer verification
+- **Key Fields**: 10 boolean checkpoints, allItemsChecked, expiresAt, rideId
+- **Breathalyzer Fields**: breathalyzerImageKey, breathalyzerMimeType, breathalyzerVerified, breathalyzerBacReading (Float), breathalyzerResult ("PASS"/"FAIL"/"INVALID_IMAGE"), breathalyzerAiDetails
+- **Business Logic**: Gates `DRIVER_ARRIVED → STARTED` transition. Driver inspects rider's vehicle at pickup. Breathalyzer verified via Claude Sonnet Vision AI before ride acceptance.
 
 ---
 
@@ -366,6 +369,8 @@ model BiometricVerification {
 |-----------|------|-------------|
 | `20260123043751_init` | Jan 23, 2026 | Initial schema (Phase 1: Auth, KYC, Biometric) |
 | `add_complete_ride_sharing_schema` | Jan 27, 2026 | Complete Phase 2-7 schema (40+ models) |
+| `20260318000000_add_verified_status_and_rejection_reason` | Mar 18, 2026 | Add VERIFIED to DocumentStatus enum, rejectionReason to DriverDocument |
+| `20260318100000_add_breathalyzer_and_checklist_ride` | Mar 18, 2026 | Add breathalyzer fields + rideId to BlowbagetsChecklist, breathalyzerCooldownUntil to DriverProfile |
 
 ---
 
@@ -405,9 +410,10 @@ WHERE status = 'COMPLETED';
 ## Business Rules & Constraints
 
 ### 1. Driver Availability
-- Must have valid BLOWBAGETS checklist (< 24 hours old) before going online
 - Must have status = APPROVED
 - Must have vehicle registered
+- Must pass breathalyzer test (Claude Sonnet Vision AI) before each ride acceptance
+- Must complete BLOWBAGETS 10-item checklist at pickup (DRIVER_ARRIVED) before starting ride
 
 ### 2. Ride Fare Calculation
 ```typescript

@@ -346,18 +346,20 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             )
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString(Route.BreathalyzerUpload.ARG_RIDE_ID) ?: ""
+            val homeEntry = try { navController.getBackStackEntry(Route.Home.value) } catch (e: Exception) { null }
+            val driverHomeViewModel: DriverHomeViewModel? = homeEntry?.let { viewModel(it) }
             BreathalyzerUploadScreen(
                 rideId = rideId,
                 onPassed = {
-                    driverHomeViewModel.confirmAcceptAfterBreathalyzer()
+                     driverHomeViewModel?.confirmAcceptAfterBreathalyzer()
                     navController.popBackStack()
                 },
                 onFailed = {
-                    driverHomeViewModel.cancelPendingAccept()
+                    driverHomeViewModel?.cancelPendingAccept()
                     navController.popBackStack()
                 },
                 onBack = {
-                    driverHomeViewModel.cancelPendingAccept()
+                    driverHomeViewModel?.cancelPendingAccept()
                     navController.popBackStack()
                 }
             )
