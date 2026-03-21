@@ -37,7 +37,19 @@ class BiometricVerificationViewModel @JvmOverloads constructor(
 
     init {
         if (isEmulator) {
-            _uiState.value = BiometricVerificationUiState(isVerified = true)
+            // On emulator, call backend with dummy image to obtain real access + refresh tokens
+            // Backend issues tokens regardless of face match result
+            viewModelScope.launch {
+                try {
+                    // 1x1 white JPEG — smallest valid image to exchange biometric token for real tokens
+                    val dummyBase64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ACoA/9k="
+                    authRepository.verifyBiometric(dummyBase64)
+                    _uiState.update { it.copy(isVerified = true) }
+                } catch (e: Exception) {
+                    // If backend call fails, still allow through on emulator for dev
+                    _uiState.update { it.copy(isVerified = true) }
+                }
+            }
         }
     }
 

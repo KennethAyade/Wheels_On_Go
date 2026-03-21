@@ -88,10 +88,21 @@ export class ChecklistService {
       : 'image/jpeg';
 
     // AI verification (fail-closed)
-    const verification = await this.verificationService.verifyBreathalyzerResult({
-      storageKey: dto.key,
-      mimeType,
-    });
+    let verification;
+    try {
+      verification = await this.verificationService.verifyBreathalyzerResult({
+        storageKey: dto.key,
+        mimeType,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Breathalyzer verification error for driver ${profile.id}: ${error.message}`,
+        error.stack,
+      );
+      throw new BadRequestException(
+        'Unable to verify image. Please try uploading again.',
+      );
+    }
 
     this.logger.log(
       `Breathalyzer verification for driver ${profile.id}: result=${verification.result}, BAC=${verification.bacReading}, confidence=${verification.confidence}`,

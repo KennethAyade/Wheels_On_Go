@@ -70,7 +70,7 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                 )
 
                 if (!presignResponse.isSuccessful || presignResponse.body() == null) {
-                    throw Exception("Failed to get upload URL: ${presignResponse.message()}")
+                    throw Exception(extractErrorMessage(presignResponse) ?: "Failed to get upload URL")
                 }
 
                 val presignData = presignResponse.body()!!
@@ -83,7 +83,7 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                 }
 
                 if (!uploaded) {
-                    throw Exception("Failed to upload image to storage")
+                    throw Exception("Failed to upload image. Please check your internet connection and try again.")
                 }
 
                 // Step 3: Confirm and verify via AI
@@ -94,7 +94,7 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                 )
 
                 if (!confirmResponse.isSuccessful || confirmResponse.body() == null) {
-                    throw Exception("Verification failed: ${confirmResponse.message()}")
+                    throw Exception(extractErrorMessage(confirmResponse) ?: "Verification failed. Please try again.")
                 }
 
                 val result = confirmResponse.body()!!
@@ -131,6 +131,20 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                 isPassed = false,
                 details = null
             )
+        }
+    }
+
+    /**
+     * Extract the error message from a failed Retrofit response.
+     * NestJS returns JSON like {"message":"Ride not found","statusCode":400}
+     */
+    private fun <T> extractErrorMessage(response: retrofit2.Response<T>): String? {
+        return try {
+            val errorBody = response.errorBody()?.string() ?: return null
+            val json = org.json.JSONObject(errorBody)
+            json.optString("message", null)
+        } catch (_: Exception) {
+            null
         }
     }
 

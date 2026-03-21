@@ -1,7 +1,6 @@
 package com.wheelsongo.app.ui.screens.auth
 
 import android.app.Activity
-import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -65,8 +64,7 @@ fun OtpVerificationScreen(
     // Navigate when verified - route to biometric if required
     LaunchedEffect(uiState.isVerified, uiState.biometricRequired) {
         if (uiState.isVerified) {
-            val isEmulator = android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.FINGERPRINT.contains("emulator") || android.os.Build.MODEL.contains("Emulator") || android.os.Build.MODEL.contains("Android SDK") || android.os.Build.HARDWARE.contains("ranchu") || android.os.Build.HARDWARE.contains("goldfish") || android.os.Build.PRODUCT.contains("sdk") || android.os.Build.PRODUCT.contains("emulator")
-            if (uiState.biometricRequired && !isEmulator && context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+            if (uiState.biometricRequired) {
                 // Returning driver — proceed with camera-based face verification
                 onBiometricRequired()
             } else {
