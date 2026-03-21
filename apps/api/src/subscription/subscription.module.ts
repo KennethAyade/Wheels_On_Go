@@ -3,10 +3,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { SubscriptionService } from './subscription.service';
 import { SubscriptionController } from './subscription.controller';
+import { AdminSubscriptionController } from './admin-subscription.controller';
 
 @Module({
   imports: [PrismaModule, AuditModule],
-  controllers: [SubscriptionController],
+  controllers: [SubscriptionController, AdminSubscriptionController],
   providers: [SubscriptionService],
   exports: [SubscriptionService],
 })

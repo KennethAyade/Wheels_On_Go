@@ -9,7 +9,10 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -33,6 +36,8 @@ fun AppDrawer(
     onMyVehicles: () -> Unit = {},
     onSubscription: () -> Unit = {},
     onMyEarnings: () -> Unit = {},
+    onMessages: () -> Unit = {},
+    unreadMessagesCount: Int = 0,
     onSettings: () -> Unit = {},
     onLogout: () -> Unit
 ) {
@@ -111,6 +116,23 @@ fun AppDrawer(
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
+
+        // Messages — both roles
+        NavigationDrawerItem(
+            icon = {
+                BadgedBox(badge = {
+                    if (unreadMessagesCount > 0) {
+                        Badge { Text("$unreadMessagesCount") }
+                    }
+                }) {
+                    Icon(Icons.Default.Email, contentDescription = null)
+                }
+            },
+            label = { Text("Messages") },
+            selected = false,
+            onClick = onMessages,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
 
         // Settings — both roles
         NavigationDrawerItem(

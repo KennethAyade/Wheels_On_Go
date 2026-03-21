@@ -323,6 +323,15 @@ sealed class Route(val value: String) {
     data object Settings : Route("settings")
 
     // ==========================================
+    // Admin Messages
+    // ==========================================
+
+    /**
+     * Admin messages screen — view and reply to admin messages (both roles)
+     */
+    data object AdminMessages : Route("admin_messages")
+
+    // ==========================================
     // Place Search
     // ==========================================
 

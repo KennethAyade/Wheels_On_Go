@@ -13,7 +13,9 @@ import com.wheelsongo.app.data.network.DispatchSocketClient
 import com.wheelsongo.app.data.repository.RideRepository
 import com.wheelsongo.app.data.network.TrackingApi
 import com.wheelsongo.app.data.network.UpdateLocationRequest
+import android.util.Log
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,6 +101,8 @@ class DriverHomeViewModel @JvmOverloads constructor(
         fetchDriverStatus()
     }
 
+    private var statusRetryCount = 0
+
     private fun fetchDriverStatus() {
         viewModelScope.launch {
             try {
@@ -107,9 +111,27 @@ class DriverHomeViewModel @JvmOverloads constructor(
                     val profile = response.body()
                     if (profile != null) {
                         _uiState.update { it.copy(driverStatus = profile.status) }
+                        statusRetryCount = 0
+                        Log.d("DriverHomeVM", "Driver status: ${profile.status}")
                     }
+                } else {
+                    Log.w("DriverHomeVM", "Profile fetch HTTP ${response.code()}")
+                    scheduleStatusRetry()
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("DriverHomeVM", "Profile fetch failed", e)
+                scheduleStatusRetry()
+            }
+        }
+    }
+
+    private fun scheduleStatusRetry() {
+        if (statusRetryCount < 3) {
+            statusRetryCount++
+            viewModelScope.launch {
+                delay(2000L * statusRetryCount)
+                fetchDriverStatus()
+            }
         }
     }
 

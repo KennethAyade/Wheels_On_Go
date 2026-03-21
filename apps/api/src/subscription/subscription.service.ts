@@ -3,11 +3,14 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit.constants';
-import { PaymentMethod, PaymentStatus, TransactionType } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, TransactionType, Prisma } from '@prisma/client';
+import { CreateSubscriptionPlanDto } from './dto/create-subscription-plan.dto';
+import { UpdateSubscriptionPlanDto } from './dto/update-subscription-plan.dto';
 
 @Injectable()
 export class SubscriptionService {
@@ -191,5 +194,131 @@ export class SubscriptionService {
     }
 
     return riderProfile.subscriptionPlan.discountPercentage;
+  }
+
+  // ==========================================
+  // Admin CRUD
+  // ==========================================
+
+  async listAllPlans() {
+    return this.prisma.subscriptionPlan.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { _count: { select: { riders: true } } },
+    });
+  }
+
+  async createPlan(dto: CreateSubscriptionPlanDto, adminUserId: string) {
+    try {
+      const plan = await this.prisma.subscriptionPlan.create({
+        data: {
+          name: dto.name,
+          description: dto.description ?? null,
+          monthlyFee: dto.monthlyFee,
+          discountPercentage: dto.discountPercentage,
+          maxRidesPerMonth: dto.maxRidesPerMonth ?? null,
+          priorityDispatch: dto.priorityDispatch ?? false,
+        },
+      });
+
+      await this.auditService.log(
+        adminUserId,
+        AuditAction.ADMIN_CONFIG_CHANGED,
+        'SubscriptionPlan',
+        plan.id,
+        { action: 'create', name: plan.name },
+      );
+
+      this.logger.log(`Admin ${adminUserId} created plan: ${plan.name}`);
+      return plan;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(`A plan named "${dto.name}" already exists`);
+      }
+      throw error;
+    }
+  }
+
+  async updatePlan(
+    planId: string,
+    dto: UpdateSubscriptionPlanDto,
+    adminUserId: string,
+  ) {
+    const existing = await this.prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
+    try {
+      const plan = await this.prisma.subscriptionPlan.update({
+        where: { id: planId },
+        data: {
+          ...(dto.name !== undefined && { name: dto.name }),
+          ...(dto.description !== undefined && { description: dto.description }),
+          ...(dto.monthlyFee !== undefined && { monthlyFee: dto.monthlyFee }),
+          ...(dto.discountPercentage !== undefined && {
+            discountPercentage: dto.discountPercentage,
+          }),
+          ...(dto.maxRidesPerMonth !== undefined && {
+            maxRidesPerMonth: dto.maxRidesPerMonth,
+          }),
+          ...(dto.priorityDispatch !== undefined && {
+            priorityDispatch: dto.priorityDispatch,
+          }),
+        },
+      });
+
+      await this.auditService.log(
+        adminUserId,
+        AuditAction.ADMIN_CONFIG_CHANGED,
+        'SubscriptionPlan',
+        plan.id,
+        { action: 'update', name: plan.name, changes: { ...dto } },
+      );
+
+      this.logger.log(`Admin ${adminUserId} updated plan: ${plan.name}`);
+      return plan;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(`A plan named "${dto.name}" already exists`);
+      }
+      throw error;
+    }
+  }
+
+  async togglePlanActive(planId: string, adminUserId: string) {
+    const existing = await this.prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Subscription plan not found');
+    }
+
+    const plan = await this.prisma.subscriptionPlan.update({
+      where: { id: planId },
+      data: { isActive: !existing.isActive },
+    });
+
+    await this.auditService.log(
+      adminUserId,
+      AuditAction.ADMIN_CONFIG_CHANGED,
+      'SubscriptionPlan',
+      plan.id,
+      { action: 'toggle_active', name: plan.name, isActive: plan.isActive },
+    );
+
+    this.logger.log(
+      `Admin ${adminUserId} ${plan.isActive ? 'activated' : 'deactivated'} plan: ${plan.name}`,
+    );
+    return plan;
   }
 }

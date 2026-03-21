@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   Star,
+  Crown,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/incidents', label: 'SOS Incidents', icon: AlertTriangle, enabled: true },
   { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList, enabled: true },
   { to: '/ratings', label: 'Ratings', icon: Star, enabled: true },
+  { to: '/subscriptions', label: 'Subscriptions', icon: Crown, enabled: true },
   { to: '/reports', label: 'Reports', icon: FileText, enabled: true },
 ];
 

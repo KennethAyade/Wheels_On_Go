@@ -49,7 +49,13 @@ import com.wheelsongo.app.ui.screens.subscription.SubscriptionScreen
 import com.wheelsongo.app.ui.screens.earnings.DriverEarningsScreen
 import com.wheelsongo.app.ui.screens.chat.RideChatScreen
 import com.wheelsongo.app.ui.screens.checklist.BreathalyzerUploadScreen
+import com.wheelsongo.app.ui.screens.messaging.AdminMessagesScreen
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
@@ -380,6 +386,15 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
         }
 
         // ==========================================
+        // Admin Messages Screen (Both Roles)
+        // ==========================================
+        composable(Route.AdminMessages.value) {
+            AdminMessagesScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
         // Subscription Screen (Rider)
         // ==========================================
         composable(Route.Subscription.value) {
@@ -442,6 +457,20 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val userRole by tokenManager.userRole.collectAsState(initial = null)
             val phoneNumber by tokenManager.phoneNumber.collectAsState(initial = null)
 
+            // Poll for unread admin messages count
+            var unreadMessagesCount by remember { mutableIntStateOf(0) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    try {
+                        val resp = ApiClient.adminMessagesApi.getUnreadCount()
+                        if (resp.isSuccessful) {
+                            unreadMessagesCount = resp.body()?.count ?: 0
+                        }
+                    } catch (_: Exception) { }
+                    delay(30_000)
+                }
+            }
+
             val drawerContent: @Composable () -> Unit = {
                 AppDrawer(
                     userRole = userRole,
@@ -462,6 +491,11 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.DriverEarnings.value)
                     },
+                    onMessages = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.AdminMessages.value)
+                    },
+                    unreadMessagesCount = unreadMessagesCount,
                     onSettings = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.Settings.value)

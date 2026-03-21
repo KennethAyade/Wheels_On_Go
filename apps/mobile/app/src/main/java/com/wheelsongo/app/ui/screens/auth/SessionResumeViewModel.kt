@@ -53,7 +53,8 @@ class SessionResumeViewModel @JvmOverloads constructor(
             viewModelScope.launch {
                 val tokenManager = ApiClient.getTokenManager()
                 val biometricEnabled = tokenManager.isBiometricEnabled()
-                if (biometricEnabled) {
+                val isEmulator = android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.FINGERPRINT.contains("emulator") || android.os.Build.MODEL.contains("Emulator") || android.os.Build.MODEL.contains("Android SDK") || android.os.Build.HARDWARE.contains("ranchu") || android.os.Build.HARDWARE.contains("goldfish") || android.os.Build.PRODUCT.contains("sdk") || android.os.Build.PRODUCT.contains("emulator")
+                if (biometricEnabled && !isEmulator) {
                     _uiState.value = UiState(isChecking = false, needsBiometric = true)
                 } else {
                     // Biometric disabled — skip prompt, refresh directly

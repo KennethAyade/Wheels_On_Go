@@ -363,6 +363,20 @@ export interface AdminMessage {
   isFromAdmin: boolean;
 }
 
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  monthlyFee: number;
+  discountPercentage: number;
+  maxRidesPerMonth: number | null;
+  priorityDispatch: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { riders: number };
+}
+
 export interface AdminRatingsResponse {
   aggregates: {
     averageRating: number | null;

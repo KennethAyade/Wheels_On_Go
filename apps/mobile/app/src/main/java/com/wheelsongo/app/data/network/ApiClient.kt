@@ -185,6 +185,10 @@ object ApiClient {
     val checklistApi: ChecklistApi by lazy {
         retrofit.create(ChecklistApi::class.java)
     }
+
+    val adminMessagesApi: AdminMessagesApi by lazy {
+        retrofit.create(AdminMessagesApi::class.java)
+    }
 }
 
 /**
