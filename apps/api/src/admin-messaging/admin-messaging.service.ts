@@ -96,17 +96,20 @@ export class AdminMessagingService {
         messageType: MessageType.TEXT,
         rideId: null,
       },
+      include: { sender: { select: { firstName: true, lastName: true, role: true } } },
     });
 
     return {
       id: message.id,
       senderId: message.senderId,
       receiverId: message.receiverId,
+      senderName: [message.sender.firstName, message.sender.lastName].filter(Boolean).join(' ') || 'User',
       content: message.content,
       messageType: message.messageType,
       sentAt: message.sentAt.toISOString(),
       isRead: message.isRead,
       readAt: null,
+      isFromAdmin: message.sender.role === 'ADMIN',
     };
   }
 

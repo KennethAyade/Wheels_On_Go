@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { RideStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -64,12 +65,15 @@ export class ChecklistService {
   async confirmBreathalyzer(userId: string, dto: ConfirmBreathalyzerDto) {
     const profile = await this.ensureProfile(userId);
 
-    // Verify driver owns this ride
+    // Verify ride exists and is in a dispatchable state (breathalyzer is a pre-acceptance gate)
     const ride = await this.prisma.ride.findFirst({
-      where: { id: dto.rideId, driverProfileId: profile.id },
+      where: {
+        id: dto.rideId,
+        status: RideStatus.PENDING,
+      },
     });
     if (!ride) {
-      throw new BadRequestException('Ride not found or not assigned to you.');
+      throw new BadRequestException('Ride not found or no longer available.');
     }
 
     // Check cooldown

@@ -8,13 +8,13 @@ data class AdminMessageResponse(
     @Json(name = "id") val id: String,
     @Json(name = "senderId") val senderId: String,
     @Json(name = "receiverId") val receiverId: String,
-    @Json(name = "senderName") val senderName: String,
+    @Json(name = "senderName") val senderName: String = "",
     @Json(name = "content") val content: String,
     @Json(name = "messageType") val messageType: String,
     @Json(name = "sentAt") val sentAt: String,
     @Json(name = "isRead") val isRead: Boolean,
     @Json(name = "readAt") val readAt: String? = null,
-    @Json(name = "isFromAdmin") val isFromAdmin: Boolean
+    @Json(name = "isFromAdmin") val isFromAdmin: Boolean = false
 )
 
 @JsonClass(generateAdapter = true)
