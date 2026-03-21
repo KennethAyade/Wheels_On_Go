@@ -11,6 +11,7 @@ import { AuditAction } from '../audit/audit.constants';
 import { LocationService } from '../location/location.service';
 import { PaymentService } from '../payment/payment.service';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { EncryptionService } from '../encryption/encryption.service';
 import { RideStatus, RideType, SosIncidentType, UserRole } from '@prisma/client';
 import {
   CreateRideDto,
@@ -51,6 +52,7 @@ export class RideService {
     private readonly locationService: LocationService,
     private readonly paymentService: PaymentService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   /**
@@ -813,7 +815,7 @@ export class RideService {
         ? {
             id: ride.driverId,
             userId: ride.driverId,
-            phoneNumber: ride.driver.phoneNumber,
+            phoneNumber: this.decryptField(ride.driver.phoneNumber),
             firstName: ride.driver.firstName,
             lastName: ride.driver.lastName,
             driverProfile: ride.driverProfile
@@ -835,12 +837,23 @@ export class RideService {
         ? {
             id: ride.riderId,
             userId: ride.riderId,
-            phoneNumber: ride.rider.phoneNumber,
+            phoneNumber: this.decryptField(ride.rider.phoneNumber),
             firstName: ride.rider.firstName,
             lastName: ride.rider.lastName,
           }
         : undefined,
     };
+  }
+
+  private decryptField(value: string | null | undefined): string | null {
+    if (!value) return null;
+    try {
+      return this.encryptionService.isEncrypted(value)
+        ? this.encryptionService.decrypt(value)
+        : value;
+    } catch {
+      return value;
+    }
   }
 
   /**

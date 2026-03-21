@@ -1,5 +1,6 @@
 package com.wheelsongo.app.ui.navigation
 
+import android.net.Uri
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -298,8 +299,8 @@ sealed class Route(val value: String) {
         const val ARG_OTHER_PHONE = "otherPhone"
 
         fun createRoute(rideId: String, otherName: String = "", otherPhone: String = ""): String {
-            val encName = URLEncoder.encode(otherName.ifEmpty { "Chat" }, StandardCharsets.UTF_8.toString())
-            val encPhone = URLEncoder.encode(otherPhone, StandardCharsets.UTF_8.toString())
+            val encName = Uri.encode(otherName.ifEmpty { "Chat" })
+            val encPhone = Uri.encode(otherPhone)
             return "ride_chat/$rideId?otherName=$encName&otherPhone=$encPhone"
         }
     }
