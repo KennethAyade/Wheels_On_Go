@@ -294,6 +294,54 @@ export interface Transaction {
   ride: { id: string; pickupAddress: string; dropoffAddress: string } | null;
 }
 
+// Report Summary types
+export interface ReportSummary {
+  dateFrom: string;
+  dateTo: string;
+  financial: {
+    totalGrossRevenue: number;
+    totalCommission: number;
+    totalNetPayouts: number;
+    totalTransactions: number;
+    averageFare: number;
+    revenueByMethod: { method: string; count: number; total: number }[];
+    revenueByType: { type: string; count: number; total: number }[];
+  };
+  operations: {
+    totalRides: number;
+    completedRides: number;
+    cancelledRides: number;
+    completionRate: number;
+    averageDistance: number;
+    averageDuration: number;
+    ridesByStatus: { status: string; count: number }[];
+  };
+  safety: {
+    breathalyzerTests: number;
+    breathalyzerPassed: number;
+    breathalyzerFailed: number;
+    breathalyzerInvalid: number;
+    blowbagetsCompleted: number;
+    fatigueChecks: number;
+    fatigueCooldowns: number;
+    sosIncidents: number;
+    sosResolved: number;
+  };
+  subscriptions: {
+    activeSubscribers: number;
+    newSubscriptions: number;
+    cancelledSubscriptions: number;
+    subscriptionRevenue: number;
+    byPlan: { planName: string; count: number; revenue: number }[];
+  };
+  drivers: {
+    totalApproved: number;
+    totalOnline: number;
+    totalWalletBalance: number;
+    topEarners: { name: string; rides: number; earnings: number }[];
+  };
+}
+
 export interface AdminRatingsResponse {
   aggregates: {
     averageRating: number | null;

@@ -9,6 +9,8 @@ import { AdminIncidentsController } from './admin-incidents.controller';
 import { AdminAuditLogsController } from './admin-audit-logs.controller';
 import { AdminRatingsController } from './admin-ratings.controller';
 import { AdminTransactionsController } from './admin-transactions.controller';
+import { AdminReportsController } from './admin-reports.controller';
+import { AdminReportsService } from './admin-reports.service';
 
 @Module({
   imports: [PrismaModule, AuditModule],
@@ -21,6 +23,8 @@ import { AdminTransactionsController } from './admin-transactions.controller';
     AdminAuditLogsController,
     AdminRatingsController,
     AdminTransactionsController,
+    AdminReportsController,
   ],
+  providers: [AdminReportsService],
 })
 export class AdminModule {}

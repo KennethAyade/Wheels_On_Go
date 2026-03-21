@@ -18,6 +18,23 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-21 10:30 PHT
+Summary: Week 9b — Admin Reports dashboard with aggregated financial, operational, safety, subscription, and driver insights. Date range filtering and CSV export.
+Changes:
+- apps/api/src/admin/admin-reports.controller.ts: NEW — GET /admin/reports/summary endpoint (Admin JWT, date range query params)
+- apps/api/src/admin/admin-reports.service.ts: NEW — Aggregation service with 5 parallel query sections (financial, operations, safety, subscriptions, drivers) using Prisma groupBy/aggregate/count
+- apps/api/src/admin/dto/admin-reports-query.dto.ts: NEW — Query DTO with optional dateFrom/dateTo
+- apps/api/src/admin/admin.module.ts: Registered AdminReportsController + AdminReportsService
+- apps/web/src/pages/ReportsPage.tsx: NEW — Full reports page with date pickers, KPI stat cards (emerald/purple/blue/orange), breakdown tables (payment method, transaction type, rides by status, subscription plans, top earners), skeleton loading, CSV export
+- apps/web/src/api/reports.ts: NEW — API client for reports endpoint
+- apps/web/src/types/index.ts: Added ReportSummary interface (5 sections: financial, operations, safety, subscriptions, drivers)
+- apps/web/src/components/Sidebar.tsx: Reports link enabled (was disabled "Coming Soon")
+- apps/web/src/App.tsx: Added /reports route
+- docs/: Updated project-knowledge-base.md, test-results-summary.md, testing-status.md, database-schema.md
+- Backend: 267/268 tests passing (28 suites), TypeScript clean
+- Web: Vite build success — 738KB JS + 28KB CSS
+Details: `changes/2026-03-21-1030-pht.md`
+
 ## 2026-03-18 11:40 PHT
 Summary: Week 9 — AI-powered document verification (Claude Sonnet vision), breathalyzer safety gate (per-ride, fail-closed), BLOWBAGETS vehicle inspection checklist at pickup, chat name/phone enhancement.
 Changes:

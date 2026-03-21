@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-18
+**Last Updated:** 2026-03-21
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), and BLOWBAGETS 10-item vehicle safety inspection at pickup are all implemented end-to-end.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, and admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export) are all implemented end-to-end.
 
 ---
 
@@ -37,6 +37,7 @@
 | 2026-03-06 | Week 7 Enhanced — Admin analytics, customers, incidents, audit logs, ratings, booking detail, dashboard charts | ✅ Complete |
 | 2026-03-13 | Week 8 — Payment gateway, subscriptions, driver earnings, in-app chat, 150 new tests | ✅ Complete |
 | 2026-03-18 | Week 9 — AI document verification (Claude Sonnet), breathalyzer safety gate, BLOWBAGETS checklist, chat enhancement | ✅ Complete |
+| 2026-03-21 | Week 9b — Admin Reports dashboard (aggregated financial/operations/safety/subscription/driver reports with date range + CSV export) | ✅ Complete |
 | Week 10+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
@@ -106,7 +107,7 @@ Wheels_On_Go/
 │       │   ├── api/                   # Axios API clients
 │       │   ├── context/               # AuthContext (JWT)
 │       │   ├── components/            # Layout, Sidebar, StatusBadge, etc.
-│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings, Analytics, Customers, Incidents, AuditLogs
+│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings, Analytics, Customers, Incidents, AuditLogs, Payments, Reports
 │       │   └── types/                 # TypeScript interfaces
 │       ├── vite.config.ts             # Port 3001, proxy /api → localhost:3000
 │       └── package.json
@@ -226,6 +227,11 @@ Wheels_On_Go/
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/admin/transactions` | Admin JWT | Paginated transactions with type/status/paymentMethod/date filters |
+
+### Admin — Reports
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/reports/summary` | Admin JWT | Aggregated reports: financial (gross/commission/net/byMethod/byType), operations (rides/completion rate/byStatus), safety (breathalyzer/BLOWBAGETS/fatigue/SOS), subscriptions (active/new/cancelled/byPlan), drivers (approved/online/wallets/topEarners). Query: `?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD` (defaults to last 30 days) |
 
 ### Safety Checklists
 | Method | Endpoint | Auth | Description |
@@ -623,6 +629,8 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Checklist controller | `apps/api/src/checklist/checklist.controller.ts` |
 | Checklist service | `apps/api/src/checklist/checklist.service.ts` |
 | Admin transactions | `apps/api/src/admin/admin-transactions.controller.ts` |
+| Admin reports controller | `apps/api/src/admin/admin-reports.controller.ts` |
+| Admin reports service | `apps/api/src/admin/admin-reports.service.ts` |
 | Encryption service | `apps/api/src/encryption/encryption.service.ts` |
 | Firebase service | `apps/api/src/auth/firebase.service.ts` |
 
@@ -643,6 +651,7 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | SOS incidents page (status management) | `apps/web/src/pages/IncidentsPage.tsx` |
 | Audit logs page (read-only viewer) | `apps/web/src/pages/AuditLogsPage.tsx` |
 | Payments page (filters, CSV export) | `apps/web/src/pages/PaymentsPage.tsx` |
+| Reports page (aggregated reports, CSV export) | `apps/web/src/pages/ReportsPage.tsx` |
 | Sidebar layout | `apps/web/src/components/Sidebar.tsx` |
 | Status badges (all statuses) | `apps/web/src/components/StatusBadge.tsx` |
 | Vite config (proxy) | `apps/web/vite.config.ts` |
@@ -673,6 +682,14 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 
 ## Recent Changes Summary
 
+### 2026-03-21 — Week 9b: Admin Reports Dashboard
+- New `GET /admin/reports/summary` endpoint with date range filtering (defaults to last 30 days)
+- Aggregated data in 5 sections: Financial (gross/commission/net revenue, breakdown by payment method + transaction type), Operations (ride counts, completion rate, average distance/duration, rides by status), Safety (breathalyzer pass/fail rates, BLOWBAGETS completions, fatigue checks, SOS incidents), Subscriptions (active/new/cancelled subscribers, revenue by plan), Drivers (approved/online counts, wallet balances, top 5 earners)
+- Backend: AdminReportsController + AdminReportsService using Prisma `groupBy`, `aggregate`, and `count` queries
+- Frontend: Full ReportsPage with date pickers, color-coded KPI stat cards, breakdown tables, skeleton loading states, and multi-section CSV export
+- Reports sidebar entry enabled (was "Coming Soon")
+- Web build: 738KB JS (gzipped: 215KB) + 28KB CSS — TypeScript clean
+
 ### 2026-03-18 — Week 9: AI Verification, Breathalyzer Gate, BLOWBAGETS Checklist, Chat Enhancement
 - AI-powered document verification: Claude Sonnet vision auto-verifies LICENSE and GOVERNMENT_ID during KYC (fail-open — passes through for manual admin review on AI error)
 - Breathalyzer safety gate: per-ride breathalyzer photo upload + AI BAC analysis before ride acceptance (PASS ≤ 0.05 → accept, FAIL > 0.05 → 8h cooldown, INVALID_IMAGE → retry); fail-closed strategy
@@ -700,7 +717,7 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 - DashboardPage enhanced with 7-day mini charts (rides + revenue AreaCharts)
 - DriversPage fixed: hardcoded rating replaced with actual averageRating
 - BookingsPage: row click navigates to booking detail
-- Sidebar updated: 6 enabled pages + 2 coming soon (Payments, Reports)
+- Sidebar updated: all pages enabled (Payments added Week 8, Reports added Week 9b)
 - StatusBadge: added colors for user statuses (Active/Suspended) and SOS statuses
 - 7 new DTOs, AdminModule updated with AuditModule
 - 26 new backend tests (4 new test files), total: 166 tests / 18 suites

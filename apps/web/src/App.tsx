@@ -14,6 +14,7 @@ import IncidentsPage from './pages/IncidentsPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import RatingsPage from './pages/RatingsPage';
 import PaymentsPage from './pages/PaymentsPage';
+import ReportsPage from './pages/ReportsPage';
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/audit-logs" element={<AuditLogsPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/ratings" element={<RatingsPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
             </Route>
           </Route>
         </Routes>

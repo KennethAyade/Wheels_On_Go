@@ -486,7 +486,8 @@ netAmount = totalFare * (1 - commissionRate)  // Default commission: 20%
 - Database sharding by geographic region
 
 ### Analytics & Reporting
-- Materialized views for dashboard metrics
+- ✅ Admin reports endpoint with aggregated queries (financial, operations, safety, subscriptions, drivers)
+- Materialized views for dashboard metrics (performance optimization for large datasets)
 - ETL pipelines for data warehouse
 - Real-time analytics with Apache Kafka/Flink
 

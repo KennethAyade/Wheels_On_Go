@@ -22,7 +22,7 @@ const navItems = [
   { to: '/incidents', label: 'SOS Incidents', icon: AlertTriangle, enabled: true },
   { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList, enabled: true },
   { to: '/ratings', label: 'Ratings', icon: Star, enabled: true },
-  { to: '#', label: 'Reports', icon: FileText, enabled: false },
+  { to: '/reports', label: 'Reports', icon: FileText, enabled: true },
 ];
 
 export default function Sidebar() {

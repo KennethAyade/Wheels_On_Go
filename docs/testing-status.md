@@ -1,7 +1,7 @@
-# Testing Status - Phases 1–3 + Weeks 8–9 Financial, Chat, Safety & AI Verification
+# Testing Status - Phases 1–3 + Weeks 8–9 Financial, Chat, Safety, AI Verification & Admin Reports
 
-**Last Updated:** 2026-03-18 PHT
-**Status:** All phases through Week 9 complete — 267 Backend Tests (28 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean
+**Last Updated:** 2026-03-21 PHT
+**Status:** All phases through Week 9b complete — 267 Backend Tests (28 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean (11 pages)
 
 ---
 
@@ -135,6 +135,14 @@
 - ✅ **DriverEarningsViewModelTest:** 5 tests (init loads all data, partial failure handling)
 - ✅ **Web Admin Build:** TypeScript + Vite build clean (PaymentsPage added)
 - ⚠️ **RideChatViewModel:** Not tested (directly instantiates ChatSocketClient — needs DI refactor)
+
+**Week 9b (Admin Reports Dashboard):**
+- ✅ **Backend:** AdminReportsController + AdminReportsService — `GET /admin/reports/summary` with date range filtering
+- ✅ **Frontend:** ReportsPage with KPI stat cards (financial, operations, safety, subscriptions, drivers), breakdown tables, CSV export
+- ✅ **Sidebar:** Reports link enabled (was "Coming Soon")
+- ✅ **TypeScript Build:** No errors (2026-03-21)
+- ✅ **Vite Build:** SUCCESS — 738KB JS (gzipped: 215KB) + 28KB CSS (2026-03-21)
+- ✅ **Backend Tests:** 267/268 passing (28 suites) — no regressions (1 pre-existing chat.gateway.spec.ts failure)
 
 ---
 
