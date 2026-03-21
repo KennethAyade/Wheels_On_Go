@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, X } from 'lucide-react';
+import { Users, Search, X, MessageSquare } from 'lucide-react';
 import { listUsers, suspendUser, reactivateUser } from '../api/users';
+import CommentsDrawer from '../components/CommentsDrawer';
 import type { CustomerUser } from '../types';
 
 const LIMIT = 20;
@@ -94,6 +95,9 @@ export default function CustomersPage() {
 
   // Action loading per row
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Messaging drawer state
+  const [messageTarget, setMessageTarget] = useState<CustomerUser | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -250,23 +254,32 @@ export default function CustomersPage() {
                       {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-4 py-3">
-                      {user.isSuspended ? (
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleReactivate(user)}
-                          disabled={actionLoading === user.id}
-                          className="px-3 py-1.5 border border-emerald-500 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          onClick={() => setMessageTarget(user)}
+                          title="Message customer"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                         >
-                          {actionLoading === user.id ? 'Reactivating...' : 'Reactivate'}
+                          <MessageSquare size={15} />
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => setSuspendTarget(user)}
-                          disabled={actionLoading === user.id}
-                          className="px-3 py-1.5 border border-red-400 text-red-600 rounded-md text-xs font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Suspend
-                        </button>
-                      )}
+                        {user.isSuspended ? (
+                          <button
+                            onClick={() => handleReactivate(user)}
+                            disabled={actionLoading === user.id}
+                            className="px-3 py-1.5 border border-emerald-500 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {actionLoading === user.id ? 'Reactivating...' : 'Reactivate'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setSuspendTarget(user)}
+                            disabled={actionLoading === user.id}
+                            className="px-3 py-1.5 border border-red-400 text-red-600 rounded-md text-xs font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -311,6 +324,16 @@ export default function CustomersPage() {
           onConfirm={handleSuspendConfirm}
           onCancel={() => setSuspendTarget(null)}
           loading={suspendLoading}
+        />
+      )}
+
+      {/* Comments Drawer */}
+      {messageTarget && (
+        <CommentsDrawer
+          isOpen={!!messageTarget}
+          onClose={() => setMessageTarget(null)}
+          userId={messageTarget.id}
+          userName={customerName(messageTarget)}
         />
       )}
     </div>

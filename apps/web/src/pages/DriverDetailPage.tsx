@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, X, ZoomIn, ZoomOut, Check, XCircle } from 'lucide-react';
+import { ArrowLeft, FileText, X, ZoomIn, ZoomOut, Check, XCircle, MessageSquare } from 'lucide-react';
 import { getDriverDetail, approveDriver, rejectDriver } from '../api/drivers';
 import StatusBadge from '../components/StatusBadge';
+import CommentsDrawer from '../components/CommentsDrawer';
 import type { DriverProfile, DriverDocument, FatigueLevel } from '../types';
 
 const docTypeLabels: Record<string, string> = {
@@ -41,6 +42,7 @@ export default function DriverDetailPage() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [error, setError] = useState('');
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   useEffect(() => {
     if (!driverId) return;
@@ -112,6 +114,15 @@ export default function DriverDetailPage() {
           <p className="text-sm text-gray-500">{driver.user.phoneNumber}</p>
         </div>
         <StatusBadge status={driver.status} />
+        <div className="ml-auto">
+          <button
+            onClick={() => setCommentsOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <MessageSquare size={16} />
+            Message Driver
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -383,6 +394,14 @@ export default function DriverDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Comments Drawer */}
+      <CommentsDrawer
+        isOpen={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        userId={driver.userId}
+        userName={name}
+      />
 
       {/* Reject Dialog */}
       {showRejectDialog && (

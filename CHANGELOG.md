@@ -18,6 +18,25 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-21 12:00 PHT
+Summary: Week 9c — Admin-to-user direct messaging. CommentsDrawer slide-over panel for private admin-driver/rider chat. Reuses existing Message model (rideId=null, no migration). Mobile API endpoints ready (UI deferred).
+Changes:
+- apps/api/src/admin-messaging/admin-messaging.service.ts: NEW — Messaging service (threads, messages, send, markAsRead, mobile-side methods)
+- apps/api/src/admin-messaging/admin-messaging.controller.ts: NEW — Admin endpoints (GET/POST /admin/users/:userId/messages, PATCH .../read, GET /admin/messaging/threads)
+- apps/api/src/admin-messaging/user-messaging.controller.ts: NEW — Mobile endpoints (GET/POST /messages/admin, PATCH .../read, GET .../unread-count)
+- apps/api/src/admin-messaging/dto/send-message.dto.ts: NEW — SendMessageDto
+- apps/api/src/admin-messaging/admin-messaging.module.ts: NEW — Module definition
+- apps/api/src/app.module.ts: Registered AdminMessagingModule
+- apps/web/src/components/CommentsDrawer.tsx: NEW — Slide-over chat panel (blue/gray bubbles, 10s polling, auto-scroll, read receipts)
+- apps/web/src/api/messaging.ts: NEW — API client (getThreads, getMessages, sendMessage, markAsRead)
+- apps/web/src/types/index.ts: Added AdminThread, AdminMessage types
+- apps/web/src/pages/DriverDetailPage.tsx: Added "Message Driver" button + CommentsDrawer integration
+- apps/web/src/pages/CustomersPage.tsx: Added message icon in Actions column + CommentsDrawer integration
+- docs/: Updated project-knowledge-base.md, test-results-summary.md, testing-status.md
+- Backend: 267/268 tests passing (28 suites), TypeScript clean
+- Web: Vite build success — 742KB JS + 30KB CSS
+Details: `changes/2026-03-21-1200-pht.md`
+
 ## 2026-03-21 10:30 PHT
 Summary: Week 9b — Admin Reports dashboard with aggregated financial, operational, safety, subscription, and driver insights. Date range filtering and CSV export.
 Changes:

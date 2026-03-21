@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, and admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export) are all implemented end-to-end.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export), and admin-to-user direct messaging (CommentsDrawer slide-over panel for private admin-driver/rider communication) are all implemented end-to-end.
 
 ---
 
@@ -38,6 +38,7 @@
 | 2026-03-13 | Week 8 — Payment gateway, subscriptions, driver earnings, in-app chat, 150 new tests | ✅ Complete |
 | 2026-03-18 | Week 9 — AI document verification (Claude Sonnet), breathalyzer safety gate, BLOWBAGETS checklist, chat enhancement | ✅ Complete |
 | 2026-03-21 | Week 9b — Admin Reports dashboard (aggregated financial/operations/safety/subscription/driver reports with date range + CSV export) | ✅ Complete |
+| 2026-03-21 | Week 9c — Admin-to-user direct messaging (CommentsDrawer, private admin-driver/rider chat from DriverDetail + Customers pages, mobile API endpoints) | ✅ Complete |
 | Week 10+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
@@ -91,6 +92,7 @@ Wheels_On_Go/
 │   │   │   ├── chat/                  # In-app messaging (Socket.IO /chat)
 │   │   │   ├── verification/          # AI document verification (Claude Sonnet vision)
 │   │   │   ├── checklist/             # Breathalyzer + BLOWBAGETS safety checklist
+│   │   │   ├── admin-messaging/       # Admin-to-user direct messaging (separate from ride chat)
 │   │   │   ├── common/                # Guards, decorators, types
 │   │   │   ├── health/                # Health check endpoint
 │   │   │   ├── prisma/                # Prisma service & middleware
@@ -107,7 +109,7 @@ Wheels_On_Go/
 │       │   ├── api/                   # Axios API clients
 │       │   ├── context/               # AuthContext (JWT)
 │       │   ├── components/            # Layout, Sidebar, StatusBadge, etc.
-│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings, Analytics, Customers, Incidents, AuditLogs, Payments, Reports
+│       │   ├── pages/                 # Login, Dashboard, Drivers, Bookings, Analytics, Customers, Incidents, AuditLogs, Payments, Reports (+ CommentsDrawer on DriverDetail/Customers)
 │       │   └── types/                 # TypeScript interfaces
 │       ├── vite.config.ts             # Port 3001, proxy /api → localhost:3000
 │       └── package.json
@@ -232,6 +234,18 @@ Wheels_On_Go/
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/admin/reports/summary` | Admin JWT | Aggregated reports: financial (gross/commission/net/byMethod/byType), operations (rides/completion rate/byStatus), safety (breathalyzer/BLOWBAGETS/fatigue/SOS), subscriptions (active/new/cancelled/byPlan), drivers (approved/online/wallets/topEarners). Query: `?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD` (defaults to last 30 days) |
+
+### Admin — Direct Messaging
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/admin/messaging/threads` | Admin JWT | List conversation threads (users with last message, unread count) |
+| GET | `/admin/users/:userId/messages` | Admin JWT | Get messages between admin and user |
+| POST | `/admin/users/:userId/messages` | Admin JWT | Send message to user `{ content }` |
+| PATCH | `/admin/users/:userId/messages/read` | Admin JWT | Mark user's messages as read |
+| GET | `/messages/admin` | JWT | Mobile: get messages from admin |
+| POST | `/messages/admin` | JWT | Mobile: reply to admin `{ content }` |
+| PATCH | `/messages/admin/read` | JWT | Mobile: mark admin messages as read |
+| GET | `/messages/admin/unread-count` | JWT | Mobile: unread admin message count |
 
 ### Safety Checklists
 | Method | Endpoint | Auth | Description |
@@ -631,6 +645,9 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Admin transactions | `apps/api/src/admin/admin-transactions.controller.ts` |
 | Admin reports controller | `apps/api/src/admin/admin-reports.controller.ts` |
 | Admin reports service | `apps/api/src/admin/admin-reports.service.ts` |
+| Admin messaging controller | `apps/api/src/admin-messaging/admin-messaging.controller.ts` |
+| Admin messaging service | `apps/api/src/admin-messaging/admin-messaging.service.ts` |
+| User messaging controller (mobile) | `apps/api/src/admin-messaging/user-messaging.controller.ts` |
 | Encryption service | `apps/api/src/encryption/encryption.service.ts` |
 | Firebase service | `apps/api/src/auth/firebase.service.ts` |
 
@@ -652,6 +669,7 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 | Audit logs page (read-only viewer) | `apps/web/src/pages/AuditLogsPage.tsx` |
 | Payments page (filters, CSV export) | `apps/web/src/pages/PaymentsPage.tsx` |
 | Reports page (aggregated reports, CSV export) | `apps/web/src/pages/ReportsPage.tsx` |
+| Comments drawer (admin-to-user messaging) | `apps/web/src/components/CommentsDrawer.tsx` |
 | Sidebar layout | `apps/web/src/components/Sidebar.tsx` |
 | Status badges (all statuses) | `apps/web/src/components/StatusBadge.tsx` |
 | Vite config (proxy) | `apps/web/vite.config.ts` |
@@ -681,6 +699,15 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 ---
 
 ## Recent Changes Summary
+
+### 2026-03-21 — Week 9c: Admin-to-User Direct Messaging
+- New AdminMessagingModule (separate from ride-scoped ChatModule) — uses existing `Message` model with `rideId = null`, no schema migration needed
+- Admin endpoints: `GET/POST /admin/users/:userId/messages`, `PATCH .../read`, `GET /admin/messaging/threads`
+- Mobile endpoints (backend only, UI deferred): `GET/POST /messages/admin`, `PATCH .../read`, `GET .../unread-count`
+- CommentsDrawer slide-over component: chat-style bubbles (blue=admin, gray=user), 10s polling, auto-scroll, read receipts
+- Integrated into DriverDetailPage ("Message Driver" button) and CustomersPage (message icon in Actions column)
+- Primary use case: admin asks driver for KYC clarification (e.g., blurry license) as backup to AI verification
+- Web build: 742KB JS (gzipped: 216KB) + 30KB CSS — TypeScript clean
 
 ### 2026-03-21 — Week 9b: Admin Reports Dashboard
 - New `GET /admin/reports/summary` endpoint with date range filtering (defaults to last 30 days)

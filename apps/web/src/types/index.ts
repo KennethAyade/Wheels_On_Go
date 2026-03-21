@@ -342,6 +342,27 @@ export interface ReportSummary {
   };
 }
 
+// Admin Messaging types
+export interface AdminThread {
+  userId: string;
+  userName: string;
+  userRole: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  unreadCount: number;
+}
+
+export interface AdminMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  sentAt: string;
+  isRead: boolean;
+  readAt: string | null;
+  isFromAdmin: boolean;
+}
+
 export interface AdminRatingsResponse {
   aggregates: {
     averageRating: number | null;

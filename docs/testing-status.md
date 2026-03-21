@@ -1,7 +1,7 @@
-# Testing Status - Phases 1–3 + Weeks 8–9 Financial, Chat, Safety, AI Verification & Admin Reports
+# Testing Status - Phases 1–3 + Weeks 8–9 Financial, Chat, Safety, AI Verification, Admin Reports & Admin Messaging
 
 **Last Updated:** 2026-03-21 PHT
-**Status:** All phases through Week 9b complete — 267 Backend Tests (28 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean (11 pages)
+**Status:** All phases through Week 9c complete — 267 Backend Tests (28 suites), 137+ Mobile Tests (20 files), Web Admin Build Clean (11 pages + CommentsDrawer)
 
 ---
 
@@ -143,6 +143,15 @@
 - ✅ **TypeScript Build:** No errors (2026-03-21)
 - ✅ **Vite Build:** SUCCESS — 738KB JS (gzipped: 215KB) + 28KB CSS (2026-03-21)
 - ✅ **Backend Tests:** 267/268 passing (28 suites) — no regressions (1 pre-existing chat.gateway.spec.ts failure)
+
+**Week 9c (Admin-to-User Direct Messaging):**
+- ✅ **Backend:** AdminMessagingModule — admin endpoints (`GET/POST /admin/users/:userId/messages`, `PATCH .../read`, `GET /admin/messaging/threads`) + mobile endpoints (`GET/POST /messages/admin`, `PATCH .../read`, `GET .../unread-count`)
+- ✅ **Frontend:** CommentsDrawer slide-over component (chat bubbles, 10s polling, auto-scroll, read receipts)
+- ✅ **Integration:** DriverDetailPage ("Message Driver" button) + CustomersPage (message icon in Actions column)
+- ✅ **No schema migration** — reuses existing Message model with `rideId = null`
+- ✅ **TypeScript Build:** No errors (2026-03-21)
+- ✅ **Vite Build:** SUCCESS — 742KB JS (gzipped: 216KB) + 30KB CSS (2026-03-21)
+- ✅ **Backend Tests:** 267/268 passing (28 suites) — no regressions
 
 ---
 

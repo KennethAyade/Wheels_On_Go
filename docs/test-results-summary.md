@@ -82,8 +82,8 @@ Status: ✅ 137+ tests across 20 files — all passing
 ```
 Status: ✅ PASSED (2026-03-21)
 TypeScript: No errors (npx tsc -b)
-Vite build: Success — 738KB JS (gzipped: ~215KB) + 28KB CSS
-Pages: 11 (Dashboard, Bookings, BookingDetail, Drivers, DriverDetail, Customers, Analytics, Incidents, AuditLogs, Payments, Reports)
+Vite build: Success — 742KB JS (gzipped: ~216KB) + 30KB CSS
+Pages: 11 (Dashboard, Bookings, BookingDetail, Drivers, DriverDetail, Customers, Analytics, Incidents, AuditLogs, Payments, Reports) + CommentsDrawer on DriverDetail/Customers
 ```
 
 ### 4. Application Startup
@@ -242,7 +242,7 @@ Overall Progress:     ██████████░░░░░░░░░�
 - [x] Backend unit tests (267/268 passing, 28 suites)
 - [x] Mobile unit tests (137+ tests across 20 files — all passing)
 - [x] Web admin TypeScript check (no errors)
-- [x] Web admin Vite build (738KB JS + 28KB CSS — 11 pages including Reports)
+- [x] Web admin Vite build (742KB JS + 30KB CSS — 11 pages + CommentsDrawer)
 - [x] Firebase Phone Auth integration complete
 - [x] Firebase App Check (DebugAppCheckProviderFactory for debug, PlayIntegrity for release)
 - [x] Firebase SHA-1 + SHA-256 fingerprints registered
