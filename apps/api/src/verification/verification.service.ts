@@ -144,7 +144,7 @@ Respond with JSON only.`,
         `AI verification failed, passing through: ${error.message}`,
         error.stack,
       );
-      return this.passThrough(`AI verification error: ${error.message}`);
+      return this.passThrough('AI verification temporarily unavailable');
     }
   }
 
@@ -249,7 +249,7 @@ Respond with JSON only.`,
         `Breathalyzer AI verification failed (fail-closed): ${error.message}`,
         error.stack,
       );
-      return this.failClosed(`AI verification error: ${error.message}`);
+      return this.failClosed('Image verification unavailable. Please try again.');
     }
   }
 

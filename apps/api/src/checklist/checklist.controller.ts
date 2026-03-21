@@ -50,7 +50,10 @@ export class ChecklistController {
 
   @Get('blowbagets/:rideId')
   @Roles(UserRole.DRIVER)
-  getBlowbagetsForRide(@Param('rideId') rideId: string) {
-    return this.checklistService.getBlowbagetsForRide(rideId);
+  getBlowbagetsForRide(
+    @CurrentUser() user: JwtUser,
+    @Param('rideId') rideId: string,
+  ) {
+    return this.checklistService.getBlowbagetsForRide(user.sub, rideId);
   }
 }

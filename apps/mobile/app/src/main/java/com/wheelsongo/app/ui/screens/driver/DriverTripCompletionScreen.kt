@@ -224,7 +224,7 @@ fun DriverTripCompletionScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedButton(
-                    onClick = { onNavigateToChat(rideId, uiState.riderName, "") },
+                    onClick = { onNavigateToChat(rideId, uiState.riderName, uiState.ride?.rider?.phoneNumber ?: "") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {

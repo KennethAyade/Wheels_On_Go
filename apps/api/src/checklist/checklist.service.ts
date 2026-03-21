@@ -64,6 +64,14 @@ export class ChecklistService {
   async confirmBreathalyzer(userId: string, dto: ConfirmBreathalyzerDto) {
     const profile = await this.ensureProfile(userId);
 
+    // Verify driver owns this ride
+    const ride = await this.prisma.ride.findFirst({
+      where: { id: dto.rideId, driverProfileId: profile.id },
+    });
+    if (!ride) {
+      throw new BadRequestException('Ride not found or not assigned to you.');
+    }
+
     // Check cooldown
     if (
       profile.breathalyzerCooldownUntil &&
@@ -182,6 +190,14 @@ export class ChecklistService {
   async submitBlowbagets(userId: string, dto: SubmitBlowbagetsDto) {
     const profile = await this.ensureProfile(userId);
 
+    // Verify driver owns this ride
+    const ride = await this.prisma.ride.findFirst({
+      where: { id: dto.rideId, driverProfileId: profile.id },
+    });
+    if (!ride) {
+      throw new BadRequestException('Ride not found or not assigned to you.');
+    }
+
     const allChecked =
       dto.brakes &&
       dto.lights &&
@@ -230,7 +246,17 @@ export class ChecklistService {
     return checklist;
   }
 
-  async getBlowbagetsForRide(rideId: string) {
+  async getBlowbagetsForRide(userId: string, rideId: string) {
+    const profile = await this.ensureProfile(userId);
+
+    // Verify driver owns this ride
+    const ride = await this.prisma.ride.findFirst({
+      where: { id: rideId, driverProfileId: profile.id },
+    });
+    if (!ride) {
+      throw new BadRequestException('Ride not found or not assigned to you.');
+    }
+
     return this.prisma.blowbagetsChecklist.findFirst({
       where: {
         rideId,

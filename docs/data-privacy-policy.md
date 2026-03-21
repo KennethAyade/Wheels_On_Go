@@ -53,6 +53,7 @@ The following data types are considered sensitive and require enhanced protectio
 - **Biometric Data**: Facial recognition verification results and challenge data
 - **KYC Documents**: Driver license, ORCR, government IDs, and profile photos
 - **SOS Incidents**: Emergency alerts and safety-related communications
+- **Breathalyzer Data**: BAC (Blood Alcohol Content) readings and breathalyzer device images used for driver sobriety verification
 
 ### 2.3 Non-Sensitive Data
 
@@ -123,6 +124,8 @@ All data transmitted between clients and servers is protected using:
 | OTP codes | 24 hours | Hard delete | Technical necessity |
 | Biometric verification data | 90 days | Hard delete | Consent + safety |
 | Support ticket data | 3 years | Anonymization | Legitimate interest |
+| Breathalyzer images | 90 days | Hard delete | Consent + safety |
+| BAC readings (audit log) | 7 years | Archive (encrypted) | Legal obligation (safety compliance) |
 | KYC documents | Duration of account + 7 years | Secure deletion | Legal obligation |
 
 **Deletion Methods:**
