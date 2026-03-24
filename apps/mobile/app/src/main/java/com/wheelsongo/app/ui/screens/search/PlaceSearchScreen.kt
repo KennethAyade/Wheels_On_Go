@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
@@ -61,6 +62,7 @@ fun PlaceSearchScreen(
     isPickup: Boolean,
     onBackClick: () -> Unit,
     onPlaceSelected: (PlaceDetails) -> Unit,
+    onUseCurrentLocation: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: PlaceSearchViewModel = viewModel()
 ) {
@@ -128,42 +130,93 @@ fun PlaceSearchScreen(
 
             Divider()
 
-            // Results list
-            if (uiState.predictions.isEmpty() && uiState.query.isNotEmpty() && !uiState.isLoading) {
-                // Empty state
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No places found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // "Use current location" option (pickup only)
+                if (onUseCurrentLocation != null) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onUseCurrentLocation)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MyLocation,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "Use current location",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "Set pickup to your current position",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Divider()
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(uiState.predictions) { prediction ->
-                        PlacePredictionItem(
-                            prediction = prediction,
-                            onClick = { viewModel.onPlaceSelected(prediction) }
-                        )
-                        Divider(
-                            modifier = Modifier.padding(start = 56.dp)
-                        )
+
+                // Search results
+                items(uiState.predictions) { prediction ->
+                    PlacePredictionItem(
+                        prediction = prediction,
+                        onClick = { viewModel.onPlaceSelected(prediction) }
+                    )
+                    Divider(modifier = Modifier.padding(start = 56.dp))
+                }
+
+                // Empty state
+                if (uiState.predictions.isEmpty() && !uiState.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = if (uiState.query.isNotEmpty()) Icons.Default.Search else Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = if (uiState.query.isNotEmpty()) "No places found" else "Search for a place",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (uiState.query.isNotEmpty())
+                                        "Try a different search term"
+                                    else
+                                        "Enter an address, landmark, or business name",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }

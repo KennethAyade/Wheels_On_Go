@@ -597,6 +597,12 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 onBackClick = {
                     navController.popBackStack()
                 },
+                onUseCurrentLocation = if (isPickup) {
+                    {
+                        homeViewModel.onUsePinnedAddress()
+                        navController.popBackStack()
+                    }
+                } else null,
                 onPlaceSelected = { placeDetails ->
                     // Update the HomeViewModel with the selected place
                     val locationData = LocationData(

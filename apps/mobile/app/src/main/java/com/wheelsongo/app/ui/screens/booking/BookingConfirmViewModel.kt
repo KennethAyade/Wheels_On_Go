@@ -43,8 +43,10 @@ data class BookingConfirmUiState(
     val scheduledPickupTime: Long? = null,
     val scheduledPickupTimeFormatted: String = "",
     val selectedDate: LocalDate? = null,
-    val showDatePicker: Boolean = false,
-    val showTimePicker: Boolean = false,
+    val selectedDayIndex: Int = 0,
+    val selectedHour: Int = -1,
+    val selectedMinute: Int = -1,
+    val scheduleWarning: String = "",
     val schedulingSuccess: Boolean = false
 )
 
@@ -158,49 +160,110 @@ class BookingConfirmViewModel(
     // --- Scheduling methods ---
 
     fun onToggleScheduled(isScheduled: Boolean) {
-        _uiState.update {
-            it.copy(
-                isScheduledRide = isScheduled,
-                scheduledPickupTime = if (!isScheduled) null else it.scheduledPickupTime,
-                scheduledPickupTimeFormatted = if (!isScheduled) "" else it.scheduledPickupTimeFormatted,
-                selectedDate = if (!isScheduled) null else it.selectedDate,
-                showDatePicker = false,
-                showTimePicker = false
-            )
+        if (isScheduled) {
+            val minTime = LocalTime.now().plusMinutes(35)
+            // Round up to next 5-minute mark
+            val roundedMinute = ((minTime.minute + 4) / 5) * 5
+            val defaultHour = if (roundedMinute >= 60) (minTime.hour + 1) % 24 else minTime.hour
+            val defaultMinute = roundedMinute % 60
+
+            _uiState.update {
+                it.copy(
+                    isScheduledRide = true,
+                    selectedDayIndex = 0,
+                    selectedDate = LocalDate.now(),
+                    selectedHour = defaultHour,
+                    selectedMinute = defaultMinute,
+                    scheduledPickupTime = null,
+                    scheduledPickupTimeFormatted = "",
+                    scheduleWarning = "",
+                    errorMessage = null
+                )
+            }
+            computeScheduledTime()
+        } else {
+            _uiState.update {
+                it.copy(
+                    isScheduledRide = false,
+                    scheduledPickupTime = null,
+                    scheduledPickupTimeFormatted = "",
+                    selectedDate = null,
+                    selectedDayIndex = 0,
+                    selectedHour = -1,
+                    selectedMinute = -1,
+                    scheduleWarning = ""
+                )
+            }
         }
     }
 
-    fun showDatePicker() {
-        _uiState.update { it.copy(showDatePicker = true) }
-    }
+    fun onDayChipSelected(dayIndex: Int) {
+        val state = _uiState.value
 
-    fun dismissDatePicker() {
-        _uiState.update { it.copy(showDatePicker = false) }
-    }
+        // When switching to "Today" and current time is too early, auto-clamp
+        if (dayIndex == 0 && state.selectedHour >= 0) {
+            val minTime = LocalTime.now().plusMinutes(35)
+            val selected = LocalTime.of(state.selectedHour, state.selectedMinute.coerceAtLeast(0))
+            if (selected.isBefore(minTime)) {
+                val roundedMinute = ((minTime.minute + 4) / 5) * 5
+                val clampedHour = if (roundedMinute >= 60) (minTime.hour + 1) % 24 else minTime.hour
+                val clampedMinute = roundedMinute % 60
+                _uiState.update {
+                    it.copy(
+                        selectedDayIndex = 0,
+                        selectedDate = LocalDate.now(),
+                        selectedHour = clampedHour,
+                        selectedMinute = clampedMinute,
+                        scheduleWarning = ""
+                    )
+                }
+                computeScheduledTime()
+                return
+            }
+        }
 
-    fun onDateSelected(year: Int, month: Int, dayOfMonth: Int) {
-        val date = LocalDate.of(year, month, dayOfMonth)
-        _uiState.update { it.copy(selectedDate = date, showDatePicker = false, showTimePicker = true) }
-    }
-
-    fun dismissTimePicker() {
-        _uiState.update { it.copy(showTimePicker = false) }
+        _uiState.update {
+            it.copy(
+                selectedDayIndex = dayIndex,
+                selectedDate = LocalDate.now().plusDays(dayIndex.toLong()),
+                scheduleWarning = ""
+            )
+        }
+        computeScheduledTime()
     }
 
     fun onTimeSelected(hour: Int, minute: Int) {
+        _uiState.update {
+            it.copy(selectedHour = hour, selectedMinute = minute)
+        }
+        computeScheduledTime()
+    }
+
+    private fun computeScheduledTime() {
         val state = _uiState.value
         val date = state.selectedDate ?: return
+        if (state.selectedHour < 0 || state.selectedMinute < 0) return
 
-        val time = LocalTime.of(hour, minute)
+        val time = LocalTime.of(state.selectedHour, state.selectedMinute)
         val zonedDateTime = ZonedDateTime.of(date, time, ZoneId.systemDefault())
         val epochMillis = zonedDateTime.toInstant().toEpochMilli()
-        val minTimeMillis = System.currentTimeMillis() + 30 * 60 * 1000
+        // 29-min tolerance for UI check (actual booking in findDriver() uses 30-min)
+        // This prevents the hint from becoming stale in the seconds between display and user action
+        val minTimeMillis = System.currentTimeMillis() + 29 * 60 * 1000
 
         if (epochMillis < minTimeMillis) {
+            // Round hint to 5-minute intervals to match picker granularity
+            val minValidTime = LocalTime.now().plusMinutes(30)
+            val roundedMinute = ((minValidTime.minute + 4) / 5) * 5
+            val hintHour = if (roundedMinute >= 60) (minValidTime.hour + 1) % 24 else minValidTime.hour
+            val hintMinute = roundedMinute % 60
+            val hintTime = LocalTime.of(hintHour, hintMinute)
+            val hint = "Earliest pickup today: ${hintTime.format(DateTimeFormatter.ofPattern("hh:mm a"))}"
             _uiState.update {
                 it.copy(
-                    showTimePicker = false,
-                    errorMessage = "Pickup time must be at least 30 minutes from now"
+                    scheduledPickupTime = null,
+                    scheduledPickupTimeFormatted = "",
+                    scheduleWarning = hint
                 )
             }
             return
@@ -210,8 +273,9 @@ class BookingConfirmViewModel(
         if (epochMillis > maxTimeMillis) {
             _uiState.update {
                 it.copy(
-                    showTimePicker = false,
-                    errorMessage = "Pickup time cannot be more than 7 days in advance"
+                    scheduledPickupTime = null,
+                    scheduledPickupTimeFormatted = "",
+                    scheduleWarning = "Pickup time cannot be more than 7 days in advance"
                 )
             }
             return
@@ -224,7 +288,7 @@ class BookingConfirmViewModel(
             it.copy(
                 scheduledPickupTime = epochMillis,
                 scheduledPickupTimeFormatted = formatted,
-                showTimePicker = false
+                scheduleWarning = ""
             )
         }
     }

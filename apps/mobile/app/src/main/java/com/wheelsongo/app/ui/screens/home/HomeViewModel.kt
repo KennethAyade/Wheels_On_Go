@@ -8,6 +8,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.location.LocationData
+import com.wheelsongo.app.data.models.location.ReverseGeocodeRequest
+import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DirectionsApi
 import com.wheelsongo.app.data.repository.RideRepository
 import kotlinx.coroutines.Job
@@ -31,12 +33,14 @@ data class HomeUiState(
     val isLoadingRoute: Boolean = false,
     val isLoadingLocation: Boolean = false,
     val hasLocationPermission: Boolean = false,
+    val isResolvingAddress: Boolean = false,
     val errorMessage: String? = null,
     val activeRideId: String? = null
 ) {
     val canProceedToBooking: Boolean
         get() = pickupLocation != null && dropoffLocation != null
                 && fromAddress.isNotBlank() && toAddress.isNotBlank()
+                && !isResolvingAddress
 }
 
 /**
@@ -52,6 +56,7 @@ class HomeViewModel @JvmOverloads constructor(
     private val rideRepository = RideRepository()
     private val mapsApiKey: String
     private var routeFetchJob: Job? = null
+    private var reverseGeocodeJob: Job? = null
 
     init {
         val appInfo = application.packageManager.getApplicationInfo(
@@ -121,16 +126,43 @@ class HomeViewModel @JvmOverloads constructor(
      */
     fun onUsePinnedAddress() {
         val state = _uiState.value
+        val lat = state.currentLatitude
+        val lng = state.currentLongitude
+
         _uiState.update {
             it.copy(
-                pickupLocation = LocationData(
-                    latitude = state.currentLatitude,
-                    longitude = state.currentLongitude
-                ),
-                fromAddress = "Pinned location"
+                pickupLocation = LocationData(latitude = lat, longitude = lng),
+                fromAddress = "Loading address...",
+                isResolvingAddress = true
             )
         }
         fetchRouteIfReady()
+
+        reverseGeocodeJob?.cancel()
+        reverseGeocodeJob = viewModelScope.launch {
+            try {
+                val response = ApiClient.locationApi.reverseGeocode(
+                    ReverseGeocodeRequest(latitude = lat, longitude = lng)
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    val address = response.body()!!.address
+                    _uiState.update {
+                        it.copy(
+                            fromAddress = if (address.isNotBlank()) address else "%.4f, %.4f".format(lat, lng),
+                            isResolvingAddress = false
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(fromAddress = "%.4f, %.4f".format(lat, lng), isResolvingAddress = false)
+                    }
+                }
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(fromAddress = "%.4f, %.4f".format(lat, lng), isResolvingAddress = false)
+                }
+            }
+        }
     }
 
     /**

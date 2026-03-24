@@ -30,7 +30,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -71,57 +70,63 @@ fun ScheduledRidesScreen(
             }
         }
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.fetchScheduledRides() },
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (!uiState.isLoading && uiState.rides.isEmpty()) {
-                // Empty state
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "No scheduled rides",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "Your upcoming scheduled rides will appear here",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+            when {
+                uiState.isLoading && uiState.rides.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item { Spacer(modifier = Modifier.height(4.dp)) }
-                    items(uiState.rides, key = { it.id }) { ride ->
-                        ScheduledRideCard(
-                            ride = ride,
-                            isCancelling = uiState.cancellingRideId == ride.id,
-                            onCancel = { viewModel.cancelScheduledRide(ride.id) },
-                            onClick = { onRideClick(ride.id) }
-                        )
+                !uiState.isLoading && uiState.rides.isEmpty() -> {
+                    // Empty state
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "No scheduled rides",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Your upcoming scheduled rides will appear here",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(4.dp)) }
+                        items(uiState.rides, key = { it.id }) { ride ->
+                            ScheduledRideCard(
+                                ride = ride,
+                                isCancelling = uiState.cancellingRideId == ride.id,
+                                onCancel = { viewModel.cancelScheduledRide(ride.id) },
+                                onClick = { onRideClick(ride.id) }
+                            )
+                        }
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    }
                 }
             }
         }
