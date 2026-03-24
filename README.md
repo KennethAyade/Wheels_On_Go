@@ -153,8 +153,9 @@ CORS_ORIGINS=http://localhost:3001
 - `GET /drivers/kyc` — Get KYC status
 
 ### Rides
-- `POST /rides` — Create ride (triggers WebSocket dispatch)
+- `POST /rides` — Create ride (instant or scheduled; triggers WebSocket dispatch for instant, cron dispatch for scheduled)
 - `POST /rides/estimate` — Fare estimate with surge + optional promo
+- `GET /rides/scheduled` — List rider's upcoming scheduled rides
 - `GET /rides/active` — Get current active ride
 - `GET /rides/:id` — Get ride details
 - `PATCH /rides/:id/status` — Update status (DRIVER_ARRIVED / STARTED / COMPLETED)
@@ -279,7 +280,16 @@ Wheels_On_Go/
 - Chat enhancement — actual driver/rider names + tappable phone numbers
 - New VerificationModule + ChecklistModule (5 REST endpoints)
 
-### 📅 Remaining — Weeks 10+
+### ✅ Week 10 — Advanced Booking / Schedule a Trip
+- Scheduled rides: riders can book rides up to 7 days in advance (30 min minimum lead time)
+- Cron-based dispatch triggers 15 min before scheduled pickup (`@nestjs/schedule`)
+- Up to 3 concurrent scheduled rides alongside instant rides
+- BookingConfirmScreen: "Ride Now" / "Schedule" toggle with Material3 DatePicker + TimePicker
+- ScheduledRidesScreen: view upcoming rides, cancel pending rides, pull-to-refresh
+- WebSocket events: `scheduled_ride:dispatching`, `scheduled_ride:expired`
+- Drawer menu: "Scheduled Rides" entry for riders
+
+### 📅 Remaining — Weeks 11+
 - Communication (masked calls, push notifications)
 - Integration + E2E tests
 - Production hardening + load testing

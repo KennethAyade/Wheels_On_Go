@@ -18,6 +18,27 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-24 17:40 PHT
+Summary: Advanced Booking / Schedule a Trip — riders can now schedule rides up to 7 days in advance (30 min minimum lead time). Cron-based dispatch triggers 15 min before pickup. Up to 3 concurrent scheduled rides alongside instant rides. Dedicated "Scheduled Rides" screen with cancel support. No driver-side or schema changes needed.
+Changes:
+- apps/api/src/ride/scheduled-ride.service.ts: NEW — Cron service for scheduled dispatch (every 60s) and expiration (every 5 min)
+- apps/api/src/ride/ride.service.ts: Strengthened validation (30min–7day window), refactored active ride check for scheduled+instant coexistence, added getScheduledRides(), updated getActiveRide() to exclude pending scheduled rides
+- apps/api/src/ride/ride.controller.ts: Added GET /rides/scheduled endpoint (RIDER role)
+- apps/api/src/ride/ride.module.ts: Registered ScheduledRideService
+- apps/api/src/app.module.ts: Imported ScheduleModule (@nestjs/schedule)
+- apps/mobile/.../booking/BookingConfirmViewModel.kt: Added scheduling state, date/time selection, dual flow (instant vs scheduled)
+- apps/mobile/.../booking/BookingConfirmScreen.kt: "Ride Now" / "Schedule" toggle, Material3 DatePicker + TimePicker, success dialog
+- apps/mobile/.../booking/ScheduledRidesViewModel.kt: NEW — Fetch and cancel scheduled rides
+- apps/mobile/.../booking/ScheduledRidesScreen.kt: NEW — Scheduled rides list with cancel, empty state, pull-to-refresh
+- apps/mobile/.../data/network/RideApi.kt: Added getScheduledRides() endpoint
+- apps/mobile/.../data/repository/RideRepository.kt: Added getScheduledRides() method
+- apps/mobile/.../data/models/ride/RideModels.kt: Added scheduledPickupTime to RideResponse
+- apps/mobile/.../data/network/DispatchSocketClient.kt: Added scheduled_ride:dispatching and scheduled_ride:expired listeners
+- apps/mobile/.../ui/navigation/Routes.kt: Added ScheduledRides route
+- apps/mobile/.../AppNav.kt: Wired ScheduledRides screen and drawer navigation
+- apps/mobile/.../ui/components/AppDrawer.kt: Added "Scheduled Rides" drawer item for riders
+Details: `changes/2026-03-24-1740-pht.md`
+
 ## 2026-03-21 12:00 PHT
 Summary: Week 9c — Admin-to-user direct messaging. CommentsDrawer slide-over panel for private admin-driver/rider chat. Reuses existing Message model (rideId=null, no migration). Mobile API endpoints ready (UI deferred).
 Changes:

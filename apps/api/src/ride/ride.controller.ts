@@ -96,6 +96,18 @@ export class RideController {
   }
 
   /**
+   * Get scheduled rides for current rider
+   * GET /rides/scheduled
+   */
+  @Get('scheduled')
+  @Roles(UserRole.RIDER)
+  async getScheduledRides(
+    @CurrentUser() user: JwtUser,
+  ): Promise<RideResponseDto[]> {
+    return this.rideService.getScheduledRides(user.sub);
+  }
+
+  /**
    * Get active ride for current user
    * GET /rides/active
    */

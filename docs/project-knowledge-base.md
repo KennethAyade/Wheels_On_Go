@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-03-24
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, and **Week 9 safety verification complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export), and admin-to-user direct messaging (CommentsDrawer slide-over panel for private admin-driver/rider communication) are all implemented end-to-end.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, **Week 9 safety verification complete**, and **Week 10 advanced booking complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export), admin-to-user direct messaging (CommentsDrawer slide-over panel for private admin-driver/rider communication), and scheduled ride booking (advance booking up to 7 days with cron-based dispatch, ScheduledRidesScreen, and concurrent ride support) are all implemented end-to-end.
 
 ---
 
@@ -39,7 +39,8 @@
 | 2026-03-18 | Week 9 — AI document verification (Claude Sonnet), breathalyzer safety gate, BLOWBAGETS checklist, chat enhancement | ✅ Complete |
 | 2026-03-21 | Week 9b — Admin Reports dashboard (aggregated financial/operations/safety/subscription/driver reports with date range + CSV export) | ✅ Complete |
 | 2026-03-21 | Week 9c — Admin-to-user direct messaging (CommentsDrawer, private admin-driver/rider chat from DriverDetail + Customers pages, mobile API endpoints) | ✅ Complete |
-| Week 10+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
+| 2026-03-24 | Week 10 — Advanced Booking / Schedule a Trip (scheduled rides up to 7 days, cron dispatch 15 min before, ScheduledRidesScreen, up to 3 concurrent) | ✅ Complete |
+| Week 11+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
 
@@ -74,7 +75,7 @@ Wheels_On_Go/
 │   │   │   ├── auth/                  # OTP, JWT, biometric, admin login
 │   │   │   ├── driver/                # Driver profiles, KYC, admin approval
 │   │   │   ├── admin/                 # Admin stats + bookings endpoints
-│   │   │   ├── ride/                   # Ride creation, status, fare estimation, SOS
+│   │   │   ├── ride/                   # Ride creation, status, fare estimation, SOS, scheduled ride dispatch
 │   │   │   ├── dispatch/              # WebSocket dispatch + routing engine
 │   │   │   ├── tracking/              # Real-time location + geofencing
 │   │   │   ├── rider-vehicle/         # Rider vehicle CRUD + document uploads
@@ -699,6 +700,17 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 ---
 
 ## Recent Changes Summary
+
+### 2026-03-24 — Week 10: Advanced Booking / Schedule a Trip
+- Scheduled ride booking: riders can schedule rides 30 min to 7 days in advance via "Schedule for Later" toggle on BookingConfirmScreen
+- Cron-based dispatch: `ScheduledRideService` with `@nestjs/schedule` triggers dispatch 15 min before pickup (every 60s check), expires stale rides 15 min past pickup (every 5 min check)
+- Concurrent ride support: up to 3 pending scheduled rides alongside instant rides; refactored active ride check so PENDING scheduled rides don't block instant bookings or trigger HomeScreen auto-redirect
+- Mobile UI: Material3 DatePickerDialog + TimePickerDialog (two-step flow), ScheduledRidesScreen with LazyColumn, cancel support, pull-to-refresh, empty state
+- WebSocket events: `scheduled_ride:dispatching` (rider notified when dispatch begins), `scheduled_ride:expired` (no driver found)
+- Drawer navigation: "Scheduled Rides" menu item for riders
+- New endpoint: `GET /rides/scheduled` (RIDER role) — lists upcoming scheduled rides ordered by pickup time
+- No driver-side changes: DriveRequestCard already displays "Now" vs "Scheduled" tag; dispatch pipeline is identical
+- No schema migration: all fields (`scheduledPickupTime`, `RideType.SCHEDULED`, indexes) already existed
 
 ### 2026-03-21 — Week 9c: Admin-to-User Direct Messaging
 - New AdminMessagingModule (separate from ride-scoped ChatModule) — uses existing `Message` model with `rideId = null`, no schema migration needed

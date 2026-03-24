@@ -1,6 +1,7 @@
 package com.wheelsongo.app.ui.screens.booking
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,12 +15,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,15 +35,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,6 +62,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wheelsongo.app.ui.components.buttons.PrimaryButton
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +79,7 @@ fun BookingConfirmScreen(
     onRideCreated: (rideId: String) -> Unit,
     onFindDriver: (paymentMethod: String) -> Unit = {},
     onAddVehicle: () -> Unit,
+    onScheduledRideCreated: () -> Unit = {},
     viewModel: BookingConfirmViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -95,6 +113,115 @@ fun BookingConfirmScreen(
         uiState.existingActiveRideId?.let { rideId ->
             onRideCreated(rideId)
         }
+    }
+
+    // Scheduling success dialog
+    var showSchedulingSuccessDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.schedulingSuccess) {
+        if (uiState.schedulingSuccess) {
+            showSchedulingSuccessDialog = true
+        }
+    }
+
+    if (showSchedulingSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSchedulingSuccessDialog = false },
+            title = { Text("Ride Scheduled!") },
+            text = {
+                Text(
+                    "Your ride to $dropoffAddress is scheduled for ${uiState.scheduledPickupTimeFormatted}.\n\n" +
+                            "We'll find a driver 15 minutes before your pickup time."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSchedulingSuccessDialog = false
+                    onScheduledRideCreated()
+                }) {
+                    Text("View Scheduled Rides")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSchedulingSuccessDialog = false
+                    onBack()
+                }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
+    // Date Picker Dialog
+    if (uiState.showDatePicker) {
+        val today = LocalDate.now()
+        val todayMillis = today.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        val maxDateMillis = today.plusDays(7).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = todayMillis,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    return utcTimeMillis in todayMillis..maxDateMillis
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { viewModel.dismissDatePicker() },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val selectedDate = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneId.of("UTC"))
+                            .toLocalDate()
+                        viewModel.onDateSelected(
+                            selectedDate.year,
+                            selectedDate.monthValue,
+                            selectedDate.dayOfMonth
+                        )
+                    }
+                }) {
+                    Text("Next")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDatePicker() }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // Time Picker Dialog
+    if (uiState.showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = java.time.LocalTime.now().hour,
+            initialMinute = java.time.LocalTime.now().minute,
+            is24Hour = false
+        )
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissTimePicker() },
+            title = { Text("Select Pickup Time") },
+            text = {
+                TimePicker(state = timePickerState)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.onTimeSelected(timePickerState.hour, timePickerState.minute)
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissTimePicker() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -137,6 +264,130 @@ fun BookingConfirmScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("To", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                     Text(dropoffAddress, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            // Ride type toggle: Ride Now vs Schedule for Later
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("When do you need a ride?", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.onToggleScheduled(false) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (!uiState.isScheduledRide)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surface
+                            ),
+                            border = if (!uiState.isScheduledRide)
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DirectionsCar,
+                                    contentDescription = "Ride Now",
+                                    modifier = Modifier.size(28.dp),
+                                    tint = if (!uiState.isScheduledRide) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Ride Now",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (!uiState.isScheduledRide) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (!uiState.isScheduledRide) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewModel.onToggleScheduled(true) },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (uiState.isScheduledRide)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surface
+                            ),
+                            border = if (uiState.isScheduledRide)
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                            else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = "Schedule for Later",
+                                    modifier = Modifier.size(28.dp),
+                                    tint = if (uiState.isScheduledRide) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Schedule",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (uiState.isScheduledRide) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (uiState.isScheduledRide) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Scheduled time picker trigger
+                    if (uiState.isScheduledRide) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.showDatePicker() },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessTime,
+                                    contentDescription = "Pickup time",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                if (uiState.scheduledPickupTimeFormatted.isNotEmpty()) {
+                                    Text(
+                                        uiState.scheduledPickupTimeFormatted,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                } else {
+                                    Text(
+                                        "Select pickup date & time",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -290,13 +541,25 @@ fun BookingConfirmScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Find a Driver button — navigates to driver list
-            PrimaryButton(
-                text = "Find a Driver",
-                onClick = { onFindDriver(uiState.paymentMethod) },
-                enabled = uiState.selectedVehicle != null && uiState.estimate != null,
-                modifier = Modifier.fillMaxWidth()
-            )
+            // Action button — Find a Driver (instant) or Schedule Ride (scheduled)
+            if (uiState.isScheduledRide) {
+                PrimaryButton(
+                    text = if (uiState.isBooking) "Scheduling..." else "Schedule Ride",
+                    onClick = { viewModel.findDriver() },
+                    enabled = uiState.selectedVehicle != null
+                            && uiState.estimate != null
+                            && uiState.scheduledPickupTime != null
+                            && !uiState.isBooking,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                PrimaryButton(
+                    text = "Find a Driver",
+                    onClick = { onFindDriver(uiState.paymentMethod) },
+                    enabled = uiState.selectedVehicle != null && uiState.estimate != null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }

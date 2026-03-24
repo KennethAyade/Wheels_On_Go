@@ -81,6 +81,10 @@ class DispatchSocketClient(
             // Shared events (both rider and driver)
             socket?.on("ride:cancelled", onRideCancelled)
 
+            // Scheduled ride events (rider-side)
+            socket?.on("scheduled_ride:dispatching", onScheduledRideDispatching)
+            socket?.on("scheduled_ride:expired", onScheduledRideExpired)
+
             // Connect to server
             socket?.connect()
         } catch (e: URISyntaxException) {
@@ -237,6 +241,26 @@ class DispatchSocketClient(
         }
     }
 
+    private val onScheduledRideDispatching = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val rideId = data.optString("rideId", "")
+            _events.tryEmit(DispatchEvent.ScheduledRideDispatching(rideId))
+        } catch (_: Exception) {
+            // Ignore parse errors
+        }
+    }
+
+    private val onScheduledRideExpired = Emitter.Listener { args ->
+        try {
+            val data = args.getOrNull(0) as? JSONObject ?: return@Listener
+            val rideId = data.optString("rideId", "")
+            _events.tryEmit(DispatchEvent.ScheduledRideExpired(rideId))
+        } catch (_: Exception) {
+            // Ignore parse errors
+        }
+    }
+
     /**
      * Helper: Convert JSONObject to Map<String, String>
      */
@@ -275,6 +299,10 @@ sealed class DispatchEvent {
 
     // Shared events (both rider and driver)
     data class RideCancelled(val rideId: String, val reason: String) : DispatchEvent()
+
+    // Scheduled ride events (rider-side)
+    data class ScheduledRideDispatching(val rideId: String) : DispatchEvent()
+    data class ScheduledRideExpired(val rideId: String) : DispatchEvent()
 }
 
 /**

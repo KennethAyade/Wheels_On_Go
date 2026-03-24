@@ -38,6 +38,7 @@ import com.wheelsongo.app.ui.screens.location.LocationConfirmScreen
 import com.wheelsongo.app.ui.screens.search.PlaceSearchScreen
 import com.wheelsongo.app.ui.screens.welcome.WelcomeScreen
 import com.wheelsongo.app.ui.screens.booking.BookingConfirmScreen
+import com.wheelsongo.app.ui.screens.booking.ScheduledRidesScreen
 import com.wheelsongo.app.ui.screens.driver.DriverListScreen
 import com.wheelsongo.app.ui.screens.driver.DriverProfileScreen
 import com.wheelsongo.app.ui.screens.ride.ActiveRideScreen
@@ -483,6 +484,10 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.VehicleList.value)
                     },
+                    onScheduledRides = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate(Route.ScheduledRides.value)
+                    },
                     onSubscription = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.Subscription.value)
@@ -650,6 +655,23 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 },
                 onAddVehicle = {
                     navController.navigate(Route.VehicleRegistration.value)
+                },
+                onScheduledRideCreated = {
+                    navController.navigate(Route.ScheduledRides.value) {
+                        popUpTo(Route.Home.value) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // ==========================================
+        // Scheduled Rides Screen
+        // ==========================================
+        composable(Route.ScheduledRides.value) {
+            ScheduledRidesScreen(
+                onBack = { navController.popBackStack() },
+                onRideClick = { rideId ->
+                    navController.navigate(Route.ActiveRide.createRoute(rideId))
                 }
             )
         }

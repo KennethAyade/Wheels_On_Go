@@ -38,6 +38,13 @@ interface RideApi {
     suspend fun createRide(@Body request: CreateRideRequest): Response<CreateRideResponse>
 
     /**
+     * Get scheduled rides for current rider
+     * GET /rides/scheduled
+     */
+    @GET("rides/scheduled")
+    suspend fun getScheduledRides(): Response<List<RideResponse>>
+
+    /**
      * Get active ride for current user
      * GET /rides/active
      */

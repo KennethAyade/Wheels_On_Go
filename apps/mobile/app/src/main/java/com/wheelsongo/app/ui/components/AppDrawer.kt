@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -34,6 +35,7 @@ fun AppDrawer(
     phoneNumber: String?,
     onMyDocuments: () -> Unit = {},
     onMyVehicles: () -> Unit = {},
+    onScheduledRides: () -> Unit = {},
     onSubscription: () -> Unit = {},
     onMyEarnings: () -> Unit = {},
     onMessages: () -> Unit = {},
@@ -86,6 +88,14 @@ fun AppDrawer(
                 label = { Text("My Vehicles") },
                 selected = false,
                 onClick = onMyVehicles,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+
+            NavigationDrawerItem(
+                icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                label = { Text("Scheduled Rides") },
+                selected = false,
+                onClick = onScheduledRides,
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
 

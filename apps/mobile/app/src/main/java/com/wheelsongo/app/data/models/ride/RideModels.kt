@@ -108,6 +108,7 @@ data class RideResponse(
     @Json(name = "startedAt") val startedAt: String? = null,
     @Json(name = "completedAt") val completedAt: String? = null,
     @Json(name = "cancelledAt") val cancelledAt: String? = null,
+    @Json(name = "scheduledPickupTime") val scheduledPickupTime: String? = null,
     @Json(name = "driver") val driver: RideDriverInfo? = null,
     @Json(name = "rider") val rider: RideRiderInfo? = null
 )

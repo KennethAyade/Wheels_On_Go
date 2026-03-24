@@ -153,6 +153,11 @@ sealed class Route(val value: String) {
     data object BookingConfirm : Route("booking_confirm")
 
     /**
+     * Scheduled rides list — rider views and manages upcoming scheduled rides
+     */
+    data object ScheduledRides : Route("scheduled_rides")
+
+    /**
      * Active ride screen — real-time ride tracking
      * @param rideId The ride ID to track
      */

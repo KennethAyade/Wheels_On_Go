@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 data class BookingConfirmUiState(
     val pickupLat: Double = 0.0,
@@ -31,7 +37,15 @@ data class BookingConfirmUiState(
     val bookingSuccess: Boolean = false,
     val createdRideId: String? = null,
     val errorMessage: String? = null,
-    val existingActiveRideId: String? = null
+    val existingActiveRideId: String? = null,
+    // Scheduling fields
+    val isScheduledRide: Boolean = false,
+    val scheduledPickupTime: Long? = null,
+    val scheduledPickupTimeFormatted: String = "",
+    val selectedDate: LocalDate? = null,
+    val showDatePicker: Boolean = false,
+    val showTimePicker: Boolean = false,
+    val schedulingSuccess: Boolean = false
 )
 
 class BookingConfirmViewModel(
@@ -141,8 +155,82 @@ class BookingConfirmViewModel(
         fetchEstimate()
     }
 
+    // --- Scheduling methods ---
+
+    fun onToggleScheduled(isScheduled: Boolean) {
+        _uiState.update {
+            it.copy(
+                isScheduledRide = isScheduled,
+                scheduledPickupTime = if (!isScheduled) null else it.scheduledPickupTime,
+                scheduledPickupTimeFormatted = if (!isScheduled) "" else it.scheduledPickupTimeFormatted,
+                selectedDate = if (!isScheduled) null else it.selectedDate,
+                showDatePicker = false,
+                showTimePicker = false
+            )
+        }
+    }
+
+    fun showDatePicker() {
+        _uiState.update { it.copy(showDatePicker = true) }
+    }
+
+    fun dismissDatePicker() {
+        _uiState.update { it.copy(showDatePicker = false) }
+    }
+
+    fun onDateSelected(year: Int, month: Int, dayOfMonth: Int) {
+        val date = LocalDate.of(year, month, dayOfMonth)
+        _uiState.update { it.copy(selectedDate = date, showDatePicker = false, showTimePicker = true) }
+    }
+
+    fun dismissTimePicker() {
+        _uiState.update { it.copy(showTimePicker = false) }
+    }
+
+    fun onTimeSelected(hour: Int, minute: Int) {
+        val state = _uiState.value
+        val date = state.selectedDate ?: return
+
+        val time = LocalTime.of(hour, minute)
+        val zonedDateTime = ZonedDateTime.of(date, time, ZoneId.systemDefault())
+        val epochMillis = zonedDateTime.toInstant().toEpochMilli()
+        val minTimeMillis = System.currentTimeMillis() + 30 * 60 * 1000
+
+        if (epochMillis < minTimeMillis) {
+            _uiState.update {
+                it.copy(
+                    showTimePicker = false,
+                    errorMessage = "Pickup time must be at least 30 minutes from now"
+                )
+            }
+            return
+        }
+
+        val maxTimeMillis = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000
+        if (epochMillis > maxTimeMillis) {
+            _uiState.update {
+                it.copy(
+                    showTimePicker = false,
+                    errorMessage = "Pickup time cannot be more than 7 days in advance"
+                )
+            }
+            return
+        }
+
+        val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' hh:mm a")
+        val formatted = zonedDateTime.format(formatter)
+
+        _uiState.update {
+            it.copy(
+                scheduledPickupTime = epochMillis,
+                scheduledPickupTimeFormatted = formatted,
+                showTimePicker = false
+            )
+        }
+    }
+
     /**
-     * Create ride and trigger dispatch
+     * Create ride and trigger dispatch (instant) or schedule (scheduled)
      */
     fun findDriver() {
         val state = _uiState.value
@@ -150,6 +238,24 @@ class BookingConfirmViewModel(
             _uiState.update { it.copy(errorMessage = "Please register a vehicle first") }
             return
         }
+
+        // Validate scheduled time if scheduling
+        if (state.isScheduledRide) {
+            if (state.scheduledPickupTime == null) {
+                _uiState.update { it.copy(errorMessage = "Please select a pickup time") }
+                return
+            }
+            val minTimeMillis = System.currentTimeMillis() + 30 * 60 * 1000
+            if (state.scheduledPickupTime < minTimeMillis) {
+                _uiState.update { it.copy(errorMessage = "Pickup time must be at least 30 minutes from now") }
+                return
+            }
+        }
+
+        val rideType = if (state.isScheduledRide) "SCHEDULED" else "INSTANT"
+        val scheduledTime = if (state.isScheduledRide && state.scheduledPickupTime != null) {
+            Instant.ofEpochMilli(state.scheduledPickupTime).toString()
+        } else null
 
         viewModelScope.launch {
             _uiState.update { it.copy(isBooking = true, errorMessage = null) }
@@ -162,21 +268,32 @@ class BookingConfirmViewModel(
                     dropoffLatitude = state.dropoffLat,
                     dropoffLongitude = state.dropoffLng,
                     dropoffAddress = state.dropoffAddress,
-                    rideType = "INSTANT",
+                    rideType = rideType,
                     paymentMethod = state.paymentMethod,
                     promoCode = state.promoCode.ifBlank { null },
-                    riderVehicleId = state.selectedVehicle.id
+                    riderVehicleId = state.selectedVehicle.id,
+                    scheduledPickupTime = scheduledTime
                 )
             )
 
             result.fold(
                 onSuccess = { response ->
-                    _uiState.update {
-                        it.copy(
-                            isBooking = false,
-                            bookingSuccess = true,
-                            createdRideId = response.id
-                        )
+                    if (state.isScheduledRide) {
+                        _uiState.update {
+                            it.copy(
+                                isBooking = false,
+                                schedulingSuccess = true,
+                                createdRideId = response.id
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isBooking = false,
+                                bookingSuccess = true,
+                                createdRideId = response.id
+                            )
+                        }
                     }
                 },
                 onFailure = { error ->

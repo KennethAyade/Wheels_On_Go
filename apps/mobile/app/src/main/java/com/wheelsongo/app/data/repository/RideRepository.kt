@@ -86,6 +86,22 @@ class RideRepository(
     }
 
     /**
+     * Get scheduled rides for current rider
+     */
+    suspend fun getScheduledRides(): Result<List<RideResponse>> {
+        return try {
+            val response = rideApi.getScheduledRides()
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(parseErrorMessage(response)))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Get active ride for current user
      */
     suspend fun getActiveRide(): Result<RideResponse?> {

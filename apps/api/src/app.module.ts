@@ -25,12 +25,14 @@ import { EarningsModule } from './earnings/earnings.module';
 import { ChatModule } from './chat/chat.module';
 import { ChecklistModule } from './checklist/checklist.module';
 import { AdminMessagingModule } from './admin-messaging/admin-messaging.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60,

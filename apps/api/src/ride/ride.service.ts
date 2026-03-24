@@ -88,10 +88,59 @@ export class RideService {
       );
     }
 
-    // Check for existing active ride
-    const activeRide = await this.getActiveRide(userId);
-    if (activeRide) {
-      throw new BadRequestException('You already have an active ride');
+    // Check for existing active ride (allow scheduled rides alongside instant)
+    if (dto.rideType === RideType.SCHEDULED) {
+      // Block scheduling if a ride is actively in progress
+      const inProgressRide = await this.prisma.ride.findFirst({
+        where: {
+          riderId: userId,
+          status: {
+            in: [
+              RideStatus.ACCEPTED,
+              RideStatus.DRIVER_ARRIVED,
+              RideStatus.STARTED,
+            ],
+          },
+        },
+      });
+      if (inProgressRide) {
+        throw new BadRequestException(
+          'Cannot schedule a ride while another ride is in progress',
+        );
+      }
+      // Cap at 3 pending scheduled rides
+      const pendingScheduledCount = await this.prisma.ride.count({
+        where: {
+          riderId: userId,
+          rideType: RideType.SCHEDULED,
+          status: RideStatus.PENDING,
+        },
+      });
+      if (pendingScheduledCount >= 3) {
+        throw new BadRequestException('Maximum 3 scheduled rides allowed');
+      }
+    } else {
+      // INSTANT rides: block if any instant ride is active or any ride is in progress
+      const activeRide = await this.prisma.ride.findFirst({
+        where: {
+          riderId: userId,
+          OR: [
+            {
+              status: {
+                in: [
+                  RideStatus.ACCEPTED,
+                  RideStatus.DRIVER_ARRIVED,
+                  RideStatus.STARTED,
+                ],
+              },
+            },
+            { status: RideStatus.PENDING, rideType: RideType.INSTANT },
+          ],
+        },
+      });
+      if (activeRide) {
+        throw new BadRequestException('You already have an active ride');
+      }
     }
 
     // Validate rider vehicle if provided
@@ -122,8 +171,19 @@ export class RideService {
         throw new BadRequestException('Scheduled pickup time is required for scheduled rides');
       }
       const scheduledTime = new Date(dto.scheduledPickupTime);
-      if (scheduledTime <= new Date()) {
-        throw new BadRequestException('Scheduled pickup time must be in the future');
+      const now = new Date();
+      const minTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
+      const maxTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      if (scheduledTime < minTime) {
+        throw new BadRequestException(
+          'Scheduled time must be at least 30 minutes from now',
+        );
+      }
+      if (scheduledTime > maxTime) {
+        throw new BadRequestException(
+          'Scheduled time cannot be more than 7 days in advance',
+        );
       }
     }
 
@@ -322,10 +382,15 @@ export class RideService {
     let ride = null;
 
     // Check as rider (riderId is User ID)
+    // Exclude PENDING scheduled rides — they should not redirect to ActiveRideScreen
     ride = await this.prisma.ride.findFirst({
       where: {
         riderId: userId,
         status: { in: activeStatuses },
+        NOT: {
+          rideType: RideType.SCHEDULED,
+          status: RideStatus.PENDING,
+        },
       },
       include: {
         rider: { select: { id: true, phoneNumber: true, firstName: true, lastName: true } },
@@ -356,6 +421,48 @@ export class RideService {
     }
 
     return ride ? this.mapRideToResponse(ride) : null;
+  }
+
+  /**
+   * Get scheduled rides for a rider
+   */
+  async getScheduledRides(userId: string): Promise<RideResponseDto[]> {
+    const rides = await this.prisma.ride.findMany({
+      where: {
+        riderId: userId,
+        rideType: RideType.SCHEDULED,
+        status: {
+          in: [
+            RideStatus.PENDING,
+            RideStatus.ACCEPTED,
+            RideStatus.DRIVER_ARRIVED,
+          ],
+        },
+      },
+      include: {
+        rider: {
+          select: {
+            id: true,
+            phoneNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        driver: {
+          select: {
+            id: true,
+            phoneNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        driverProfile: {
+          include: { vehicle: true },
+        },
+      },
+      orderBy: { scheduledPickupTime: 'asc' },
+    });
+    return rides.map((r) => this.mapRideToResponse(r));
   }
 
   /**
