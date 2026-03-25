@@ -32,7 +32,7 @@ export default function Sidebar() {
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col min-h-screen">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="Wheels On Go" className="w-10 h-10 object-contain" />
+          <img src="/Wheels_On_Go_Logo.png" alt="Wheels On Go" className="w-10 h-10 object-contain" />
           <span className="font-bold text-emerald-800 text-sm">WHEELS ON GO</span>
         </div>
       </div>
