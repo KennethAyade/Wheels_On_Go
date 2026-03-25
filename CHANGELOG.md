@@ -18,6 +18,20 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-03-25 11:00 PHT
+Summary: Schedule picker UX overhaul + bug fixes + admin logo update. Replaced Material3 TimeInput with custom scroll-wheel (roller) time picker. Fixed schedule button staying locked after following "Earliest pickup" hint (ViewModel/TimeInput state desync). Added reverse geocoding for pinned locations. Improved PlaceSearchScreen with "Use current location" option and empty states. Enhanced scheduling success dialog. Fixed ScheduledRidesScreen PullToRefreshBox build error. Updated admin web logo to Wheels_On_Go_Logo.png with white login background.
+Changes:
+- apps/mobile/.../booking/BookingConfirmScreen.kt: Replaced TimeInput with ScrollWheelTimePicker (3-column snap-scroll roller: hour/minute/AM-PM), improved success dialog
+- apps/mobile/.../booking/BookingConfirmViewModel.kt: Added scheduleWarning, selectedDayIndex/Hour/Minute fields, 29-min UI tolerance, 5-min-rounded hints, auto-clamp on day switch
+- apps/mobile/.../home/HomeViewModel.kt: Reverse geocode pinned location via LocationApi instead of literal "Pinned location" text
+- apps/mobile/.../search/PlaceSearchScreen.kt: Added "Use current location" row (pickup only) + empty states
+- apps/mobile/.../AppNav.kt: Wired onUseCurrentLocation callback for PlaceSearchScreen
+- apps/mobile/.../booking/ScheduledRidesScreen.kt: Replaced PullToRefreshBox with plain Box (Compose BOM 2024.02.01 compat)
+- apps/web/index.html: Favicon updated to Wheels_On_Go_Logo.png
+- apps/web/src/components/Sidebar.tsx: Logo updated to Wheels_On_Go_Logo.png
+- apps/web/src/pages/LoginPage.tsx: Logo updated + background changed to white
+Details: `changes/2026-03-25-1100-pht.md`
+
 ## 2026-03-24 17:40 PHT
 Summary: Advanced Booking / Schedule a Trip — riders can now schedule rides up to 7 days in advance (30 min minimum lead time). Cron-based dispatch triggers 15 min before pickup. Up to 3 concurrent scheduled rides alongside instant rides. Dedicated "Scheduled Rides" screen with cancel support. No driver-side or schema changes needed.
 Changes:

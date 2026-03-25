@@ -1,14 +1,14 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-24
+**Last Updated:** 2026-03-25
 **Branch:** develop (main branch: main)
 
 ---
 
 ## Executive Summary
 
-**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, **Week 9 safety verification complete**, and **Week 10 advanced booking complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export), admin-to-user direct messaging (CommentsDrawer slide-over panel for private admin-driver/rider communication), and scheduled ride booking (advance booking up to 7 days with cron-based dispatch, ScheduledRidesScreen, and concurrent ride support) are all implemented end-to-end.
+**Wheels On Go** (also branded as "Valet&Go") is a ride-hailing platform where **the rider owns the car** and hires only a driver. Built with NestJS + Prisma/PostgreSQL (backend), Kotlin + Jetpack Compose (mobile), and React + Vite + Tailwind CSS (web admin). **Phases 1–3 complete**, **Week 8 financial + chat complete**, **Week 9 safety verification complete**, and **Week 10 advanced booking complete**: Firebase Phone Auth, driver KYC (Cloudflare R2) with AI document verification (Claude Sonnet vision), biometric login, RiderVehicle CRUD, surge pricing, promo codes, WebSocket dispatch, real-time tracking with geofencing, actual fare calculation, full driver booking flow, admin web dashboard, fatigue detection via Gemini Vision AI, SOS emergency triggers, ride ratings, user profile management, ride cancellation notifications, static payment gateway (GCash/Card/Cash), subscription plans with fare discounts, driver earnings dashboard, in-app real-time chat, per-ride breathalyzer safety gate (AI-verified, fail-closed), BLOWBAGETS 10-item vehicle safety inspection at pickup, admin reports dashboard (aggregated financial, operational, safety, subscription, and driver insights with date range filtering and CSV export), admin-to-user direct messaging (CommentsDrawer slide-over panel for private admin-driver/rider communication), scheduled ride booking (advance booking up to 7 days with cron-based dispatch, ScheduledRidesScreen, and concurrent ride support), and UX polish (scroll-wheel time picker, pinned location reverse geocoding, PlaceSearch "Use current location" option, admin logo rebrand) are all implemented end-to-end.
 
 ---
 
@@ -40,6 +40,7 @@
 | 2026-03-21 | Week 9b — Admin Reports dashboard (aggregated financial/operations/safety/subscription/driver reports with date range + CSV export) | ✅ Complete |
 | 2026-03-21 | Week 9c — Admin-to-user direct messaging (CommentsDrawer, private admin-driver/rider chat from DriverDetail + Customers pages, mobile API endpoints) | ✅ Complete |
 | 2026-03-24 | Week 10 — Advanced Booking / Schedule a Trip (scheduled rides up to 7 days, cron dispatch 15 min before, ScheduledRidesScreen, up to 3 concurrent) | ✅ Complete |
+| 2026-03-25 | Week 10 Polish — Scroll-wheel time picker, schedule button bug fix, pinned location reverse geocoding, PlaceSearch improvements, admin logo update | ✅ Complete |
 | Week 11+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
@@ -701,11 +702,20 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 
 ## Recent Changes Summary
 
+### 2026-03-25 — Week 10 Polish: Schedule Picker UX, Bug Fixes, Admin Logo
+- **Scroll-wheel time picker:** Replaced Material3 `TimeInput` (text-field digits) with custom `ScrollWheelTimePicker` — three `LazyColumn` columns (hour 1-12, minute 00-55 in 5-min steps, AM/PM) with `rememberSnapFlingBehavior` snap-scroll, selection highlight band, ViewModel-driven sync
+- **Schedule button lock bug fix:** `rememberTimePickerState` only read initial values on creation, causing ViewModel/UI desync. New scroll-wheel picker syncs via `LaunchedEffect` + `animateScrollToItem()`. Added 29-min UI tolerance and 5-min-rounded hints.
+- **Pinned location reverse geocoding:** `HomeViewModel.onUsePinnedAddress()` now calls `ApiClient.locationApi.reverseGeocode()` to resolve actual street address instead of literal "Pinned location" text
+- **PlaceSearchScreen improvements:** Added "Use current location" row (pickup mode only) with `MyLocation` icon, empty states for blank query and no results
+- **Scheduling success dialog:** Enhanced with `CheckCircle` icon, time card with `primaryContainer` background, `PrimaryButton` for "View Scheduled Rides"
+- **ScheduledRidesScreen compat fix:** Replaced `PullToRefreshBox` (unavailable in Material3 1.2.0 / Compose BOM 2024.02.01) with plain `Box` + `when` block
+- **Admin web logo:** Updated from `logo.jpg` to `Wheels_On_Go_Logo.png` across index.html, Sidebar, and LoginPage; login background changed to white
+
 ### 2026-03-24 — Week 10: Advanced Booking / Schedule a Trip
 - Scheduled ride booking: riders can schedule rides 30 min to 7 days in advance via "Schedule for Later" toggle on BookingConfirmScreen
 - Cron-based dispatch: `ScheduledRideService` with `@nestjs/schedule` triggers dispatch 15 min before pickup (every 60s check), expires stale rides 15 min past pickup (every 5 min check)
 - Concurrent ride support: up to 3 pending scheduled rides alongside instant rides; refactored active ride check so PENDING scheduled rides don't block instant bookings or trigger HomeScreen auto-redirect
-- Mobile UI: Material3 DatePickerDialog + TimePickerDialog (two-step flow), ScheduledRidesScreen with LazyColumn, cancel support, pull-to-refresh, empty state
+- Mobile UI: Inline day chips + scroll-wheel time picker (replaced original DatePickerDialog + TimePickerDialog), ScheduledRidesScreen with LazyColumn, cancel support, empty state
 - WebSocket events: `scheduled_ride:dispatching` (rider notified when dispatch begins), `scheduled_ride:expired` (no driver found)
 - Drawer navigation: "Scheduled Rides" menu item for riders
 - New endpoint: `GET /rides/scheduled` (RIDER role) — lists upcoming scheduled rides ordered by pickup time

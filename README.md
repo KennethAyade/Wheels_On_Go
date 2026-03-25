@@ -284,10 +284,13 @@ Wheels_On_Go/
 - Scheduled rides: riders can book rides up to 7 days in advance (30 min minimum lead time)
 - Cron-based dispatch triggers 15 min before scheduled pickup (`@nestjs/schedule`)
 - Up to 3 concurrent scheduled rides alongside instant rides
-- BookingConfirmScreen: "Ride Now" / "Schedule" toggle with Material3 DatePicker + TimePicker
-- ScheduledRidesScreen: view upcoming rides, cancel pending rides, pull-to-refresh
+- BookingConfirmScreen: "Ride Now" / "Schedule" toggle with day chips + scroll-wheel time picker (hour/minute/AM-PM roller)
+- ScheduledRidesScreen: view upcoming rides, cancel pending rides, empty state
 - WebSocket events: `scheduled_ride:dispatching`, `scheduled_ride:expired`
 - Drawer menu: "Scheduled Rides" entry for riders
+- Pinned location reverse geocoding: resolves actual street address instead of literal "Pinned location"
+- PlaceSearchScreen: "Use current location" option (pickup mode) + empty states
+- Admin web: updated logo (Wheels_On_Go_Logo.png), white login background
 
 ### 📅 Remaining — Weeks 11+
 - Communication (masked calls, push notifications)
