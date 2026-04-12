@@ -25,9 +25,16 @@ export class BiometricService {
     this.mode = this.configService.get<string>('BIOMETRIC_MODE', 'mock');
     const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
 
-    if (this.mode === 'mock' && nodeEnv !== 'development' && nodeEnv !== 'test') {
+    const allowMock = ['development', 'test', 'staging'].includes(nodeEnv);
+    if (this.mode === 'mock' && !allowMock) {
       throw new Error(
         `BIOMETRIC_MODE=mock is not permitted in ${nodeEnv}. Configure a real biometric provider (AWS Rekognition) before deploying.`,
+      );
+    }
+
+    if (this.mode === 'mock') {
+      this.logger.warn(
+        'BiometricService running in MOCK mode — every selfie will auto-pass. DO NOT expose to real users.',
       );
     }
 

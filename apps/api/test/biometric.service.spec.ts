@@ -23,6 +23,7 @@ const mockDriverProfile = {
 const createMockConfig = (overrides: Record<string, any> = {}) => {
   const defaults: Record<string, any> = {
     BIOMETRIC_MODE: 'mock',
+    NODE_ENV: 'development',
     AWS_REGION: 'us-east-1',
     AWS_ACCESS_KEY_ID: 'test-key',
     AWS_SECRET_ACCESS_KEY: 'test-secret',
@@ -35,6 +36,40 @@ const createMockConfig = (overrides: Record<string, any> = {}) => {
 };
 
 describe('BiometricService', () => {
+  describe('constructor guard — BIOMETRIC_MODE=mock NODE_ENV matrix', () => {
+    const storage = {} as StorageService;
+    const makePrisma = () => createPrismaMock() as any;
+
+    it('allows mock in development', () => {
+      const config = createMockConfig({ BIOMETRIC_MODE: 'mock', NODE_ENV: 'development' });
+      expect(() => new BiometricService(config, storage, makePrisma())).not.toThrow();
+    });
+
+    it('allows mock in test', () => {
+      const config = createMockConfig({ BIOMETRIC_MODE: 'mock', NODE_ENV: 'test' });
+      expect(() => new BiometricService(config, storage, makePrisma())).not.toThrow();
+    });
+
+    it('allows mock in staging (Bug 1 guard relaxed for UAT deploys)', () => {
+      const config = createMockConfig({ BIOMETRIC_MODE: 'mock', NODE_ENV: 'staging' });
+      expect(() => new BiometricService(config, storage, makePrisma())).not.toThrow();
+    });
+
+    it('rejects mock in production (Bug 1 regression guard)', () => {
+      const config = createMockConfig({ BIOMETRIC_MODE: 'mock', NODE_ENV: 'production' });
+      expect(() => new BiometricService(config, storage, makePrisma())).toThrow(
+        /BIOMETRIC_MODE=mock is not permitted in production/,
+      );
+    });
+
+    it('rejects mock in any unrecognised env label', () => {
+      const config = createMockConfig({ BIOMETRIC_MODE: 'mock', NODE_ENV: 'preview' });
+      expect(() => new BiometricService(config, storage, makePrisma())).toThrow(
+        /BIOMETRIC_MODE=mock is not permitted in preview/,
+      );
+    });
+  });
+
   describe('verifyDriverFace() - mock mode', () => {
     let service: BiometricService;
     let prisma: ReturnType<typeof createPrismaMock>;

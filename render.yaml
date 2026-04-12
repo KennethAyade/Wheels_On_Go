@@ -10,7 +10,7 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: NODE_ENV
-        value: production
+        value: staging
       - key: NODE_OPTIONS
         value: --max-old-space-size=1536
       - key: NPM_CONFIG_PRODUCTION
