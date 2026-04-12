@@ -488,32 +488,32 @@ model SosIncident {
 }
 
 model BlowbagetsChecklist {
-  id                     String        @id @default(uuid())
-  driverProfileId        String
-  brakes                 Boolean       @default(false)
-  lights                 Boolean       @default(false)
-  oil                    Boolean       @default(false)
-  water                  Boolean       @default(false)
-  battery                Boolean       @default(false)
-  air                    Boolean       @default(false)
-  gas                    Boolean       @default(false)
-  engine                 Boolean       @default(false)
-  tools                  Boolean       @default(false)
-  self                   Boolean       @default(false)
-  allItemsChecked        Boolean       @default(false)
-  completedAt            DateTime      @default(now())
-  expiresAt              DateTime
-  rideId                 String?
-  breathalyzerImageKey            String?
-  breathalyzerMimeType            String?
-  breathalyzerVerified            Boolean       @default(false)
-  breathalyzerBacReading          Float?
-  breathalyzerBacUnit             String?
-  breathalyzerBacNormalizedGPerL  Float?
-  breathalyzerThresholdGPerL      Float?
-  breathalyzerResult              String?
-  breathalyzerAiDetails           String?
-  driverProfile          DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  id                             String        @id @default(uuid())
+  driverProfileId                String
+  brakes                         Boolean       @default(false)
+  lights                         Boolean       @default(false)
+  oil                            Boolean       @default(false)
+  water                          Boolean       @default(false)
+  battery                        Boolean       @default(false)
+  air                            Boolean       @default(false)
+  gas                            Boolean       @default(false)
+  engine                         Boolean       @default(false)
+  tools                          Boolean       @default(false)
+  self                           Boolean       @default(false)
+  allItemsChecked                Boolean       @default(false)
+  completedAt                    DateTime      @default(now())
+  expiresAt                      DateTime
+  rideId                         String?
+  breathalyzerImageKey           String?
+  breathalyzerMimeType           String?
+  breathalyzerVerified           Boolean       @default(false)
+  breathalyzerBacReading         Float?
+  breathalyzerBacUnit            String?
+  breathalyzerBacNormalizedGPerL Float?
+  breathalyzerThresholdGPerL     Float?
+  breathalyzerResult             String?
+  breathalyzerAiDetails          String?
+  driverProfile                  DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
 
   @@index([driverProfileId, completedAt])
   @@index([expiresAt])
