@@ -142,7 +142,7 @@ fun BreathalyzerUploadScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Before accepting this ride, you must upload a clear photo of your breathalyzer test result showing the BAC reading.",
+                        "Before accepting this ride, upload a clear photo of your breathalyzer showing both the numeric reading AND its unit label (g/L, mg/L, or %BAC).",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -312,11 +312,18 @@ fun BreathalyzerUploadScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF2E7D32)
                             )
-                            if (uiState.bacReading != null) {
+                            if (uiState.bacValueRaw != null && uiState.bacUnitRaw != null) {
                                 Text(
-                                    "BAC: ${uiState.bacReading}%",
+                                    "Device reading: ${"%.2f".format(uiState.bacValueRaw)} ${uiState.bacUnitRaw}",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = Color(0xFF388E3C)
+                                )
+                            }
+                            if (uiState.bacNormalizedGPerL != null && uiState.thresholdGPerL != null) {
+                                Text(
+                                    "Normalized: ${"%.2f".format(uiState.bacNormalizedGPerL)} g/L (limit ${"%.2f".format(uiState.thresholdGPerL)} g/L)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF66BB6A)
                                 )
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -354,16 +361,24 @@ fun BreathalyzerUploadScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFC62828)
                             )
-                            if (uiState.bacReading != null) {
+                            if (uiState.bacValueRaw != null && uiState.bacUnitRaw != null) {
                                 Text(
-                                    "BAC: ${uiState.bacReading}%",
+                                    "Device reading: ${"%.2f".format(uiState.bacValueRaw)} ${uiState.bacUnitRaw}",
                                     style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFFD32F2F)
+                                )
+                            }
+                            if (uiState.bacNormalizedGPerL != null && uiState.thresholdGPerL != null) {
+                                Text(
+                                    "Normalized: ${"%.2f".format(uiState.bacNormalizedGPerL)} g/L (limit ${"%.2f".format(uiState.thresholdGPerL)} g/L)",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFFD32F2F)
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "BAC exceeds the safe driving limit (0.05%). You cannot accept rides for 8 hours.",
+                                uiState.details
+                                    ?: "Reading exceeds the safe driving limit. You cannot accept rides for 8 hours.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 color = Color(0xFFE53935)

@@ -109,7 +109,11 @@ export class ChecklistService {
     }
 
     this.logger.log(
-      `Breathalyzer verification for driver ${profile.id}: result=${verification.result}, BAC=${verification.bacReading}, confidence=${verification.confidence}`,
+      `Breathalyzer verification for driver ${profile.id}: result=${verification.result}, ` +
+        `raw=${verification.bacValueRaw} ${verification.bacUnitRaw ?? '(no unit)'}, ` +
+        `normalized=${verification.bacNormalizedGPerL} g/L, ` +
+        `threshold=${verification.thresholdGPerL} g/L, ` +
+        `confidence=${verification.confidence}`,
     );
 
     if (verification.result === 'PASS') {
@@ -121,7 +125,10 @@ export class ChecklistService {
           breathalyzerImageKey: dto.key,
           breathalyzerMimeType: mimeType,
           breathalyzerVerified: true,
-          breathalyzerBacReading: verification.bacReading,
+          breathalyzerBacReading: verification.bacNormalizedGPerL,
+          breathalyzerBacUnit: verification.bacUnitRaw,
+          breathalyzerBacNormalizedGPerL: verification.bacNormalizedGPerL,
+          breathalyzerThresholdGPerL: verification.thresholdGPerL,
           breathalyzerResult: 'PASS',
           breathalyzerAiDetails: verification.details,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
@@ -133,13 +140,23 @@ export class ChecklistService {
         'BREATHALYZER_PASS',
         'driver',
         profile.id,
-        { bacReading: verification.bacReading, rideId: dto.rideId },
+        {
+          bacValueRaw: verification.bacValueRaw,
+          bacUnitRaw: verification.bacUnitRaw,
+          bacNormalizedGPerL: verification.bacNormalizedGPerL,
+          thresholdGPerL: verification.thresholdGPerL,
+          rideId: dto.rideId,
+        },
       );
 
       return {
         passed: true,
         result: 'PASS',
-        bacReading: verification.bacReading,
+        bacReading: verification.bacNormalizedGPerL,
+        bacValueRaw: verification.bacValueRaw,
+        bacUnitRaw: verification.bacUnitRaw,
+        bacNormalizedGPerL: verification.bacNormalizedGPerL,
+        thresholdGPerL: verification.thresholdGPerL,
       };
     }
 
@@ -160,7 +177,10 @@ export class ChecklistService {
           breathalyzerImageKey: dto.key,
           breathalyzerMimeType: mimeType,
           breathalyzerVerified: true,
-          breathalyzerBacReading: verification.bacReading,
+          breathalyzerBacReading: verification.bacNormalizedGPerL,
+          breathalyzerBacUnit: verification.bacUnitRaw,
+          breathalyzerBacNormalizedGPerL: verification.bacNormalizedGPerL,
+          breathalyzerThresholdGPerL: verification.thresholdGPerL,
           breathalyzerResult: 'FAIL',
           breathalyzerAiDetails: verification.details,
           expiresAt: cooldownUntil,
@@ -172,15 +192,31 @@ export class ChecklistService {
         'BREATHALYZER_FAIL',
         'driver',
         profile.id,
-        { bacReading: verification.bacReading, rideId: dto.rideId, cooldownUntil: cooldownUntil.toISOString() },
+        {
+          bacValueRaw: verification.bacValueRaw,
+          bacUnitRaw: verification.bacUnitRaw,
+          bacNormalizedGPerL: verification.bacNormalizedGPerL,
+          thresholdGPerL: verification.thresholdGPerL,
+          rideId: dto.rideId,
+          cooldownUntil: cooldownUntil.toISOString(),
+        },
       );
+
+      const failMessage =
+        `Reading: ${verification.bacNormalizedGPerL?.toFixed(2)} g/L ` +
+        `(above ${verification.thresholdGPerL.toFixed(2)} g/L limit). ` +
+        `You cannot accept rides for 8 hours.`;
 
       return {
         passed: false,
         result: 'FAIL',
-        bacReading: verification.bacReading,
+        bacReading: verification.bacNormalizedGPerL,
+        bacValueRaw: verification.bacValueRaw,
+        bacUnitRaw: verification.bacUnitRaw,
+        bacNormalizedGPerL: verification.bacNormalizedGPerL,
+        thresholdGPerL: verification.thresholdGPerL,
         cooldownUntil: cooldownUntil.toISOString(),
-        details: 'BAC exceeds the safe driving limit (0.05%). You cannot accept rides for 8 hours.',
+        details: failMessage,
       };
     }
 

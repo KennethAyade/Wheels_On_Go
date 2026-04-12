@@ -1,7 +1,7 @@
 # Wheels On Go Platform - Complete Knowledge Base
 
 **Repository:** `g:\WORK\Freelance\Wheels_On_Go`
-**Last Updated:** 2026-03-25
+**Last Updated:** 2026-04-12
 **Branch:** develop (main branch: main)
 
 ---
@@ -41,6 +41,7 @@
 | 2026-03-21 | Week 9c — Admin-to-user direct messaging (CommentsDrawer, private admin-driver/rider chat from DriverDetail + Customers pages, mobile API endpoints) | ✅ Complete |
 | 2026-03-24 | Week 10 — Advanced Booking / Schedule a Trip (scheduled rides up to 7 days, cron dispatch 15 min before, ScheduledRidesScreen, up to 3 concurrent) | ✅ Complete |
 | 2026-03-25 | Week 10 Polish — Scroll-wheel time picker, schedule button bug fix, pinned location reverse geocoding, PlaceSearch improvements, admin logo update | ✅ Complete |
+| 2026-04-12 | Breathalyzer rule update — `>= 0.05 g/L → FAIL` (inclusive), unit-safe extraction (g/L / mg/L / %BAC normalized to g/L), env-configurable threshold, audit snapshot | ✅ Complete |
 | Week 11+ | Communication (masked calls, push notifications), integration + E2E tests, production hardening | 📅 Planned |
 
 ---
@@ -573,11 +574,24 @@ netAmount = totalFare × (1 - commissionRate)
 
 ### 6b. Breathalyzer Safety Gate (Per-Ride before Acceptance)
 - When driver taps "Accept" on a ride request, they must first upload a breathalyzer photo
-- AI (Claude Sonnet Vision) analyzes the photo for BAC reading
-- **PASS** (BAC ≤ 0.05): Ride acceptance proceeds via WebSocket
-- **FAIL** (BAC > 0.05): 8-hour cooldown, ride not accepted (auto-expires and re-dispatches)
-- **INVALID_IMAGE** (not a breathalyzer): No cooldown, driver can retry immediately
-- **Fail-CLOSED strategy** — if AI can't analyze, returns INVALID_IMAGE (driver must retry)
+- AI (Claude Sonnet Vision) extracts the BAC **value and unit separately**; the backend normalizes to canonical **g/L blood** and applies a deterministic threshold check — the AI never decides PASS/FAIL itself.
+- **Client rule (2026-04-12):** any reading `>= 0.05 g/L` is an automatic FAIL. The 0.05 boundary is **inclusive** (exactly 0.05 g/L → FAIL).
+- **Threshold is env-configurable** via `BREATHALYZER_FAIL_THRESHOLD_G_PER_L` (default `0.05`). The threshold-in-effect is persisted per record (`breathalyzerThresholdGPerL`) so historical results remain auditable even if the limit changes later.
+- Supported device units + normalization (canonical unit is g/L blood):
+
+  | Device unit | Conversion to g/L blood | Source |
+  | --- | --- | --- |
+  | `g/L` (blood) | identity (× 1) | direct |
+  | `%BAC` | × 10 (e.g. `0.05 %BAC` = `0.5 g/L`) | standard BAC definition |
+  | `mg/L` (breath) | × 3.2 | ≈ 1:2000 blood/breath partition ratio |
+
+  Any other unit string (or null) → `INVALID_IMAGE` (fail-closed).
+
+- **PASS** (`normalizedGPerL < threshold`): Ride acceptance proceeds via WebSocket.
+- **FAIL** (`normalizedGPerL >= threshold`): 8-hour cooldown, ride not accepted (auto-expires and re-dispatches). Server returns a templated error message: `Reading: 0.06 g/L (above 0.05 g/L limit). You cannot accept rides for 8 hours.`
+- **INVALID_IMAGE**: not a breathalyzer device, reading not visible, unrecognised / missing unit, AI confidence below `BREATHALYZER_MIN_AI_CONFIDENCE` (default `0.7`), or AI unavailable. No cooldown; driver can retry immediately.
+- **Fail-CLOSED strategy** — unknown unit, parse failure, storage error, AI timeout, and low confidence all resolve to `INVALID_IMAGE`. The safety check never auto-passes on an ambiguous reading.
+- Mobile PASS/FAIL cards show both the raw device reading (`Device reading: 0.04 g/L`) and the normalized value with the active limit (`Normalized: 0.04 g/L (limit 0.05 g/L)`), so drivers can see exactly what the device showed and what rule was applied.
 
 ### 7. Fatigue Detection (Gemini Vision AI)
 - Uses `gemini-2.0-flash` multimodal model to analyze driver face images
@@ -739,9 +753,17 @@ Admin rejects (with reason) → DriverStatus = REJECTED, driver notified
 - Reports sidebar entry enabled (was "Coming Soon")
 - Web build: 738KB JS (gzipped: 215KB) + 28KB CSS — TypeScript clean
 
+### 2026-04-12 — Breathalyzer Rule Update + Unit-Safe Extraction
+- **Client rule change:** any breathalyzer reading `>= 0.05 g/L` is now an automatic FAIL (inclusive boundary). Replaces the prior `> 0.05` strict-greater rule; the 0.05 boundary itself is no longer a PASS.
+- **Unit-safe extraction:** Claude now returns `bac_value` + `bac_unit` separately (enum: `g/L`, `mg/L`, `%BAC`). Backend normalizes to canonical g/L (`%BAC` × 10, `mg/L` × 3.2, `g/L` identity) and applies the threshold deterministically — AI no longer decides PASS/FAIL.
+- **Fail-closed on ambiguity:** unknown/missing unit, AI confidence below `BREATHALYZER_MIN_AI_CONFIDENCE` (default 0.7), parse failure, AI timeout → `INVALID_IMAGE` (retry, no cooldown). The threshold check never runs on an ambiguous reading.
+- **Env-configurable + audited:** `BREATHALYZER_FAIL_THRESHOLD_G_PER_L` (default `0.05`). The threshold-in-effect is snapshotted per record (`breathalyzerThresholdGPerL`) alongside raw unit (`breathalyzerBacUnit`) and normalized value (`breathalyzerBacNormalizedGPerL`) on BlowbagetsChecklist, so historical results remain auditable even if the limit is changed later.
+- Mobile PASS/FAIL cards show both raw device reading (e.g. `0.04 g/L`) and normalized value with active limit; instruction copy updated to tell drivers to photograph the unit label as well as the digits.
+- +12 new verification.service tests (threshold boundaries, three-unit normalization, fail-closed paths, env override). Total: 285/286 backend tests passing (pre-existing chat.gateway failure unchanged).
+
 ### 2026-03-18 — Week 9: AI Verification, Breathalyzer Gate, BLOWBAGETS Checklist, Chat Enhancement
 - AI-powered document verification: Claude Sonnet vision auto-verifies LICENSE and GOVERNMENT_ID during KYC (fail-open — passes through for manual admin review on AI error)
-- Breathalyzer safety gate: per-ride breathalyzer photo upload + AI BAC analysis before ride acceptance (PASS ≤ 0.05 → accept, FAIL > 0.05 → 8h cooldown, INVALID_IMAGE → retry); fail-closed strategy
+- Breathalyzer safety gate: per-ride breathalyzer photo upload + AI BAC analysis before ride acceptance. *(Rule updated 2026-04-12 to `>= 0.05 g/L → FAIL` inclusive with unit-safe extraction — see entry above.)*
 - BLOWBAGETS 10-item vehicle inspection at pickup (DRIVER_ARRIVED): gates "Start Ride" behind completion; driver inspects rider's car
 - Chat enhancement: actual driver/rider names + tappable phone numbers in chat screen
 - New modules: VerificationModule, ChecklistModule (5 REST endpoints)

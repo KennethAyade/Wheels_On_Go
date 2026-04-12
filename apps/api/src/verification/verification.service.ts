@@ -18,10 +18,20 @@ export interface VerificationResult {
   requiresManualReview?: boolean;
 }
 
+export type BreathalyzerUnit = 'g/L' | 'mg/L' | '%BAC';
+
 export interface BreathalyzerVerificationResult {
   isBreathalyzerDevice: boolean;
   isReadingVisible: boolean;
+  /**
+   * Normalized value in g/L blood. Kept for backward compatibility with older
+   * callers. New callers should prefer `bacNormalizedGPerL`.
+   */
   bacReading: number | null;
+  bacValueRaw: number | null;
+  bacUnitRaw: BreathalyzerUnit | null;
+  bacNormalizedGPerL: number | null;
+  thresholdGPerL: number;
   result: 'PASS' | 'FAIL' | 'INVALID_IMAGE';
   confidence: number;
   details: string;
@@ -31,6 +41,8 @@ export interface BreathalyzerVerificationResult {
 export class VerificationService {
   private readonly logger = new Logger(VerificationService.name);
   private readonly anthropic: Anthropic;
+  private readonly breathalyzerFailThresholdGPerL: number;
+  private readonly breathalyzerMinAiConfidence: number;
 
   constructor(
     private readonly configService: ConfigService,
@@ -38,6 +50,69 @@ export class VerificationService {
   ) {
     const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
     this.anthropic = new Anthropic({ apiKey });
+
+    const rawThreshold = this.configService.get<string>(
+      'BREATHALYZER_FAIL_THRESHOLD_G_PER_L',
+      '0.05',
+    );
+    const parsedThreshold = parseFloat(rawThreshold);
+    this.breathalyzerFailThresholdGPerL = Number.isFinite(parsedThreshold)
+      ? parsedThreshold
+      : 0.05;
+
+    const rawMinConfidence = this.configService.get<string>(
+      'BREATHALYZER_MIN_AI_CONFIDENCE',
+      '0.7',
+    );
+    const parsedMinConfidence = parseFloat(rawMinConfidence);
+    this.breathalyzerMinAiConfidence = Number.isFinite(parsedMinConfidence)
+      ? parsedMinConfidence
+      : 0.7;
+  }
+
+  /**
+   * Convert a raw device reading into the canonical unit (g/L blood).
+   *
+   * Conversion factors derived from the device manual's equivalence table
+   * (0.080%BAC == 0.80 g/L blood == 0.25 mg/L breath):
+   *   - g/L blood → identity
+   *   - %BAC      → value * 10
+   *   - mg/L breath → value * 3.2
+   *
+   * Returns null when the unit is unknown / unrecognised. Callers must treat
+   * null as INVALID_IMAGE (fail-closed) — never guess the unit.
+   */
+  private normalizeToGPerL(
+    value: number,
+    unit: BreathalyzerUnit | null,
+  ): number | null {
+    switch (unit) {
+      case 'g/L':
+        return value;
+      case '%BAC':
+        return value * 10;
+      case 'mg/L':
+        return value * 3.2;
+      default:
+        return null;
+    }
+  }
+
+  private parseUnit(raw: unknown): BreathalyzerUnit | null {
+    if (typeof raw !== 'string') return null;
+    const normalized = raw.trim().toLowerCase().replace(/\s+/g, '');
+    if (normalized === 'g/l' || normalized === 'gperl') return 'g/L';
+    if (normalized === 'mg/l' || normalized === 'mgperl') return 'mg/L';
+    if (
+      normalized === '%bac' ||
+      normalized === 'bac%' ||
+      normalized === 'percent' ||
+      normalized === 'pct' ||
+      normalized === 'pctbac'
+    ) {
+      return '%BAC';
+    }
+    return null;
   }
 
   async verifyIdDocument(params: {
@@ -200,12 +275,11 @@ Respond with JSON only.`,
                 text: `You are analyzing a photo of a breathalyzer test result for a ride-sharing driver safety check. Analyze this image carefully and respond ONLY with valid JSON (no markdown, no code fences) with these fields:
 
 - "is_breathalyzer_device" (boolean): Is this image showing an actual breathalyzer device or breathalyzer test result screen? It should NOT be a random photo, selfie, screenshot, or unrelated image.
-- "is_reading_visible" (boolean): Can you clearly see and read the BAC (Blood Alcohol Content) reading on the device?
-- "bac_reading" (number or null): The BAC reading shown on the device (e.g., 0.00, 0.02, 0.08). null if not readable.
-- "confidence" (number 0-1): Your confidence in the reading accuracy.
-- "reasoning" (string): Brief explanation of your assessment (1-2 sentences).
-
-Important: BAC readings are typically decimal values like 0.00, 0.02, 0.05, 0.08. A reading of 0.05 or below is considered safe for driving. Above 0.05 is unsafe.
+- "is_reading_visible" (boolean): Can you clearly see and read the alcohol measurement value on the device display.
+- "bac_value" (number or null): The exact numeric value shown on the device display (e.g., 0.00, 0.02, 0.40, 0.80). null if not readable. Do NOT convert units — return the number exactly as shown.
+- "bac_unit" (string or null): The unit label printed on or around the device display. MUST be one of exactly: "g/L" (grams per liter of blood), "mg/L" (milligrams per liter of breath), "%BAC" (percent blood alcohol). Return null if the unit label is not visible or unclear. Do NOT guess — if uncertain, return null and explain in reasoning.
+- "confidence" (number 0-1): Your confidence in the reading AND unit identification. Low confidence (<0.7) if either value or unit is unclear.
+- "reasoning" (string): Brief explanation (1-2 sentences). If you can see the value but not the unit label, say so explicitly.
 
 Respond with JSON only.`,
               },
@@ -224,28 +298,70 @@ Respond with JSON only.`,
 
       const isBreathalyzerDevice = parsed.is_breathalyzer_device === true;
       const isReadingVisible = parsed.is_reading_visible === true;
-      const bacReading =
-        typeof parsed.bac_reading === 'number' ? parsed.bac_reading : null;
+      const bacValueRaw =
+        typeof parsed.bac_value === 'number' ? parsed.bac_value : null;
+      const bacUnitRaw = this.parseUnit(parsed.bac_unit);
       const confidence =
         typeof parsed.confidence === 'number' ? parsed.confidence : 0;
 
-      if (!isBreathalyzerDevice || !isReadingVisible || bacReading === null) {
+      if (
+        !isBreathalyzerDevice ||
+        !isReadingVisible ||
+        bacValueRaw === null ||
+        bacUnitRaw === null ||
+        confidence < this.breathalyzerMinAiConfidence
+      ) {
+        const reason =
+          !isBreathalyzerDevice
+            ? 'Image is not a breathalyzer device'
+            : !isReadingVisible
+              ? 'Reading is not clearly visible'
+              : bacValueRaw === null
+                ? 'Reading value could not be read'
+                : bacUnitRaw === null
+                  ? 'Unit label (g/L, mg/L, or %BAC) could not be identified — please retake with unit label visible'
+                  : 'AI confidence too low to rely on reading';
         return {
           isBreathalyzerDevice,
           isReadingVisible,
           bacReading: null,
+          bacValueRaw,
+          bacUnitRaw,
+          bacNormalizedGPerL: null,
+          thresholdGPerL: this.breathalyzerFailThresholdGPerL,
           result: 'INVALID_IMAGE',
           confidence,
-          details: parsed.reasoning || 'Could not identify a valid breathalyzer reading',
+          details: parsed.reasoning || reason,
         };
       }
 
-      const result = bacReading <= 0.05 ? 'PASS' : 'FAIL';
+      const bacNormalizedGPerL = this.normalizeToGPerL(bacValueRaw, bacUnitRaw);
+      if (bacNormalizedGPerL === null) {
+        return {
+          isBreathalyzerDevice,
+          isReadingVisible,
+          bacReading: null,
+          bacValueRaw,
+          bacUnitRaw: null,
+          bacNormalizedGPerL: null,
+          thresholdGPerL: this.breathalyzerFailThresholdGPerL,
+          result: 'INVALID_IMAGE',
+          confidence,
+          details: parsed.reasoning || 'Unrecognised unit — please retake the photo',
+        };
+      }
+
+      const result: 'PASS' | 'FAIL' =
+        bacNormalizedGPerL >= this.breathalyzerFailThresholdGPerL ? 'FAIL' : 'PASS';
 
       return {
         isBreathalyzerDevice: true,
         isReadingVisible: true,
-        bacReading,
+        bacReading: bacNormalizedGPerL,
+        bacValueRaw,
+        bacUnitRaw,
+        bacNormalizedGPerL,
+        thresholdGPerL: this.breathalyzerFailThresholdGPerL,
         result,
         confidence,
         details: parsed.reasoning || '',
@@ -264,6 +380,10 @@ Respond with JSON only.`,
       isBreathalyzerDevice: false,
       isReadingVisible: false,
       bacReading: null,
+      bacValueRaw: null,
+      bacUnitRaw: null,
+      bacNormalizedGPerL: null,
+      thresholdGPerL: this.breathalyzerFailThresholdGPerL,
       result: 'INVALID_IMAGE',
       confidence: 0,
       details,

@@ -26,6 +26,10 @@ data class BreathalyzerUiState(
     val isVerifying: Boolean = false,
     val result: String? = null, // "PASS" | "FAIL" | "INVALID_IMAGE"
     val bacReading: Float? = null,
+    val bacValueRaw: Float? = null,
+    val bacUnitRaw: String? = null,
+    val bacNormalizedGPerL: Float? = null,
+    val thresholdGPerL: Float? = null,
     val cooldownUntil: String? = null,
     val errorMessage: String? = null,
     val isPassed: Boolean = false,
@@ -104,6 +108,10 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                         isVerifying = false,
                         result = result.result,
                         bacReading = result.bacReading,
+                        bacValueRaw = result.bacValueRaw,
+                        bacUnitRaw = result.bacUnitRaw,
+                        bacNormalizedGPerL = result.bacNormalizedGPerL,
+                        thresholdGPerL = result.thresholdGPerL,
                         cooldownUntil = result.cooldownUntil,
                         isPassed = result.passed,
                         details = result.details
@@ -129,7 +137,11 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
                 result = null,
                 errorMessage = null,
                 isPassed = false,
-                details = null
+                details = null,
+                bacValueRaw = null,
+                bacUnitRaw = null,
+                bacNormalizedGPerL = null,
+                thresholdGPerL = null
             )
         }
     }
@@ -142,7 +154,7 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
         return try {
             val errorBody = response.errorBody()?.string() ?: return null
             val json = org.json.JSONObject(errorBody)
-            json.optString("message", null)
+            json.optString("message").takeIf { it.isNotEmpty() }
         } catch (_: Exception) {
             null
         }

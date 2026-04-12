@@ -11,9 +11,19 @@ import { StorageService } from '../src/storage/storage.service';
  * `requiresManualReview: true` with `isValid: false`, never auto-pass.
  */
 
-const makeService = (anthropicMock: any, storageMock: Partial<StorageService> = {}) => {
+const makeService = (
+  anthropicMock: any,
+  storageMock: Partial<StorageService> = {},
+  configOverrides: Record<string, string> = {},
+) => {
+  const configValues: Record<string, string> = {
+    ANTHROPIC_API_KEY: 'test-key',
+    ...configOverrides,
+  };
   const config = {
-    get: jest.fn((key: string) => (key === 'ANTHROPIC_API_KEY' ? 'test-key' : undefined)),
+    get: jest.fn((key: string, defaultVal?: string) =>
+      configValues[key] ?? defaultVal,
+    ),
   } as unknown as ConfigService;
   const storage = {
     getObjectBytes: jest.fn().mockResolvedValue(Buffer.from('fake-image-bytes')),
@@ -22,6 +32,27 @@ const makeService = (anthropicMock: any, storageMock: Partial<StorageService> = 
   const service = new VerificationService(config, storage);
   (service as any).anthropic = anthropicMock;
   return { service, storage };
+};
+
+const breathalyzerAiResponse = (payload: {
+  is_breathalyzer_device?: boolean;
+  is_reading_visible?: boolean;
+  bac_value?: number | null;
+  bac_unit?: string | null;
+  confidence?: number;
+  reasoning?: string;
+}) => {
+  // Use object spread so explicit null in `payload` overrides defaults
+  // (null ?? default would incorrectly fall back to the default).
+  const defaults = {
+    is_breathalyzer_device: true,
+    is_reading_visible: true,
+    bac_value: 0.0,
+    bac_unit: 'g/L',
+    confidence: 0.95,
+    reasoning: 'Clear device reading',
+  };
+  return aiResponse({ ...defaults, ...payload });
 };
 
 const aiResponse = (payload: Record<string, unknown>) => ({
@@ -197,6 +228,233 @@ describe('VerificationService', () => {
       expect(result.result).toBe('INVALID_IMAGE');
       expect(result.bacReading).toBeNull();
       expect(result.isBreathalyzerDevice).toBe(false);
+    });
+
+    it('returns INVALID_IMAGE when AI cannot identify the unit label', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.02, bac_unit: null }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('INVALID_IMAGE');
+      expect(result.bacValueRaw).toBe(0.02);
+      expect(result.bacUnitRaw).toBeNull();
+      expect(result.bacNormalizedGPerL).toBeNull();
+    });
+
+    it('returns INVALID_IMAGE when AI returns an unrecognised unit', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.02, bac_unit: 'ppm' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('INVALID_IMAGE');
+      expect(result.bacUnitRaw).toBeNull();
+    });
+
+    it('returns INVALID_IMAGE when AI confidence is below min threshold', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({
+              bac_value: 0.02,
+              bac_unit: 'g/L',
+              confidence: 0.4,
+            }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('INVALID_IMAGE');
+    });
+  });
+
+  describe('verifyBreathalyzerResult() — threshold enforcement (default 0.05 g/L)', () => {
+    it('passes when reading is below threshold (0.04 g/L)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.04, bac_unit: 'g/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('PASS');
+      expect(result.bacNormalizedGPerL).toBeCloseTo(0.04);
+      expect(result.thresholdGPerL).toBe(0.05);
+    });
+
+    it('FAILS at the exact boundary (0.05 g/L) — inclusive per client rule', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.05, bac_unit: 'g/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('FAIL');
+    });
+
+    it('FAILS above threshold (0.06 g/L)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.06, bac_unit: 'g/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('FAIL');
+      expect(result.bacNormalizedGPerL).toBeCloseTo(0.06);
+    });
+  });
+
+  describe('verifyBreathalyzerResult() — unit normalization', () => {
+    it('normalizes %BAC to g/L (0.005 %BAC → 0.05 g/L → FAIL at boundary)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.005, bac_unit: '%BAC' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.bacValueRaw).toBe(0.005);
+      expect(result.bacUnitRaw).toBe('%BAC');
+      expect(result.bacNormalizedGPerL).toBeCloseTo(0.05);
+      expect(result.result).toBe('FAIL');
+    });
+
+    it('normalizes mg/L breath to g/L blood (0.02 mg/L → 0.064 g/L → FAIL)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.02, bac_unit: 'mg/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.bacUnitRaw).toBe('mg/L');
+      expect(result.bacNormalizedGPerL).toBeCloseTo(0.064);
+      expect(result.result).toBe('FAIL');
+    });
+
+    it('passes a safe %BAC reading (0.002 %BAC → 0.02 g/L → PASS)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.002, bac_unit: '%BAC' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic);
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.bacNormalizedGPerL).toBeCloseTo(0.02);
+      expect(result.result).toBe('PASS');
+    });
+  });
+
+  describe('verifyBreathalyzerResult() — configurable threshold', () => {
+    it('tightens via BREATHALYZER_FAIL_THRESHOLD_G_PER_L=0.03 (0.04 g/L now FAILs)', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.04, bac_unit: 'g/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic, {}, {
+        BREATHALYZER_FAIL_THRESHOLD_G_PER_L: '0.03',
+      });
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.result).toBe('FAIL');
+      expect(result.thresholdGPerL).toBe(0.03);
+    });
+
+    it('snapshot of threshold-in-effect is returned for audit', async () => {
+      const anthropic = {
+        messages: {
+          create: jest.fn().mockResolvedValue(
+            breathalyzerAiResponse({ bac_value: 0.02, bac_unit: 'g/L' }),
+          ),
+        },
+      };
+      const { service } = makeService(anthropic, {}, {
+        BREATHALYZER_FAIL_THRESHOLD_G_PER_L: '0.08',
+      });
+
+      const result = await service.verifyBreathalyzerResult({
+        storageKey: 'drivers/p1/breath.jpg',
+        mimeType: 'image/jpeg',
+      });
+
+      expect(result.thresholdGPerL).toBe(0.08);
+      expect(result.result).toBe('PASS');
     });
   });
 });

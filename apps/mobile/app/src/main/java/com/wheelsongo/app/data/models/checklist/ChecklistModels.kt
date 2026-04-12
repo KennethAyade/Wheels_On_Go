@@ -35,6 +35,10 @@ data class ConfirmBreathalyzerResponse(
     @Json(name = "passed") val passed: Boolean,
     @Json(name = "result") val result: String, // "PASS" | "FAIL" | "INVALID_IMAGE"
     @Json(name = "bacReading") val bacReading: Float? = null,
+    @Json(name = "bacValueRaw") val bacValueRaw: Float? = null,
+    @Json(name = "bacUnitRaw") val bacUnitRaw: String? = null, // "g/L" | "mg/L" | "%BAC"
+    @Json(name = "bacNormalizedGPerL") val bacNormalizedGPerL: Float? = null,
+    @Json(name = "thresholdGPerL") val thresholdGPerL: Float? = null,
     @Json(name = "cooldownUntil") val cooldownUntil: String? = null,
     @Json(name = "details") val details: String? = null
 )

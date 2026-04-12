@@ -18,6 +18,22 @@ This file tracks repository changes over time. Add a new entry for each meaningf
 
 ---
 
+## 2026-04-12 16:00 PHT
+Summary: Breathalyzer rule update — new client policy "0.05 g/L is an automatic decline" plus unit-safe extraction. AI now returns BAC value and unit separately; backend normalizes to g/L (canonical), applies deterministic `>= 0.05 g/L → FAIL` threshold (inclusive), and persists unit + normalized + threshold snapshot per record for audit. Fail-closed on unknown/missing unit and low AI confidence. Threshold is env-configurable via `BREATHALYZER_FAIL_THRESHOLD_G_PER_L` (default 0.05). Mobile PASS/FAIL cards now show both raw device reading (e.g. `0.04 g/L`) and normalized value with limit.
+Changes:
+- apps/api/src/verification/verification.service.ts: AI prompt split `bac_value` + `bac_unit` (g/L | mg/L | %BAC); added `normalizeToGPerL()` (g/L identity, %BAC ×10, mg/L ×3.2); deterministic threshold check `normalizedGPerL >= threshold → FAIL`; fail-closed on null/unrecognised unit + low confidence; returns `bacValueRaw`, `bacUnitRaw`, `bacNormalizedGPerL`, `thresholdGPerL`
+- apps/api/src/checklist/checklist.service.ts: Persists unit + normalized + threshold snapshot on PASS/FAIL; audit log includes new fields; FAIL error message now templated from server (`Reading: X.XX g/L (above Y.YY g/L limit)`)
+- apps/api/prisma/schema.prisma: BlowbagetsChecklist + `breathalyzerBacUnit` / `breathalyzerBacNormalizedGPerL` / `breathalyzerThresholdGPerL`
+- apps/api/prisma/migrations/20260412160000_add_breathalyzer_unit_and_threshold_snapshot/: ALTER TABLE adds the three columns
+- apps/api/.env.example: `BREATHALYZER_FAIL_THRESHOLD_G_PER_L=0.05`, `BREATHALYZER_MIN_AI_CONFIDENCE=0.7` with conversion-table comment
+- render.yaml: Added both env vars (hardcoded values, source-of-truth in git)
+- apps/api/test/verification.service.spec.ts: +12 tests — threshold enforcement at 0.04/0.05/0.06 g/L, %BAC and mg/L unit normalization, fail-closed on missing/unrecognised unit + low confidence, env override
+- apps/mobile/.../data/models/checklist/ChecklistModels.kt: `ConfirmBreathalyzerResponse` + `bacValueRaw` / `bacUnitRaw` / `bacNormalizedGPerL` / `thresholdGPerL`
+- apps/mobile/.../ui/screens/checklist/BreathalyzerUploadViewModel.kt: UI state + unit/normalized/threshold wiring; `resetForRetry()` clears them
+- apps/mobile/.../ui/screens/checklist/BreathalyzerUploadScreen.kt: Instruction mentions unit labels (g/L, mg/L, %BAC); PASS/FAIL cards show `Device reading: X.XX unit` and `Normalized: X.XX g/L (limit Y.YY g/L)`
+- Tests: 19/19 verification.service tests green; overall 285/286 (pre-existing chat.gateway failure unchanged)
+Details: `changes/2026-04-12-1600-pht.md`
+
 ## 2026-03-25 11:00 PHT
 Summary: Schedule picker UX overhaul + bug fixes + admin logo update. Replaced Material3 TimeInput with custom scroll-wheel (roller) time picker. Fixed schedule button staying locked after following "Earliest pickup" hint (ViewModel/TimeInput state desync). Added reverse geocoding for pinned locations. Improved PlaceSearchScreen with "Use current location" option and empty states. Enhanced scheduling success dialog. Fixed ScheduledRidesScreen PullToRefreshBox build error. Updated admin web logo to Wheels_On_Go_Logo.png with white login background.
 Changes:

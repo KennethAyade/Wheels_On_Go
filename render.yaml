@@ -63,5 +63,9 @@ services:
         value: live
       - key: GEMINI_API_KEY
         sync: false
+      - key: BREATHALYZER_FAIL_THRESHOLD_G_PER_L
+        value: "0.05"
+      - key: BREATHALYZER_MIN_AI_CONFIDENCE
+        value: "0.7"
       - key: PORT
         value: 3000

@@ -504,12 +504,15 @@ model BlowbagetsChecklist {
   completedAt            DateTime      @default(now())
   expiresAt              DateTime
   rideId                 String?
-  breathalyzerImageKey   String?
-  breathalyzerMimeType   String?
-  breathalyzerVerified   Boolean       @default(false)
-  breathalyzerBacReading Float?
-  breathalyzerResult     String?
-  breathalyzerAiDetails  String?
+  breathalyzerImageKey            String?
+  breathalyzerMimeType            String?
+  breathalyzerVerified            Boolean       @default(false)
+  breathalyzerBacReading          Float?
+  breathalyzerBacUnit             String?
+  breathalyzerBacNormalizedGPerL  Float?
+  breathalyzerThresholdGPerL      Float?
+  breathalyzerResult              String?
+  breathalyzerAiDetails           String?
   driverProfile          DriverProfile @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
 
   @@index([driverProfileId, completedAt])
