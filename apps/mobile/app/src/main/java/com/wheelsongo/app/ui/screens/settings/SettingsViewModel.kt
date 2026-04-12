@@ -188,6 +188,11 @@ class SettingsViewModel @JvmOverloads constructor(
                             successMessage = "Photo uploaded"
                         )
                     }
+                    // Refetch so the canonical URL `/auth/me` returns (the
+                    // long-lived presigned read URL generated from the key)
+                    // is what gets cached, not the one-shot URL from the
+                    // upload response.
+                    loadProfile()
                 } else {
                     _uiState.update { it.copy(isUploadingPhoto = false, errorMessage = "Upload failed") }
                 }

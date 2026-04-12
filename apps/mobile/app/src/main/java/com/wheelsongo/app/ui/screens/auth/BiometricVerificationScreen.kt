@@ -1,5 +1,8 @@
 package com.wheelsongo.app.ui.screens.auth
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,7 +54,9 @@ fun BiometricVerificationScreen(
     viewModel: BiometricVerificationViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showCamera by remember { mutableStateOf(false) }
+    val isCameraPermissionError = uiState.errorMessage?.contains("Camera permission", ignoreCase = true) == true
 
     // Navigate when verified
     LaunchedEffect(uiState.isVerified) {
@@ -80,6 +87,10 @@ fun BiometricVerificationScreen(
             errorMessage = uiState.errorMessage,
             onImageCaptured = { bitmap -> viewModel.onPhotoCaptured(bitmap) },
             onBack = {
+                showCamera = false
+            },
+            onPermissionDenied = {
+                viewModel.onPermissionDenied()
                 showCamera = false
             }
         )
@@ -174,6 +185,23 @@ fun BiometricVerificationScreen(
                         )
                     }
 
+                    if (isCameraPermissionError) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(
+                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.fromParts("package", context.packageName, null)
+                                )
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open Settings")
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -183,7 +211,10 @@ fun BiometricVerificationScreen(
                 if (!uiState.isVerified) {
                     PrimaryButton(
                         text = if (uiState.errorMessage != null) "Try Again" else "Start Verification",
-                        onClick = { showCamera = true },
+                        onClick = {
+                            viewModel.clearError()
+                            showCamera = true
+                        },
                         enabled = !uiState.isVerifying,
                         isLoading = false
                     )

@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.wheelsongo.app.utils.isLikelyPhoneNumber
+import com.wheelsongo.app.utils.redactPhone
 
 /**
  * Navigation drawer content for the app.
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 fun AppDrawer(
     userRole: String?,
     phoneNumber: String?,
+    displayName: String? = null,
     onMyDocuments: () -> Unit = {},
     onMyVehicles: () -> Unit = {},
     onScheduledRides: () -> Unit = {},
@@ -57,10 +60,18 @@ fun AppDrawer(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Phone number
-        if (phoneNumber != null) {
+        // Prefer the user's name. Fall back to a redacted phone number if we
+        // have one that actually looks like a phone number — previous
+        // versions would render tokens / IDs verbatim whenever the phone
+        // field was populated with the wrong value.
+        val subtitle = when {
+            !displayName.isNullOrBlank() -> displayName
+            phoneNumber != null && phoneNumber.isLikelyPhoneNumber() -> phoneNumber.redactPhone()
+            else -> null
+        }
+        if (subtitle != null) {
             Text(
-                text = phoneNumber,
+                text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp)

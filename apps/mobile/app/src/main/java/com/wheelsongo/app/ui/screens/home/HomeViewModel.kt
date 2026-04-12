@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.PolyUtil
+import com.wheelsongo.app.data.location.LocationResult
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.location.LocationData
 import com.wheelsongo.app.data.models.location.ReverseGeocodeRequest
@@ -172,9 +173,9 @@ class HomeViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingLocation = true) }
 
-            try {
-                val location = locationService.getCurrentLocation()
-                if (location != null) {
+            when (val result = locationService.fetchCurrentLocation()) {
+                is LocationResult.Success -> {
+                    val location = result.data
                     _uiState.update {
                         it.copy(
                             isLoadingLocation = false,
@@ -183,22 +184,36 @@ class HomeViewModel @JvmOverloads constructor(
                             errorMessage = null
                         )
                     }
-                } else {
+                }
+                is LocationResult.PermissionDenied -> _uiState.update {
+                    it.copy(
+                        isLoadingLocation = false,
+                        errorMessage = "Location permission is off. Please enable it in Settings."
+                    )
+                }
+                is LocationResult.ServicesDisabled -> _uiState.update {
+                    it.copy(
+                        isLoadingLocation = false,
+                        errorMessage = "Location Services are off. Please turn on GPS to continue."
+                    )
+                }
+                is LocationResult.NoFix -> {
                     val lastKnown = locationService.getLastKnownLocation()
                     _uiState.update {
                         it.copy(
                             isLoadingLocation = false,
                             currentLatitude = lastKnown?.latitude ?: LocationService.DEFAULT_LATITUDE,
                             currentLongitude = lastKnown?.longitude ?: LocationService.DEFAULT_LONGITUDE,
-                            errorMessage = if (lastKnown == null) "Could not get current location" else null
+                            errorMessage = if (lastKnown == null)
+                                "Can't get a GPS fix. Move to an open area and try again."
+                            else null
                         )
                     }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
+                is LocationResult.Error -> _uiState.update {
                     it.copy(
                         isLoadingLocation = false,
-                        errorMessage = "Failed to get location: ${e.message}"
+                        errorMessage = "Location is taking longer than expected. Please try again."
                     )
                 }
             }

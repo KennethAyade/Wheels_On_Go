@@ -23,7 +23,9 @@ const prismaMock = () =>
       upsert: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      findMany: jest.fn(),
     },
+    $queryRawUnsafe: jest.fn(),
   } as unknown as PrismaService);
 
 describe('DriverService', () => {
@@ -426,6 +428,90 @@ describe('DriverService', () => {
       const result = await service.updateOnlineStatus(userId, { isOnline: false });
       expect(result.isOnline).toBe(false);
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAvailableDrivers() — Bug 8 regression guards', () => {
+    const queryDto = {
+      pickupLatitude: 14.55,
+      pickupLongitude: 121.02,
+      dropoffLatitude: 14.60,
+      dropoffLongitude: 121.05,
+    };
+
+    const rawDriverRow = (id: string, overrides: Record<string, any> = {}) => ({
+      driverProfileId: id,
+      userId: `user-${id}`,
+      currentLatitude: 14.56,
+      currentLongitude: 121.03,
+      totalRides: 10,
+      profilePhotoKey: null,
+      firstName: 'Juan',
+      lastName: 'Cruz',
+      averageRating: 4.7,
+      totalRatings: 10,
+      vehicleMake: 'Toyota',
+      vehicleModel: 'Vios',
+      vehicleYear: 2020,
+      vehicleColor: 'Red',
+      vehiclePlateNumber: 'ABC123',
+      vehicleType: 'SEDAN',
+      distanceKm: '3.5',
+      ...overrides,
+    });
+
+    it('auto-expands the search radius once when initial 15 km returns empty and no radius was client-provided', async () => {
+      const queryRaw = prisma.$queryRawUnsafe as jest.Mock;
+      queryRaw
+        .mockResolvedValueOnce([]) // 15 km — empty
+        .mockResolvedValueOnce([rawDriverRow('driver-a')]); // 30 km — found
+
+      (prisma.driverDocument.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.findAvailableDrivers(queryDto as any);
+
+      expect(queryRaw).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].driverProfileId).toBe('driver-a');
+    });
+
+    it('does NOT auto-expand when the client pinned a specific radius', async () => {
+      const queryRaw = prisma.$queryRawUnsafe as jest.Mock;
+      queryRaw.mockResolvedValue([]);
+      (prisma.driverDocument.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await service.findAvailableDrivers({ ...queryDto, radiusKm: 5 } as any);
+
+      expect(queryRaw).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(0);
+    });
+
+    it('marks isVerified=true when driver has a VERIFIED GOVERNMENT_ID (not just UPLOADED)', async () => {
+      const queryRaw = prisma.$queryRawUnsafe as jest.Mock;
+      queryRaw.mockResolvedValueOnce([rawDriverRow('driver-verified')]);
+      (prisma.driverDocument.findMany as jest.Mock).mockResolvedValue([
+        { driverProfileId: 'driver-verified' },
+      ]);
+
+      const result = await service.findAvailableDrivers(queryDto as any);
+
+      expect(result[0].isVerified).toBe(true);
+      const findManyCall = (prisma.driverDocument.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.where.status.in).toEqual(
+        expect.arrayContaining([DocumentStatus.UPLOADED, DocumentStatus.VERIFIED]),
+      );
+    });
+
+    it('applies a stale-GPS filter (rejects drivers whose location is older than 120 seconds) via SQL', async () => {
+      const queryRaw = prisma.$queryRawUnsafe as jest.Mock;
+      queryRaw.mockResolvedValueOnce([]);
+      (prisma.driverDocument.findMany as jest.Mock).mockResolvedValue([]);
+
+      await service.findAvailableDrivers({ ...queryDto, radiusKm: 10 } as any);
+
+      const sql = queryRaw.mock.calls[0][0] as string;
+      expect(sql).toContain('"currentLocationUpdatedAt" IS NOT NULL');
+      expect(sql).toMatch(/INTERVAL '120 seconds'/);
     });
   });
 });

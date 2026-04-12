@@ -6,6 +6,8 @@ import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheelsongo.app.data.repository.AuthRepository
+import com.wheelsongo.app.utils.FaceLivenessCheck
+import com.wheelsongo.app.utils.FaceLivenessResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +25,8 @@ data class BiometricVerificationUiState(
 
 /**
  * ViewModel for the biometric (face) verification screen.
- * Captures a selfie via camera, encodes to Base64, and sends to backend.
+ * Captures a selfie via camera, runs an on-device liveness check,
+ * then sends to the backend for identity verification.
  */
 class BiometricVerificationViewModel @JvmOverloads constructor(
     application: Application,
@@ -33,74 +36,65 @@ class BiometricVerificationViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(BiometricVerificationUiState())
     val uiState: StateFlow<BiometricVerificationUiState> = _uiState.asStateFlow()
 
-    val isEmulator: Boolean = android.os.Build.FINGERPRINT.contains("generic") || android.os.Build.FINGERPRINT.contains("emulator") || android.os.Build.MODEL.contains("Emulator") || android.os.Build.MODEL.contains("Android SDK") || android.os.Build.HARDWARE.contains("ranchu") || android.os.Build.HARDWARE.contains("goldfish") || android.os.Build.PRODUCT.contains("sdk") || android.os.Build.PRODUCT.contains("emulator")
-
-    init {
-        if (isEmulator) {
-            // On emulator, call backend with dummy image to obtain real access + refresh tokens
-            // Backend issues tokens regardless of face match result
-            viewModelScope.launch {
-                try {
-                    // 1x1 white JPEG — smallest valid image to exchange biometric token for real tokens
-                    val dummyBase64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ACoA/9k="
-                    authRepository.verifyBiometric(dummyBase64)
-                    _uiState.update { it.copy(isVerified = true) }
-                } catch (e: Exception) {
-                    // If backend call fails, still allow through on emulator for dev
-                    _uiState.update { it.copy(isVerified = true) }
-                }
-            }
-        }
+    companion object {
+        private const val MIN_BACKEND_CONFIDENCE = 70f
     }
 
-    /**
-     * Called when a photo is captured from the camera.
-     * Encodes bitmap to Base64 and triggers verification.
-     */
     fun onPhotoCaptured(bitmap: Bitmap) {
         viewModelScope.launch {
             _uiState.update { it.copy(isVerifying = true, errorMessage = null) }
 
-            try {
-                // Encode bitmap to Base64 JPEG
-                val base64 = encodeBitmapToBase64(bitmap)
-                _uiState.update { it.copy(capturedImageBase64 = base64) }
+            val liveness = FaceLivenessCheck.check(bitmap)
+            if (liveness !is FaceLivenessResult.Valid) {
+                _uiState.update {
+                    it.copy(
+                        isVerifying = false,
+                        errorMessage = FaceLivenessCheck.userMessageFor(liveness)
+                    )
+                }
+                return@launch
+            }
 
-                // Send to backend for verification
-                val result = authRepository.verifyBiometric(base64)
-
-                result.fold(
-                    onSuccess = { response ->
-                        if (response.match) {
-                            _uiState.update {
-                                it.copy(isVerifying = false, isVerified = true)
-                            }
-                        } else {
-                            _uiState.update {
-                                it.copy(
-                                    isVerifying = false,
-                                    errorMessage = "Face did not match. Please try again."
-                                )
-                            }
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isVerifying = false,
-                                errorMessage = error.message ?: "Verification failed"
-                            )
-                        }
-                    }
-                )
+            val base64 = try {
+                encodeBitmapToBase64(bitmap)
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isVerifying = false,
-                        errorMessage = e.message ?: "Failed to process image"
+                        errorMessage = "Failed to process image. Please try again."
                     )
                 }
+                return@launch
             }
+
+            _uiState.update { it.copy(capturedImageBase64 = base64) }
+
+            val result = authRepository.verifyBiometric(base64)
+            result.fold(
+                onSuccess = { response ->
+                    val confidenceOk = (response.confidence ?: 0f) >= MIN_BACKEND_CONFIDENCE
+                    if (response.match && confidenceOk) {
+                        _uiState.update {
+                            it.copy(isVerifying = false, isVerified = true)
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isVerifying = false,
+                                errorMessage = "Face did not match. Please try again."
+                            )
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isVerifying = false,
+                            errorMessage = error.message ?: "Verification failed. Please try again."
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -126,9 +120,6 @@ class BiometricVerificationViewModel @JvmOverloads constructor(
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
 
-    /**
-     * Called when user denies camera permission
-     */
     fun onPermissionDenied() {
         _uiState.update {
             it.copy(errorMessage = "Camera permission is required for face verification. Please grant camera access in Settings.")

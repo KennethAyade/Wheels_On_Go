@@ -145,6 +145,10 @@ dependencies {
     // Biometric (device fingerprint/face unlock for session resumption)
     implementation("androidx.biometric:biometric:1.1.0")
 
+    // ML Kit — on-device face detection (liveness) + text recognition (ID OCR)
+    implementation("com.google.mlkit:face-detection:16.1.7")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
     // Accompanist (Permissions, System UI Controller)
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")

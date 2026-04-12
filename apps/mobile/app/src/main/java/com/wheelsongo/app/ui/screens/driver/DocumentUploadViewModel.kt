@@ -10,6 +10,8 @@ import com.wheelsongo.app.data.models.driver.KycConfirmRequest
 import com.wheelsongo.app.data.models.driver.KycPresignRequest
 import com.wheelsongo.app.data.network.ApiClient
 import com.wheelsongo.app.data.network.DriverApi
+import com.wheelsongo.app.utils.DocumentValidationResult
+import com.wheelsongo.app.utils.DocumentValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -112,26 +114,53 @@ class DocumentUploadViewModel @JvmOverloads constructor(
         .build()
 
     init {
-        fetchExistingKycStatus()
+        refreshKycStatus()
     }
 
-    private fun fetchExistingKycStatus() {
+    /**
+     * Fetch server-side KYC status and reconcile into UI state. Safe to call
+     * repeatedly — used by init and by the screen's ON_RESUME hook so that
+     * admin-side status changes (VERIFIED / REJECTED) show up when the driver
+     * returns to the screen.
+     */
+    fun refreshKycStatus() {
         viewModelScope.launch {
             try {
                 val response = driverApi.getKycStatus()
-                if (response.isSuccessful) {
-                    val kycData = response.body() ?: return@launch
-                    for (doc in kycData.documents) {
-                        val docType = DocumentType.entries.find { it.apiName == doc.type }
-                        if (docType != null && doc.status == "UPLOADED") {
+                if (!response.isSuccessful) return@launch
+                val kycData = response.body() ?: return@launch
+
+                for (doc in kycData.documents) {
+                    val docType = DocumentType.entries.find { it.apiName == doc.type }
+                        ?: continue
+
+                    when (doc.status) {
+                        // Treat UPLOADED + VERIFIED as "submitted and visible".
+                        // Previously we only matched UPLOADED, which made docs
+                        // disappear the moment admin approved them.
+                        "UPLOADED", "VERIFIED", "APPROVED" -> {
                             updateDocumentState(docType) {
                                 it.copy(
                                     isUploaded = true,
+                                    isUploading = false,
                                     uploadProgress = 1f,
-                                    downloadUrl = doc.downloadUrl
+                                    downloadUrl = doc.downloadUrl,
+                                    errorMessage = null
                                 )
                             }
                         }
+                        "REJECTED" -> {
+                            updateDocumentState(docType) {
+                                it.copy(
+                                    isUploaded = false,
+                                    isUploading = false,
+                                    uploadProgress = 0f,
+                                    errorMessage = doc.rejectionReason
+                                        ?: "Document was rejected. Please re-upload a clear photo."
+                                )
+                            }
+                        }
+                        else -> { /* PENDING_UPLOAD or unknown — leave as-is */ }
                     }
                 }
             } catch (_: Exception) {
@@ -168,6 +197,37 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                 contentResolver.openInputStream(fileUri)?.use { it.readBytes() }
             } ?: throw Exception("Could not read file")
             val fileSize = fileBytes.size.toLong()
+
+            // Decode bitmap once for both file- and content-level validation
+            val bitmap = withContext(Dispatchers.IO) {
+                DocumentValidator.decodeBitmap(context, fileUri)
+            } ?: run {
+                updateDocumentState(documentType) {
+                    it.copy(
+                        isUploading = false,
+                        errorMessage = "Could not read the image. Please choose a different file."
+                    )
+                }
+                return
+            }
+
+            val fileCheck = DocumentValidator.validateFile(mimeType, fileSize, bitmap)
+            if (fileCheck is DocumentValidationResult.Invalid) {
+                updateDocumentState(documentType) {
+                    it.copy(isUploading = false, errorMessage = fileCheck.userMessage)
+                }
+                return
+            }
+
+            val contentCheck = withContext(Dispatchers.Default) {
+                DocumentValidator.validateContent(documentType.apiName, bitmap)
+            }
+            if (contentCheck is DocumentValidationResult.Invalid) {
+                updateDocumentState(documentType) {
+                    it.copy(isUploading = false, errorMessage = contentCheck.userMessage)
+                }
+                return
+            }
 
             updateDocumentState(documentType) {
                 it.copy(uploadProgress = 0.1f)

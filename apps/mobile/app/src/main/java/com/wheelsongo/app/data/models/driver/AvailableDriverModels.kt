@@ -15,7 +15,9 @@ data class AvailableDriverResponse(
     @Json(name = "averageRating") val averageRating: Double?,
     @Json(name = "totalRides") val totalRides: Int,
     @Json(name = "estimatedFare") val estimatedFare: Int,
-    @Json(name = "vehicle") val vehicle: AvailableDriverVehicle?
+    @Json(name = "vehicle") val vehicle: AvailableDriverVehicle?,
+    @Json(name = "currentLatitude") val currentLatitude: Double? = null,
+    @Json(name = "currentLongitude") val currentLongitude: Double? = null
 )
 
 @JsonClass(generateAdapter = true)

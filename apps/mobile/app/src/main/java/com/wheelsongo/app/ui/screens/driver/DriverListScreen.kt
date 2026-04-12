@@ -26,6 +26,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 import com.wheelsongo.app.data.models.driver.AvailableDriverResponse
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,6 +77,20 @@ fun DriverListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Map panel — pickup / dropoff / one marker per available driver.
+            // Sits at the top so riders can see where drivers are relative to
+            // their pickup before scrolling the list.
+            DriverListMap(
+                pickupLat = pickupLat,
+                pickupLng = pickupLng,
+                dropoffLat = dropoffLat,
+                dropoffLng = dropoffLng,
+                drivers = uiState.drivers,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.4f)
+            )
+
             // Route summary card
             Card(
                 modifier = Modifier
@@ -146,18 +169,31 @@ fun DriverListScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                "No drivers available in your area",
+                                if (uiState.canExpandSearch)
+                                    "No drivers within ${uiState.searchRadiusKm.toInt()} km"
+                                else
+                                    "No drivers available nearby",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Try again in a few minutes",
+                                if (uiState.canExpandSearch)
+                                    "Try widening the search radius."
+                                else
+                                    "Please try again shortly.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.fetchDrivers() }) {
-                                Text("Refresh")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { viewModel.fetchDrivers() }) {
+                                    Text("Refresh")
+                                }
+                                if (uiState.canExpandSearch) {
+                                    Button(onClick = { viewModel.expandSearch() }) {
+                                        Text("Expand search")
+                                    }
+                                }
                             }
                         }
                     }
@@ -182,6 +218,72 @@ fun DriverListScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DriverListMap(
+    pickupLat: Double,
+    pickupLng: Double,
+    dropoffLat: Double,
+    dropoffLng: Double,
+    drivers: List<AvailableDriverResponse>,
+    modifier: Modifier = Modifier
+) {
+    val pickup = LatLng(pickupLat, pickupLng)
+    val dropoff = LatLng(dropoffLat, dropoffLng)
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(pickup, 14f)
+    }
+
+    // Fit pickup + dropoff + all visible driver markers in view
+    LaunchedEffect(drivers) {
+        val builder = LatLngBounds.builder()
+            .include(pickup)
+            .include(dropoff)
+        drivers.forEach { driver ->
+            val lat = driver.currentLatitude
+            val lng = driver.currentLongitude
+            if (lat != null && lng != null) {
+                builder.include(LatLng(lat, lng))
+            }
+        }
+        runCatching {
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngBounds(builder.build(), 120)
+            )
+        }
+    }
+
+    GoogleMap(
+        modifier = modifier,
+        cameraPositionState = cameraPositionState
+    ) {
+        Marker(
+            state = MarkerState(position = pickup),
+            title = "Pickup",
+            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+        )
+        Marker(
+            state = MarkerState(position = dropoff),
+            title = "Dropoff",
+            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
+        )
+        drivers.forEach { driver ->
+            val lat = driver.currentLatitude
+            val lng = driver.currentLongitude
+            if (lat != null && lng != null) {
+                val name = listOfNotNull(driver.firstName, driver.lastName)
+                    .joinToString(" ").trim().ifEmpty { "Driver" }
+                Marker(
+                    state = MarkerState(position = LatLng(lat, lng)),
+                    title = name,
+                    snippet = "PHP ${driver.estimatedFare}",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                )
             }
         }
     }

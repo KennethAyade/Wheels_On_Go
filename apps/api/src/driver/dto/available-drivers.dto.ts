@@ -55,4 +55,7 @@ export class AvailableDriverDto {
   totalRides: number;
   estimatedFare: number;
   vehicle: AvailableDriverVehicleDto | null;
+  /** Current driver GPS — used to drop markers on the rider's map view. */
+  currentLatitude: number;
+  currentLongitude: number;
 }

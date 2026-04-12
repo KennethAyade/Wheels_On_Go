@@ -23,6 +23,13 @@ export class BiometricService {
     private readonly prisma: PrismaService,
   ) {
     this.mode = this.configService.get<string>('BIOMETRIC_MODE', 'mock');
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+
+    if (this.mode === 'mock' && nodeEnv !== 'development' && nodeEnv !== 'test') {
+      throw new Error(
+        `BIOMETRIC_MODE=mock is not permitted in ${nodeEnv}. Configure a real biometric provider (AWS Rekognition) before deploying.`,
+      );
+    }
 
     if (this.mode !== 'mock') {
       const cfg: RekognitionClientConfig = {

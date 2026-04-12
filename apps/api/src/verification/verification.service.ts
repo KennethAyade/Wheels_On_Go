@@ -10,6 +10,12 @@ export interface VerificationResult {
   rejectionReason?: string;
   confidence: number;
   details: string;
+  /**
+   * True when AI verification could not be completed (service unavailable,
+   * unparseable response, etc.). Callers must NOT auto-approve or auto-reject
+   * — the document should be left in UPLOADED status for admin review.
+   */
+  requiresManualReview?: boolean;
 }
 
 export interface BreathalyzerVerificationResult {
@@ -50,7 +56,7 @@ export class VerificationService {
         this.logger.warn(
           `Empty image bytes for key: ${params.storageKey}, passing through`,
         );
-        return this.passThrough('Could not download image for verification');
+        return this.deferToManualReview('Could not download image for verification');
       }
 
       const base64Image = Buffer.from(imageBytes).toString('base64');
@@ -60,7 +66,7 @@ export class VerificationService {
         this.logger.warn(
           `Unsupported mime type: ${params.mimeType}, passing through`,
         );
-        return this.passThrough(`Unsupported image type: ${params.mimeType}`);
+        return this.deferToManualReview(`Unsupported image type: ${params.mimeType}`);
       }
 
       const docLabel =
@@ -110,7 +116,7 @@ Respond with JSON only.`,
       const textContent = response.content.find((c) => c.type === 'text');
       if (!textContent || textContent.type !== 'text') {
         this.logger.warn('No text response from Claude, passing through');
-        return this.passThrough('AI returned no text response');
+        return this.deferToManualReview('AI returned no text response');
       }
 
       const parsed = JSON.parse(textContent.text);
@@ -141,10 +147,10 @@ Respond with JSON only.`,
       };
     } catch (error) {
       this.logger.error(
-        `AI verification failed, passing through: ${error.message}`,
+        `AI verification failed; deferring to manual review: ${error.message}`,
         error.stack,
       );
-      return this.passThrough('AI verification temporarily unavailable');
+      return this.deferToManualReview('AI verification temporarily unavailable');
     }
   }
 
@@ -264,13 +270,19 @@ Respond with JSON only.`,
     };
   }
 
-  private passThrough(details: string): VerificationResult {
+  /**
+   * Returned when AI verification cannot be completed (service down, bad image
+   * download, unparseable response). Callers MUST interpret this as "leave the
+   * document in UPLOADED state for admin review" — never auto-approve.
+   */
+  private deferToManualReview(details: string): VerificationResult {
     return {
-      isValid: true,
-      isAuthentic: true,
+      isValid: false,
+      isAuthentic: false,
       nameMatch: null,
       confidence: 0,
       details,
+      requiresManualReview: true,
     };
   }
 

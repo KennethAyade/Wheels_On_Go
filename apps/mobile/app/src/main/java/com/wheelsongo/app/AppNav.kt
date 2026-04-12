@@ -53,6 +53,7 @@ import com.wheelsongo.app.ui.screens.checklist.BreathalyzerUploadScreen
 import com.wheelsongo.app.ui.screens.messaging.AdminMessagesScreen
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -458,6 +459,23 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
             val userRole by tokenManager.userRole.collectAsState(initial = null)
             val phoneNumber by tokenManager.phoneNumber.collectAsState(initial = null)
 
+            // Fetch display name from /auth/me so the drawer shows "Juan Dela
+            // Cruz" rather than a phone/token/UUID. Best-effort — empty on
+            // failure falls back to the phone-number formatter in AppDrawer.
+            var displayName by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(Unit) {
+                try {
+                    val resp = ApiClient.authApi.me()
+                    if (resp.isSuccessful) {
+                        val me = resp.body()
+                        val full = listOfNotNull(me?.firstName, me?.lastName)
+                            .joinToString(" ")
+                            .trim()
+                        if (full.isNotBlank()) displayName = full
+                    }
+                } catch (_: Exception) { }
+            }
+
             // Poll for unread admin messages count
             var unreadMessagesCount by remember { mutableIntStateOf(0) }
             LaunchedEffect(Unit) {
@@ -476,6 +494,7 @@ fun AppNav(navController: NavHostController = rememberNavController()) {
                 AppDrawer(
                     userRole = userRole,
                     phoneNumber = phoneNumber,
+                    displayName = displayName,
                     onMyDocuments = {
                         scope.launch { drawerState.close() }
                         navController.navigate(Route.DriverDocumentUpload.value)

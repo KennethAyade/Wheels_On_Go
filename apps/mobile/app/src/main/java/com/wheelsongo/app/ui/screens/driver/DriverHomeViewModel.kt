@@ -4,6 +4,7 @@ import android.app.Application
 import android.location.Geocoder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheelsongo.app.data.location.LocationResult
 import com.wheelsongo.app.data.location.LocationService
 import com.wheelsongo.app.data.models.driver.UpdateDriverStatusRequest
 import com.wheelsongo.app.data.models.ride.RideResponse
@@ -145,20 +146,46 @@ class DriverHomeViewModel @JvmOverloads constructor(
     private fun startLocationUpdates() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingLocation = true)
-            val location = locationService.getReliableCurrentLocation()
-            if (location != null) {
-                _uiState.update {
-                    it.copy(
-                        currentLatitude = location.latitude,
-                        currentLongitude = location.longitude,
-                        isLoadingLocation = false
-                    )
+            when (val result = locationService.fetchCurrentLocation()) {
+                is LocationResult.Success -> {
+                    val location = result.data
+                    _uiState.update {
+                        it.copy(
+                            currentLatitude = location.latitude,
+                            currentLongitude = location.longitude,
+                            isLoadingLocation = false
+                        )
+                    }
+                    loadAddressForLocation(location.latitude, location.longitude)
                 }
-                loadAddressForLocation(location.latitude, location.longitude)
-            } else {
-                _uiState.update { it.copy(isLoadingLocation = false) }
+                else -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingLocation = false,
+                            errorMessage = locationErrorMessage(result)
+                        )
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Map a typed [LocationResult] to an actionable, user-facing message.
+     * Used everywhere GPS might fail so the driver sees the real cause
+     * (permission off / Location Services off / no fix / other) instead of
+     * a generic "Location unavailable".
+     */
+    private fun locationErrorMessage(result: LocationResult): String = when (result) {
+        is LocationResult.PermissionDenied ->
+            "Location permission is off. Please enable it in Settings to go online."
+        is LocationResult.ServicesDisabled ->
+            "Location Services are off. Please turn on GPS in your phone settings."
+        is LocationResult.NoFix ->
+            "Can't get a GPS fix. Move to an open area and try again."
+        is LocationResult.Error ->
+            "Location is taking longer than expected. Please try again."
+        is LocationResult.Success -> ""
     }
 
     private fun loadAddressForLocation(lat: Double, lng: Double) {
@@ -312,35 +339,29 @@ class DriverHomeViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             // Get fresh GPS coordinates before going online so we never send Manila defaults
             val (lat, lng) = if (newStatus) {
-                if (!locationService.isLocationEnabled()) {
-                    _uiState.update {
-                        it.copy(
-                            isTogglingStatus = false,
-                            errorMessage = "Location services are disabled. Please enable GPS in your device settings."
-                        )
+                when (val result = locationService.fetchCurrentLocation()) {
+                    is LocationResult.Success -> {
+                        val location = result.data
+                        _uiState.update {
+                            it.copy(
+                                currentLatitude = location.latitude,
+                                currentLongitude = location.longitude
+                            )
+                        }
+                        Log.d("DriverHomeVM", "Going online at lat=${location.latitude}, lng=${location.longitude}")
+                        loadAddressForLocation(location.latitude, location.longitude)
+                        Pair(location.latitude, location.longitude)
                     }
-                    return@launch
-                }
-
-                val location = locationService.getReliableCurrentLocation()
-                if (location == null) {
-                    _uiState.update {
-                        it.copy(
-                            isTogglingStatus = false,
-                            errorMessage = "Unable to get GPS fix. Please move to an open area and try again."
-                        )
+                    else -> {
+                        _uiState.update {
+                            it.copy(
+                                isTogglingStatus = false,
+                                errorMessage = locationErrorMessage(result)
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
                 }
-                _uiState.update {
-                    it.copy(
-                        currentLatitude = location.latitude,
-                        currentLongitude = location.longitude
-                    )
-                }
-                android.util.Log.d("DriverHomeVM", "Going online at lat=${location.latitude}, lng=${location.longitude}")
-                loadAddressForLocation(location.latitude, location.longitude)
-                Pair(location.latitude, location.longitude)
             } else {
                 Pair(_uiState.value.currentLatitude, _uiState.value.currentLongitude)
             }
@@ -402,25 +423,17 @@ class DriverHomeViewModel @JvmOverloads constructor(
                 val newStatus = true
                 _uiState.update { it.copy(isTogglingStatus = true) }
 
-                if (!locationService.isLocationEnabled()) {
-                    _uiState.update {
-                        it.copy(
-                            isTogglingStatus = false,
-                            errorMessage = "Location services are disabled. Please enable GPS in your device settings."
-                        )
+                val location = when (val result = locationService.fetchCurrentLocation()) {
+                    is LocationResult.Success -> result.data
+                    else -> {
+                        _uiState.update {
+                            it.copy(
+                                isTogglingStatus = false,
+                                errorMessage = locationErrorMessage(result)
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
-                }
-
-                val location = locationService.getReliableCurrentLocation()
-                if (location == null) {
-                    _uiState.update {
-                        it.copy(
-                            isTogglingStatus = false,
-                            errorMessage = "Unable to get GPS fix. Please move to an open area and try again."
-                        )
-                    }
-                    return@launch
                 }
                 _uiState.update {
                     it.copy(

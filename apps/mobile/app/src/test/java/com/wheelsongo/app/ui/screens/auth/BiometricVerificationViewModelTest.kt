@@ -5,10 +5,13 @@ import android.graphics.Bitmap
 import android.util.Base64
 import com.wheelsongo.app.data.models.auth.BiometricVerifyResponse
 import com.wheelsongo.app.data.repository.AuthRepository
+import com.wheelsongo.app.utils.FaceLivenessCheck
+import com.wheelsongo.app.utils.FaceLivenessResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +43,12 @@ class BiometricVerificationViewModelTest {
         mockkStatic(Base64::class)
         every { Base64.encodeToString(any(), any()) } returns "bW9ja2VkLWJhc2U2NA=="
 
+        // Mock ML Kit liveness gate — default to Valid so each test can focus on
+        // the post-liveness backend-verification branches. Override inside a test
+        // body when the liveness path itself is what's under test.
+        mockkObject(FaceLivenessCheck)
+        coEvery { FaceLivenessCheck.check(any()) } returns FaceLivenessResult.Valid
+
         authRepository = mockk()
         application = mockk(relaxed = true)
         viewModel = BiometricVerificationViewModel(application, authRepository)
@@ -53,6 +62,8 @@ class BiometricVerificationViewModelTest {
 
     private fun createMockBitmap(): Bitmap {
         val bitmap = mockk<Bitmap>()
+        every { bitmap.width } returns 320
+        every { bitmap.height } returns 320
         every { bitmap.compress(any(), any(), any()) } answers {
             val outputStream = thirdArg<OutputStream>()
             outputStream.write(byteArrayOf(0xFF.toByte(), 0xD8.toByte())) // JPEG header

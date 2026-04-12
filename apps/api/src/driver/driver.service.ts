@@ -192,6 +192,20 @@ export class DriverService {
           driverLastName: user?.lastName ?? undefined,
         });
 
+      if (verificationResult.requiresManualReview) {
+        await this.auditService.log(
+          userId,
+          'KYC_VERIFICATION_DEFERRED',
+          'driver',
+          profile.id,
+          {
+            type: dto.type,
+            details: verificationResult.details,
+          },
+        );
+        return updated;
+      }
+
       if (
         !verificationResult.isValid ||
         !verificationResult.isAuthentic ||
@@ -473,48 +487,69 @@ export class DriverService {
   }
 
   async findAvailableDrivers(dto: AvailableDriversQueryDto): Promise<AvailableDriverDto[]> {
-    const radiusKm = dto.radiusKm || 10;
-    const earthRadiusKm = 6371;
+    const DEFAULT_RADIUS_KM = 15;
+    const MAX_RADIUS_KM = 50;
+    const STALE_GPS_SECONDS = 120;
+    const clientProvidedRadius = dto.radiusKm != null;
+    const initialRadius = clientProvidedRadius
+      ? Math.min(dto.radiusKm, MAX_RADIUS_KM)
+      : DEFAULT_RADIUS_KM;
 
-    // Find online, approved drivers within radius using Haversine
-    const drivers = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT
-        dp.id as "driverProfileId",
-        dp."userId" as "userId",
-        dp."currentLatitude",
-        dp."currentLongitude",
-        dp."totalRides",
-        dp."profilePhotoKey",
-        u."firstName",
-        u."lastName",
-        u."averageRating",
-        u."totalRatings",
-        v.make as "vehicleMake",
-        v.model as "vehicleModel",
-        v.year as "vehicleYear",
-        v.color as "vehicleColor",
-        v."plateNumber" as "vehiclePlateNumber",
-        v."vehicleType" as "vehicleType",
-        (${earthRadiusKm} * acos(
-          cos(radians(${dto.pickupLatitude})) * cos(radians(dp."currentLatitude")) *
-          cos(radians(dp."currentLongitude") - radians(${dto.pickupLongitude})) +
-          sin(radians(${dto.pickupLatitude})) * sin(radians(dp."currentLatitude"))
-        )) as "distanceKm"
-      FROM "DriverProfile" dp
-      JOIN "User" u ON u.id = dp."userId"
-      LEFT JOIN "Vehicle" v ON v."driverProfileId" = dp.id AND v."isActive" = true
-      WHERE dp."isOnline" = true
-        AND dp."status" = '${DriverStatus.APPROVED}'
-        AND dp."currentLatitude" IS NOT NULL
-        AND dp."currentLongitude" IS NOT NULL
-        AND (${earthRadiusKm} * acos(
-          cos(radians(${dto.pickupLatitude})) * cos(radians(dp."currentLatitude")) *
-          cos(radians(dp."currentLongitude") - radians(${dto.pickupLongitude})) +
-          sin(radians(${dto.pickupLatitude})) * sin(radians(dp."currentLatitude"))
-        )) <= ${radiusKm}
-      ORDER BY "distanceKm" ASC
-      LIMIT 50
-    `);
+    const runQuery = async (radiusKm: number) => {
+      const earthRadiusKm = 6371;
+      return this.prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          dp.id as "driverProfileId",
+          dp."userId" as "userId",
+          dp."currentLatitude",
+          dp."currentLongitude",
+          dp."totalRides",
+          dp."profilePhotoKey",
+          u."firstName",
+          u."lastName",
+          u."averageRating",
+          u."totalRatings",
+          v.make as "vehicleMake",
+          v.model as "vehicleModel",
+          v.year as "vehicleYear",
+          v.color as "vehicleColor",
+          v."plateNumber" as "vehiclePlateNumber",
+          v."vehicleType" as "vehicleType",
+          (${earthRadiusKm} * acos(
+            cos(radians(${dto.pickupLatitude})) * cos(radians(dp."currentLatitude")) *
+            cos(radians(dp."currentLongitude") - radians(${dto.pickupLongitude})) +
+            sin(radians(${dto.pickupLatitude})) * sin(radians(dp."currentLatitude"))
+          )) as "distanceKm"
+        FROM "DriverProfile" dp
+        JOIN "User" u ON u.id = dp."userId"
+        LEFT JOIN "Vehicle" v ON v."driverProfileId" = dp.id AND v."isActive" = true
+        WHERE dp."isOnline" = true
+          AND dp."status" = '${DriverStatus.APPROVED}'
+          AND dp."currentLatitude" IS NOT NULL
+          AND dp."currentLongitude" IS NOT NULL
+          AND dp."currentLocationUpdatedAt" IS NOT NULL
+          AND dp."currentLocationUpdatedAt" > (NOW() - INTERVAL '${STALE_GPS_SECONDS} seconds')
+          AND (${earthRadiusKm} * acos(
+            cos(radians(${dto.pickupLatitude})) * cos(radians(dp."currentLatitude")) *
+            cos(radians(dp."currentLongitude") - radians(${dto.pickupLongitude})) +
+            sin(radians(${dto.pickupLatitude})) * sin(radians(dp."currentLatitude"))
+          )) <= ${radiusKm}
+        ORDER BY "distanceKm" ASC
+        LIMIT 50
+      `);
+    };
+
+    let drivers = await runQuery(initialRadius);
+
+    // Auto-expand on empty iff the client didn't pin the radius. This lets
+    // riders who didn't override the default still see nearby drivers instead
+    // of a misleading empty list when the initial radius is too tight.
+    if (drivers.length === 0 && !clientProvidedRadius) {
+      const expandedRadius = Math.min(initialRadius * 2, MAX_RADIUS_KM);
+      if (expandedRadius > initialRadius) {
+        drivers = await runQuery(expandedRadius);
+      }
+    }
 
     // Calculate fare estimate for each driver
     const estimate = await this.locationService.getDistanceMatrix({
@@ -532,14 +567,16 @@ export class DriverService {
     const rawFare = baseFare + distanceKm * costPerKm + durationMinutes * costPerMinute;
     const estimatedFare = Math.max(Math.round(rawFare), 60);
 
-    // Check which drivers have GOVERNMENT_ID uploaded (for idVerified)
+    // A driver is "verified" once their GOVERNMENT_ID is uploaded or admin-
+    // approved. Previously we filtered `status: UPLOADED` only, which made the
+    // verified badge disappear the moment admin moved a doc to VERIFIED.
     const driverProfileIds = drivers.map((d) => d.driverProfileId);
     const govIdDocs = driverProfileIds.length > 0
       ? await this.prisma.driverDocument.findMany({
           where: {
             driverProfileId: { in: driverProfileIds },
             type: DriverDocumentType.GOVERNMENT_ID,
-            status: DocumentStatus.UPLOADED,
+            status: { in: [DocumentStatus.UPLOADED, DocumentStatus.VERIFIED] },
           },
           select: { driverProfileId: true },
         })
@@ -563,6 +600,8 @@ export class DriverService {
           averageRating: d.averageRating,
           totalRides: d.totalRides,
           estimatedFare,
+          currentLatitude: d.currentLatitude,
+          currentLongitude: d.currentLongitude,
           vehicle: d.vehicleMake
             ? {
                 make: d.vehicleMake,
@@ -585,7 +624,10 @@ export class DriverService {
         user: true,
         vehicle: true,
         documents: {
-          where: { type: DriverDocumentType.GOVERNMENT_ID, status: DocumentStatus.UPLOADED },
+          where: {
+            type: DriverDocumentType.GOVERNMENT_ID,
+            status: { in: [DocumentStatus.UPLOADED, DocumentStatus.VERIFIED] },
+          },
           select: { id: true },
         },
       },

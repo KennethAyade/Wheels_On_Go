@@ -35,11 +35,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,15 +71,26 @@ fun DocumentUploadScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Refresh server-side status every time the screen comes to the foreground
+    // so admin-side VERIFIED / REJECTED transitions are reflected here.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshKycStatus()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Track which document type is being picked
     var pendingDocumentType by remember { mutableStateOf<DocumentType?>(null) }
 
     // Track which document to preview (view uploaded image)
     var previewDocument by remember { mutableStateOf<DocumentState?>(null) }
 
-    // File picker launcher - accepts images (JPG, PNG)
+    // File picker launcher - restricted to JPG/PNG via OpenDocument MIME whitelist
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null && pendingDocumentType != null) {
             viewModel.onDocumentSelected(pendingDocumentType!!, uri)
@@ -155,7 +170,7 @@ fun DocumentUploadScreen(
                                 previewDocument = document
                             } else {
                                 pendingDocumentType = document.type
-                                filePickerLauncher.launch("image/*")
+                                filePickerLauncher.launch(arrayOf("image/jpeg", "image/png"))
                             }
                         },
                         onRemove = { viewModel.onRemoveDocument(document.type) }
