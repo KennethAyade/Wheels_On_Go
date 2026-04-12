@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img
-            src="/Wheels_On_Go_Logo.png"
+            src="/Wheels_On_Go_Logo.jpg"
             alt="Wheels On Go"
             className="w-28 h-28 object-contain mx-auto mb-2"
           />
