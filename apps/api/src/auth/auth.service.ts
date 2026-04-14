@@ -359,8 +359,14 @@ export class AuthService {
     // Sanitize sensitive fields
     const { passwordHash, phoneNumberHash, emailHash, ...safeUser } = found as any;
 
-    // Resolve profile photo URL if it's an R2 storage key
+    // Resolve profile photo URL if it's an R2 storage key.
+    // Drivers' KYC profile photo lives on DriverProfile.profilePhotoKey;
+    // fall back to it so legacy uploads (made before the User dual-write)
+    // still render on the Settings avatar.
     let profilePhotoUrl = safeUser.profilePhotoUrl;
+    if (!profilePhotoUrl && safeUser.driverProfile?.profilePhotoKey) {
+      profilePhotoUrl = safeUser.driverProfile.profilePhotoKey;
+    }
     if (profilePhotoUrl && !profilePhotoUrl.startsWith('http')) {
       try {
         profilePhotoUrl = await this.storageService.getDownloadUrl(profilePhotoUrl);
