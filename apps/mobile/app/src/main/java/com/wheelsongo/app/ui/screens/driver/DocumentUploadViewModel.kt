@@ -64,7 +64,12 @@ data class DocumentState(
     val errorMessage: String? = null,
     val fileUri: String? = null,
     val isPendingSync: Boolean = false,
-    val downloadUrl: String? = null
+    val downloadUrl: String? = null,
+    // True when the server says this document exists (UPLOADED/VERIFIED) but
+    // no downloadUrl came back (e.g., transient R2 presign failure). UI
+    // should show the card as uploaded with a "Refresh" action rather than
+    // silently rendering a broken preview.
+    val downloadUnavailable: Boolean = false
 )
 
 /**
@@ -134,33 +139,44 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                     val docType = DocumentType.entries.find { it.apiName == doc.type }
                         ?: continue
 
-                    when (doc.status) {
-                        // Treat UPLOADED + VERIFIED as "submitted and visible".
-                        // Previously we only matched UPLOADED, which made docs
-                        // disappear the moment admin approved them.
-                        "UPLOADED", "VERIFIED", "APPROVED" -> {
+                    // Source of truth for "this exists on the server": a
+                    // non-null downloadUrl OR a status that means uploaded.
+                    // Matching on downloadUrl first keeps the client working
+                    // even if new status labels are introduced server-side.
+                    val isUploadedStatus = doc.status == "UPLOADED" ||
+                        doc.status == "VERIFIED" ||
+                        doc.status == "APPROVED"
+
+                    when {
+                        doc.status == "REJECTED" -> {
+                            updateDocumentState(docType) {
+                                it.copy(
+                                    isUploaded = false,
+                                    isUploading = false,
+                                    uploadProgress = 0f,
+                                    downloadUrl = null,
+                                    downloadUnavailable = false,
+                                    errorMessage = doc.rejectionReason
+                                        ?: "Document was rejected. Please re-upload a clear photo."
+                                )
+                            }
+                        }
+                        doc.downloadUrl != null || isUploadedStatus -> {
                             updateDocumentState(docType) {
                                 it.copy(
                                     isUploaded = true,
                                     isUploading = false,
                                     uploadProgress = 1f,
                                     downloadUrl = doc.downloadUrl,
+                                    // Flag when server says uploaded but we
+                                    // couldn't get a viewable URL so the UI
+                                    // can offer a Refresh action.
+                                    downloadUnavailable = doc.downloadUrl == null && isUploadedStatus,
                                     errorMessage = null
                                 )
                             }
                         }
-                        "REJECTED" -> {
-                            updateDocumentState(docType) {
-                                it.copy(
-                                    isUploaded = false,
-                                    isUploading = false,
-                                    uploadProgress = 0f,
-                                    errorMessage = doc.rejectionReason
-                                        ?: "Document was rejected. Please re-upload a clear photo."
-                                )
-                            }
-                        }
-                        else -> { /* PENDING_UPLOAD or unknown — leave as-is */ }
+                        // PENDING_UPLOAD or unknown with no url — leave as-is
                     }
                 }
             } catch (_: Exception) {
@@ -300,16 +316,25 @@ class DocumentUploadViewModel @JvmOverloads constructor(
                 return
             }
 
-            // Upload complete (UPLOADED or VERIFIED)
+            // Upload complete (UPLOADED or VERIFIED). downloadUrl will be
+            // populated on the next refreshKycStatus() call — e.g. when the
+            // screen resumes or when the user taps View.
             updateDocumentState(documentType) {
                 it.copy(
                     isUploading = false,
                     isUploaded = true,
                     uploadProgress = 1f,
                     fileUri = fileUri.toString(),
-                    isPendingSync = false
+                    isPendingSync = false,
+                    downloadUnavailable = false,
+                    errorMessage = null
                 )
             }
+            // Refresh so the fresh presigned downloadUrl is available for
+            // immediate viewing, and so User.profilePhotoUrl (now set by the
+            // backend for PROFILE_PHOTO uploads) propagates to the avatar
+            // shown on the Settings screen the next time it's opened.
+            refreshKycStatus()
         } catch (e: Exception) {
             updateDocumentState(documentType) {
                 it.copy(

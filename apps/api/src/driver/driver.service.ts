@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -26,6 +27,8 @@ import { AdminDriverListQueryDto } from './dto/admin-driver-list.dto';
 
 @Injectable()
 export class DriverService {
+  private readonly logger = new Logger(DriverService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
@@ -168,6 +171,11 @@ export class DriverService {
           profilePhotoKey: updated.storageKey,
           profilePhotoUploadedAt: new Date(),
         },
+      });
+      // Sync onto User.profilePhotoUrl so GET /auth/me (and the Settings avatar) reflects it.
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { profilePhotoUrl: updated.storageKey } as any,
       });
     }
 
@@ -437,11 +445,20 @@ export class DriverService {
     return Promise.all(
       documents.map(async (doc) => {
         if ((doc.status === DocumentStatus.UPLOADED || doc.status === DocumentStatus.VERIFIED) && doc.storageKey) {
-          const downloadUrl = await this.storageService.getDownloadUrl(
-            doc.storageKey,
-            900,
-          );
-          return { ...doc, downloadUrl };
+          try {
+            const downloadUrl = await this.storageService.getDownloadUrl(
+              doc.storageKey,
+              900,
+            );
+            return { ...doc, downloadUrl };
+          } catch (err) {
+            // Don't fail the whole request if one presign fails — let the
+            // client render an "uploaded but unviewable" state and retry.
+            this.logger.warn(
+              `Failed to presign document ${doc.id} (type=${doc.type}, keyLen=${doc.storageKey?.length ?? 0}): ${(err as Error)?.message ?? err}`,
+            );
+            return { ...doc, downloadUrl: null };
+          }
         }
         return { ...doc, downloadUrl: null };
       }),

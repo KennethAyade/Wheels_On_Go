@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -163,17 +167,19 @@ fun DocumentUploadScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(uiState.documents) { document ->
+                    val launchPicker = {
+                        pendingDocumentType = document.type
+                        filePickerLauncher.launch(arrayOf("image/jpeg", "image/png"))
+                    }
                     DocumentCard(
                         documentState = document,
-                        onClick = {
-                            if (document.isUploaded && document.downloadUrl != null) {
-                                previewDocument = document
-                            } else {
-                                pendingDocumentType = document.type
-                                filePickerLauncher.launch(arrayOf("image/jpeg", "image/png"))
-                            }
+                        onUpload = launchPicker,
+                        onReplace = launchPicker,
+                        onView = {
+                            if (document.downloadUrl != null) previewDocument = document
                         },
-                        onRemove = { viewModel.onRemoveDocument(document.type) }
+                        onRemove = { viewModel.onRemoveDocument(document.type) },
+                        onRefresh = { viewModel.refreshKycStatus() }
                     )
                 }
 
@@ -219,16 +225,30 @@ fun DocumentUploadScreen(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = previewDocument!!.type.title,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Header row with title + explicit X close button.
+                    // The outside-tap and bottom Close button still work;
+                    // the X gives an obvious affordance that matches
+                    // platform conventions for closing a modal.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = previewDocument!!.type.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { previewDocument = null }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     AsyncImage(
                         model = previewDocument!!.downloadUrl,
@@ -240,10 +260,15 @@ fun DocumentUploadScreen(
                         contentScale = ContentScale.Fit
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    TextButton(onClick = { previewDocument = null }) {
-                        Text("Close")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { previewDocument = null }) {
+                            Text("Close")
+                        }
                     }
                 }
             }
@@ -252,22 +277,24 @@ fun DocumentUploadScreen(
 }
 
 /**
- * Card for individual document upload
+ * Card for individual document upload.
+ *
+ * No longer whole-card clickable — each action (Upload, View, Replace,
+ * Delete, Refresh) is an explicit button so users can't accidentally edit
+ * a document they only wanted to view.
  */
 @Composable
 private fun DocumentCard(
     documentState: DocumentState,
-    onClick: () -> Unit,
+    onUpload: () -> Unit,
+    onView: () -> Unit,
+    onReplace: () -> Unit,
     onRemove: () -> Unit,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = !documentState.isUploading,
-                onClick = onClick
-            ),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -281,101 +308,189 @@ private fun DocumentCard(
             }
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Status icon
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(
-                        when {
-                            documentState.isUploaded -> MaterialTheme.colorScheme.primaryContainer
-                            documentState.isUploading -> MaterialTheme.colorScheme.surfaceVariant
-                            else -> MaterialTheme.colorScheme.surfaceVariant
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Status icon
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (documentState.isUploaded) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        documentState.isUploading -> {
+                            CircularProgressIndicator(
+                                progress = { documentState.uploadProgress },
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
                         }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    documentState.isUploading -> {
-                        CircularProgressIndicator(
-                            progress = { documentState.uploadProgress },
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
+                        documentState.isUploaded -> {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Uploaded",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Upload",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
-                    documentState.isUploaded -> {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Uploaded",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Document info
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = documentState.type.title,
+                            style = MaterialTheme.typography.titleMedium
                         )
+                        if (documentState.type.isRequired) {
+                            Text(
+                                text = " *",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
-                    else -> {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Upload",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = when {
+                            documentState.isUploading -> "Uploading..."
+                            documentState.downloadUnavailable -> "Uploaded · preview unavailable, tap Refresh"
+                            documentState.isUploaded -> "Uploaded successfully"
+                            documentState.errorMessage != null -> documentState.errorMessage
+                            else -> documentState.type.description
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when {
+                            documentState.errorMessage != null -> MaterialTheme.colorScheme.error
+                            documentState.downloadUnavailable -> WheelsOnGoTextSecondary
+                            documentState.isUploaded -> MaterialTheme.colorScheme.primary
+                            else -> WheelsOnGoTextSecondary
+                        }
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Document info
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = documentState.type.title,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    if (documentState.type.isRequired) {
-                        Text(
-                            text = " *",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = when {
-                        documentState.isUploading -> "Uploading..."
-                        documentState.isUploaded -> "Uploaded successfully · Tap to view"
-                        documentState.errorMessage != null -> documentState.errorMessage
-                        else -> documentState.type.description
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = when {
-                        documentState.errorMessage != null -> MaterialTheme.colorScheme.error
-                        documentState.isUploaded -> MaterialTheme.colorScheme.primary
-                        else -> WheelsOnGoTextSecondary
-                    }
+            // Action row — only rendered when there's something to do.
+            // Uploading state intentionally shows no actions.
+            if (!documentState.isUploading) {
+                Spacer(modifier = Modifier.height(12.dp))
+                DocumentActionRow(
+                    documentState = documentState,
+                    onUpload = onUpload,
+                    onView = onView,
+                    onReplace = onReplace,
+                    onRemove = onRemove,
+                    onRefresh = onRefresh
                 )
             }
+        }
+    }
+}
 
-            // Remove button (only when uploaded)
-            if (documentState.isUploaded) {
-                IconButton(
-                    onClick = onRemove,
-                    modifier = Modifier.size(40.dp)
-                ) {
+@Composable
+private fun DocumentActionRow(
+    documentState: DocumentState,
+    onUpload: () -> Unit,
+    onView: () -> Unit,
+    onReplace: () -> Unit,
+    onRemove: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End
+    ) {
+        when {
+            documentState.isUploaded && documentState.downloadUnavailable -> {
+                OutlinedButton(onClick = onRefresh) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Refresh")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(onClick = onReplace) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Replace")
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
                         contentDescription = "Remove",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+            documentState.isUploaded -> {
+                OutlinedButton(onClick = onView) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("View")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(onClick = onReplace) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Replace")
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remove",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            else -> {
+                // Not uploaded — may or may not carry a prior rejection
+                // message. Button label shifts so the user understands this
+                // is a re-upload, not a fresh slot.
+                val label = if (documentState.errorMessage != null) "Re-upload" else "Upload"
+                OutlinedButton(onClick = onUpload) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(label)
                 }
             }
         }
