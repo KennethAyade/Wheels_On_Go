@@ -14,7 +14,10 @@
     "prisma:studio": "prisma studio",
     "test": "jest",
     "test:watch": "jest --watch",
-    "seed:admin": "ts-node prisma/seed-admin.ts"
+    "seed:admin": "ts-node prisma/seed-admin.ts",
+    "seed:demo-dashboard": "ts-node prisma/seed-dashboard-demo.ts",
+    "topup:demo-dashboard": "ts-node prisma/topup-dashboard-demo.ts",
+    "cleanup:demo-dashboard": "ts-node prisma/cleanup-dashboard-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",

@@ -13,15 +13,12 @@ export class AdminStatsController {
 
   @Get()
   async getStats() {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
     const [
       activeRides,
       onlineDrivers,
       totalRiders,
       pendingVerifications,
-      todayRevenue,
+      totalRevenue,
       driversFaceEnrolled,
       driversOnCooldown,
     ] = await Promise.all([
@@ -38,10 +35,7 @@ export class AdminStatsController {
           where: { status: 'PENDING' },
         }),
         this.prisma.ride.aggregate({
-          where: {
-            status: 'COMPLETED',
-            completedAt: { gte: todayStart },
-          },
+          where: { status: 'COMPLETED' },
           _sum: { totalFare: true },
         }),
         this.prisma.driverProfile.count({
@@ -52,12 +46,14 @@ export class AdminStatsController {
         }),
       ]);
 
+    const revenue = Number(totalRevenue._sum.totalFare || 0);
     return {
       activeRides,
       onlineDrivers,
       totalRiders,
       pendingVerifications,
-      todayRevenue: Number(todayRevenue._sum.totalFare || 0),
+      totalRevenue: revenue,
+      todayRevenue: revenue,
       driversFaceEnrolled,
       driversOnCooldown,
     };

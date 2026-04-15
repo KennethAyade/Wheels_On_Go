@@ -11,7 +11,7 @@ const defaultStats: DashboardStats = {
   onlineDrivers: 0,
   totalRiders: 0,
   pendingVerifications: 0,
-  todayRevenue: 0,
+  totalRevenue: 0,
   driversFaceEnrolled: 0,
   driversOnCooldown: 0,
 };
@@ -44,15 +44,15 @@ export default function DashboardPage() {
       link: '/bookings',
     },
     {
-      label: 'Total Revenue Today (in PHP)',
-      value: stats.todayRevenue.toLocaleString(),
+      label: 'Total Revenue (in PHP)',
+      value: (stats.totalRevenue ?? 0).toLocaleString(),
       icon: DollarSign,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
       link: null,
     },
     {
-      label: 'Online Drivers',
+      label: 'Drivers',
       value: stats.onlineDrivers,
       icon: Car,
       color: 'text-purple-600',
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       link: '/drivers',
     },
     {
-      label: 'Online Customers',
+      label: 'Car Owners',
       value: stats.totalRiders,
       icon: Users,
       color: 'text-orange-600',
