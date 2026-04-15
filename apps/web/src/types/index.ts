@@ -17,7 +17,7 @@ export interface DashboardStats {
   onlineDrivers: number;
   totalRiders: number;
   pendingVerifications: number;
-  todayRevenue: number;
+  totalRevenue: number;
   driversFaceEnrolled: number;
   driversOnCooldown: number;
 }
