@@ -46,12 +46,14 @@ export class AdminStatsController {
         }),
       ]);
 
+    const revenue = Number(totalRevenue._sum.totalFare || 0);
     return {
       activeRides,
       onlineDrivers,
       totalRiders,
       pendingVerifications,
-      totalRevenue: Number(totalRevenue._sum.totalFare || 0),
+      totalRevenue: revenue,
+      todayRevenue: revenue,
       driversFaceEnrolled,
       driversOnCooldown,
     };

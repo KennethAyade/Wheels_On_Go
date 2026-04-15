@@ -45,7 +45,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Total Revenue (in PHP)',
-      value: stats.totalRevenue.toLocaleString(),
+      value: (stats.totalRevenue ?? 0).toLocaleString(),
       icon: DollarSign,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
