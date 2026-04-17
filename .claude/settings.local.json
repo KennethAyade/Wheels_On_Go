@@ -113,7 +113,10 @@
       "Read(//c/Program Files/Microsoft/**)",
       "Bash(\"/c/Program Files/Java/jdk-22/bin/keytool.exe\" -list -v -keystore \"$USERPROFILE/.android/debug.keystore\" -alias androiddebugkey -storepass android)",
       "Bash(awk -F' >' '{print $1}')",
-      "Bash(./gradlew.bat :app:compileDebugKotlin --console=plain)"
+      "Bash(./gradlew.bat :app:compileDebugKotlin --console=plain)",
+      "Bash(npm run *)",
+      "WebSearch",
+      "WebFetch(domain:ai.google.dev)"
     ]
   }
 }

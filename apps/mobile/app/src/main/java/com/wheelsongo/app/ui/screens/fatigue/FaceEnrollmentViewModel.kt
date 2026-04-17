@@ -7,6 +7,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheelsongo.app.data.models.fatigue.FaceEnrollRequest
 import com.wheelsongo.app.data.network.ApiClient
+import com.wheelsongo.app.utils.FaceLivenessCheck
+import com.wheelsongo.app.utils.FaceLivenessResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +34,15 @@ class FaceEnrollmentViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isEnrolling = true, errorMessage = null) }
 
             try {
+                // Validate face on-device before sending to backend
+                val livenessResult = FaceLivenessCheck.check(bitmap)
+                if (livenessResult != FaceLivenessResult.Valid) {
+                    _uiState.update {
+                        it.copy(isEnrolling = false, errorMessage = FaceLivenessCheck.userMessageFor(livenessResult))
+                    }
+                    return@launch
+                }
+
                 val base64 = encodeBitmapToBase64(bitmap)
                 val response = ApiClient.fatigueApi.enrollFace(FaceEnrollRequest(base64))
 
@@ -56,9 +67,9 @@ class FaceEnrollmentViewModel @JvmOverloads constructor(
     }
 
     private fun encodeBitmapToBase64(bitmap: Bitmap): String {
-        val scaled = scaleBitmap(bitmap, maxDimension = 640)
+        val scaled = scaleBitmap(bitmap, maxDimension = 1024)
         val outputStream = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
+        scaled.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
         val bytes = outputStream.toByteArray()
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }

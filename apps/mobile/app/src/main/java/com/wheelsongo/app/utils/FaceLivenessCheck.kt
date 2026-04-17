@@ -24,7 +24,7 @@ object FaceLivenessCheck {
     private val detector by lazy {
         FaceDetection.getClient(
             FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
                 .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                 .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
                 .build()

@@ -100,12 +100,12 @@ class BiometricVerificationViewModel @JvmOverloads constructor(
 
     /**
      * Encode a Bitmap to Base64 JPEG string.
-     * Scales down to max 640px on longest side to keep payload small.
+     * Scales down to max 1024px on longest side to keep payload small.
      */
     private fun encodeBitmapToBase64(bitmap: Bitmap): String {
-        val scaled = scaleBitmap(bitmap, maxDimension = 640)
+        val scaled = scaleBitmap(bitmap, maxDimension = 1024)
         val outputStream = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
+        scaled.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
         val bytes = outputStream.toByteArray()
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }

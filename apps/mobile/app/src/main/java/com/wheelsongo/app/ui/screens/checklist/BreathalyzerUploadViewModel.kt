@@ -130,6 +130,10 @@ class BreathalyzerUploadViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
+    fun setError(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
+    }
+
     fun resetForRetry() {
         _uiState.update {
             it.copy(

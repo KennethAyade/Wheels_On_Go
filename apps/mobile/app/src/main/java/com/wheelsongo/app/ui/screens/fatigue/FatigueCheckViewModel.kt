@@ -84,9 +84,9 @@ class FatigueCheckViewModel @JvmOverloads constructor(
     }
 
     private fun encodeBitmapToBase64(bitmap: Bitmap): String {
-        val scaled = scaleBitmap(bitmap, maxDimension = 640)
+        val scaled = scaleBitmap(bitmap, maxDimension = 1024)
         val outputStream = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
+        scaled.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
         val bytes = outputStream.toByteArray()
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }

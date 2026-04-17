@@ -193,15 +193,19 @@ fun BreathalyzerUploadScreen(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            val context = viewModel.getApplication<android.app.Application>()
-                            val photoFile = File(context.cacheDir, "breathalyzer_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                photoFile
-                            )
-                            cameraUri.value = uri
-                            cameraLauncher.launch(uri)
+                            try {
+                                val context = viewModel.getApplication<android.app.Application>()
+                                val photoFile = File(context.cacheDir, "breathalyzer_${System.currentTimeMillis()}.jpg")
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    photoFile
+                                )
+                                cameraUri.value = uri
+                                cameraLauncher.launch(uri)
+                            } catch (e: Exception) {
+                                viewModel.setError("Camera is unavailable. Please use Gallery instead.")
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     ) {
